@@ -11393,3 +11393,186 @@ button.object-tree-row {
   background: rgba(245,158,11,.05) !important;
   color: #d8aa61 !important;
 }
+
+/* Pane Linking V1 ---------------------------------------------------------- */
+.pane-link-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pane-link-button {
+  min-height: 29px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(148,163,184,.075);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: rgba(148,163,184,.025);
+  color: #66758a;
+  cursor: pointer;
+  font-size: 7px;
+}
+
+.pane-link-button:hover,
+.pane-link-button.active {
+  border-color: rgba(124,131,255,.17);
+  background: rgba(124,131,255,.065);
+  color: #a2a9ed;
+}
+
+.pane-link-button:disabled {
+  opacity: .34;
+  cursor: default;
+}
+
+.pane-link-button b {
+  min-width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(124,131,255,.10);
+  color: #a7adf3;
+  font-size: 6px;
+}
+
+.pane-link-popover {
+  position: absolute;
+  z-index: 85;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(330px, 88vw);
+  border: 1px solid rgba(148,163,184,.11);
+  border-radius: 9px;
+  background:
+    radial-gradient(circle at 72% -10%, rgba(124,131,255,.08), transparent 30%),
+    #080d16;
+  box-shadow: 0 24px 70px rgba(0,0,0,.54);
+  overflow: hidden;
+}
+
+.pane-link-head {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 8px 9px;
+  border-bottom: 1px solid rgba(148,163,184,.055);
+}
+
+.pane-link-head strong,
+.pane-link-head small {
+  display: block;
+}
+
+.pane-link-head strong {
+  color: #aeb8c7;
+  font-size: 8px;
+}
+
+.pane-link-head small {
+  margin-top: 2px;
+  color: #526075;
+  font-size: 6px;
+}
+
+.pane-link-row {
+  width: 100%;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(148,163,184,.045);
+  padding: 7px 9px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+
+.pane-link-row:hover {
+  background: rgba(124,131,255,.035);
+}
+
+.pane-link-row.active {
+  background: rgba(34,201,154,.045);
+}
+
+.pane-link-row:disabled {
+  opacity: .46;
+  cursor: default;
+}
+
+.pane-link-row span strong,
+.pane-link-row span small {
+  display: block;
+}
+
+.pane-link-row span strong {
+  color: #9ca8b8;
+  font-size: 8px;
+}
+
+.pane-link-row span small {
+  margin-top: 2px;
+  color: #526075;
+  font-size: 6px;
+  line-height: 1.45;
+}
+
+.pane-link-row > b {
+  min-width: 34px;
+  padding: 4px 5px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.045);
+  color: #5f6d81;
+  font-size: 6px;
+  text-align: center;
+}
+
+.pane-link-row.active > b {
+  background: rgba(34,201,154,.08);
+  color: #72c5a8;
+}
+
+.pane-link-note {
+  padding: 8px 9px;
+  background: rgba(245,158,11,.035);
+  color: #7e6d52;
+  font-size: 6px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .pane-link-popover {
+    left: auto;
+    right: 0;
+  }
+}
+
+
+/* Drawing Alerts V1 ------------------------------------------------------- */
+.object-tree-action-message {
+  margin: 7px 8px 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(34,201,154,.10);
+  border-radius: 7px;
+  background: rgba(15,65,51,.12);
+  color: #77c7aa;
+  font-size: 7px;
+  line-height: 1.55;
+}
+
+.object-tree-alert-action {
+  border-color: rgba(245,158,11,.08) !important;
+  color: #b78b48 !important;
+}
+
+.object-tree-alert-action:hover {
+  border-color: rgba(245,158,11,.16) !important;
+  background: rgba(245,158,11,.05) !important;
+  color: #d8aa61 !important;
+}
