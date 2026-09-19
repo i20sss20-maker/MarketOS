@@ -1,0 +1,11 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "MARKETOS_INTERNAL_SWEEP_URL": "https://example.azurestaticapps.net/api/internal/alerts/sweep",
+    "MARKETOS_WORKER_SECRET": "",
+    "ALERT_SWEEP_SCHEDULE": "0 */5 * * * *",
+    "ALERT_SWEEP_MAX_PAGES": "5"
+  }
+}
