@@ -13,6 +13,7 @@ type Props = {
   prompt: string;
   aiLoading: boolean;
   multiTimeframeLoading: boolean;
+  multiTimeframeEnabled: boolean;
   aiResult: AiResult | null;
   multiTimeframeResult: MultiTimeframeAnalysisResponse | null;
   multiTimeframeError: string | null;
@@ -42,6 +43,7 @@ export default function CommercialAiPanel({
   prompt,
   aiLoading,
   multiTimeframeLoading,
+  multiTimeframeEnabled,
   aiResult,
   multiTimeframeResult,
   multiTimeframeError,
@@ -105,13 +107,24 @@ export default function CommercialAiPanel({
       </div>
 
       <button
-        className="multi-timeframe-button"
+        className={multiTimeframeEnabled ? "multi-timeframe-button" : "multi-timeframe-button locked"}
         onClick={onMultiTimeframe}
         disabled={multiTimeframeLoading}
+        title={multiTimeframeEnabled ? "تحليل متعدد الفريمات" : "يتطلب MarketOS Pro"}
       >
         <span>Multi‑Timeframe AI</span>
-        <small>15m · 1h · 4h · 1d</small>
-        <b>{multiTimeframeLoading ? "…" : "↗"}</b>
+        <small>
+          {multiTimeframeEnabled
+            ? "15m · 1h · 4h · 1d"
+            : "يتطلب Pro"}
+        </small>
+        <b>
+          {multiTimeframeLoading
+            ? "…"
+            : multiTimeframeEnabled
+              ? "↗"
+              : "🔒"}
+        </b>
       </button>
 
       <div className="prompt-box">
