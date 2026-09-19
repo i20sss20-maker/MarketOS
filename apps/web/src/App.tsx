@@ -23,6 +23,7 @@ import CommercialAiPanel from "./components/CommercialAiPanel";
 import CommercialWatchlistPanel from "./components/CommercialWatchlistPanel";
 import DrawingToolIcon from "./components/DrawingToolIcon";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
+import AlertInboxPanel from "./components/AlertInboxPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
@@ -93,6 +94,11 @@ import {
   toggleAlertEnabled,
 } from "./lib/alerts";
 import { checkServerAlerts } from "./lib/serverAlertsApi";
+import {
+  getAlertInbox,
+  updateAlertInbox,
+  type AlertInboxEvent,
+} from "./lib/alertInboxApi";
 import type { IndicatorId, IndicatorSelection } from "./lib/indicators";
 import {
   indicatorCatalog,
@@ -353,6 +359,10 @@ export default function App() {
 
   const [alerts, setAlerts] = useState<AdvancedAlert[]>(() => loadAlerts(timeframe));
   const [showAlertMenu, setShowAlertMenu] = useState(false);
+  const [showAlertInbox, setShowAlertInbox] = useState(false);
+  const [alertInboxEvents, setAlertInboxEvents] = useState<AlertInboxEvent[]>([]);
+  const [alertInboxLoading, setAlertInboxLoading] = useState(false);
+  const [alertInboxError, setAlertInboxError] = useState<string | null>(null);
   const [alertsChecking, setAlertsChecking] = useState(false);
   const [serverAlertsChecking, setServerAlertsChecking] = useState(false);
   const [alertCheckMessage, setAlertCheckMessage] = useState<string | null>(null);
@@ -410,6 +420,51 @@ export default function App() {
       );
     } finally {
       setCloudBusy(false);
+    }
+  }, [authUser]);
+
+  const refreshAlertInbox = useCallback(async () => {
+    if (!authUser) {
+      setAlertInboxEvents([]);
+      setAlertInboxError(null);
+      return;
+    }
+
+    setAlertInboxLoading(true);
+    setAlertInboxError(null);
+    try {
+      const response = await getAlertInbox();
+      setAlertInboxEvents(response.events);
+    } catch (error) {
+      setAlertInboxError(
+        error instanceof Error
+          ? error.message
+          : "تعذر تحميل سجل التنبيهات.",
+      );
+    } finally {
+      setAlertInboxLoading(false);
+    }
+  }, [authUser]);
+
+  const mutateAlertInbox = useCallback(async (
+    action: "mark-read" | "mark-all-read" | "clear-read" | "clear-all",
+    ids?: string[],
+  ) => {
+    if (!authUser) return;
+
+    setAlertInboxLoading(true);
+    setAlertInboxError(null);
+    try {
+      const response = await updateAlertInbox(action, ids);
+      setAlertInboxEvents(response.events);
+    } catch (error) {
+      setAlertInboxError(
+        error instanceof Error
+          ? error.message
+          : "تعذر تحديث سجل التنبيهات.",
+      );
+    } finally {
+      setAlertInboxLoading(false);
     }
   }, [authUser]);
 
@@ -493,6 +548,8 @@ export default function App() {
             }
           : null,
       );
+      setAlertInboxEvents([]);
+      setShowAlertInbox(false);
       setCloudMessage("تم حذف النسخة السحابية.");
     } catch (error) {
       setCloudError(
@@ -552,6 +609,29 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      setAlertInboxEvents([]);
+      setAlertInboxError(null);
+      return;
+    }
+
+    void refreshAlertInbox();
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshAlertInbox();
+      }
+    };
+    const interval = window.setInterval(refreshIfVisible, 5 * 60_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [authUser, refreshAlertInbox]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1768,6 +1848,8 @@ export default function App() {
         saveAlerts(nextAlerts);
       }
 
+      await refreshAlertInbox();
+
       setAlertCheckMessage(
         [
           `سحابي: تم فحص ${result.checkedGroups} مجموعة رمز/فريم`,
@@ -2430,6 +2512,7 @@ export default function App() {
         connected={dataState !== "loading"}
         sessionLabel={sessionLabel}
         alertCount={activeAlerts.length}
+        alertInboxCount={alertInboxEvents.filter((event) => !event.readAt).length}
         eventCount={marketEvents.length}
         companyCount={companyReleases.length}
         watchlistOpen={watchlistOpen}
@@ -2438,6 +2521,14 @@ export default function App() {
         onToggleAi={toggleAiPanel}
         onMarket={openScreener}
         onAlerts={() => setShowAlertMenu(true)}
+        onAlertInbox={() => {
+          if (!authUser) {
+            setShowAccountPanel(true);
+            return;
+          }
+          setShowAlertInbox(true);
+          void refreshAlertInbox();
+        }}
         onOverview={() => setShowInstrumentOverview(true)}
         onCorrelation={() => setShowCorrelation(true)}
         onEvents={openEvents}
@@ -2595,6 +2686,22 @@ export default function App() {
         onCheckAll={() => void checkAllAdvancedAlerts()}
         onServerCheck={() => void checkServerAdvancedAlerts()}
         onClose={() => setShowAlertMenu(false)}
+      />
+
+      <AlertInboxPanel
+        open={showAlertInbox}
+        events={alertInboxEvents}
+        loading={alertInboxLoading}
+        error={alertInboxError}
+        onClose={() => setShowAlertInbox(false)}
+        onRefresh={() => void refreshAlertInbox()}
+        onMarkRead={(id) => void mutateAlertInbox("mark-read", [id])}
+        onMarkAllRead={() => void mutateAlertInbox("mark-all-read")}
+        onClearRead={() => void mutateAlertInbox("clear-read")}
+        onSelectSymbol={(symbol) => {
+          chooseSymbol(symbol);
+          setShowAlertInbox(false);
+        }}
       />
 
       <SystemPanel
