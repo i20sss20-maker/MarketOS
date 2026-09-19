@@ -468,24 +468,104 @@ export default function App() {
     }
   }, [authUser]);
 
+  const syncLocalStateToCloud = async () => {
+    const localState = collectLocalCloudState();
+    const latest = await getCloudState();
+
+    if (latest.state) {
+      if (
+        !cloudState?.state ||
+        cloudState.clientRevision !== latest.clientRevision
+      ) {
+        setCloudState(latest);
+        throw new Error("CLOUD_CLIENT_CONFLICT");
+      }
+
+      if (
+        cloudState.serverRevision !== latest.serverRevision
+      ) {
+        const baselineAlerts = JSON.stringify(
+          cloudState.state.alerts ?? [],
+        );
+        const localAlerts = JSON.stringify(
+          localState.alerts ?? [],
+        );
+
+        if (baselineAlerts !== localAlerts) {
+          setCloudState(latest);
+          throw new Error("CLOUD_ALERT_CONFLICT");
+        }
+
+        // Only the server-side alert state changed.
+        // Preserve triggered/checked data before uploading local preferences.
+        localState.alerts = latest.state.alerts;
+      }
+    } else if (cloudState?.state) {
+      setCloudState(latest);
+      throw new Error("CLOUD_DELETED_CONFLICT");
+    }
+
+    const response = await putCloudState(
+      localState,
+      latest.clientRevision,
+      latest.serverRevision,
+    );
+
+    setCloudState(response);
+
+    return {
+      response,
+      replacedExisting: Boolean(latest.state),
+    };
+  };
+
+  const cloudConflictMessage = (
+    error: unknown,
+  ) => {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "";
+
+    if (message === "CLOUD_CLIENT_CONFLICT") {
+      return "توجد نسخة سحابية أحدث من جهاز أو جلسة أخرى. تم تحديث الحالة؛ راجعها قبل الرفع من جديد.";
+    }
+
+    if (message === "CLOUD_ALERT_CONFLICT") {
+      return "التنبيهات تغيرت محليًا وفي الخلفية في نفس الوقت. تم تحديث حالة السحابة؛ راجع التنبيهات قبل إعادة الرفع.";
+    }
+
+    if (message === "CLOUD_DELETED_CONFLICT") {
+      return "النسخة السحابية حُذفت من جلسة أخرى. تم تحديث الحالة؛ راجعها قبل إنشاء نسخة جديدة.";
+    }
+
+    if (
+      message.includes("Cloud state changed") ||
+      message.includes("cloud copy already exists")
+    ) {
+      return "تغيرت النسخة السحابية أثناء العملية. اضغط «تحديث الحالة» ثم أعد المحاولة.";
+    }
+
+    return message || "تعذر مزامنة بيانات الجهاز.";
+  };
+
   const uploadCurrentDeviceToCloud = async () => {
     if (!authUser) return;
+
     setCloudBusy(true);
     setCloudError(null);
     setCloudMessage(null);
 
     try {
-      const response = await putCloudState(
-        collectLocalCloudState(),
+      const result = await syncLocalStateToCloud();
+
+      setCloudMessage(
+        result.replacedExisting
+          ? "تم تحديث النسخة السحابية بأمان."
+          : "تم إنشاء أول نسخة سحابية لهذا الجهاز.",
       );
-      setCloudState(response);
-      setCloudMessage("تم حفظ بيانات هذا الجهاز في السحابة.");
     } catch (error) {
-      setCloudError(
-        error instanceof Error
-          ? error.message
-          : "تعذر رفع بيانات الجهاز.",
-      );
+      setCloudError(cloudConflictMessage(error));
     } finally {
       setCloudBusy(false);
     }
@@ -545,6 +625,8 @@ export default function App() {
               ...current,
               state: null,
               updatedAt: null,
+              clientRevision: null,
+              serverRevision: null,
             }
           : null,
       );
@@ -1829,10 +1911,7 @@ export default function App() {
     setAlertCheckMessage(null);
 
     try {
-      const uploaded = await putCloudState(
-        collectLocalCloudState(),
-      );
-      setCloudState(uploaded);
+      await syncLocalStateToCloud();
 
       const result = await checkServerAlerts();
 
