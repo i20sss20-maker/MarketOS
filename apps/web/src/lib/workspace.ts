@@ -98,7 +98,7 @@ function normalizePane(
   };
 }
 
-function normalizeWorkspace(value: unknown): SavedWorkspace | null {
+export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
   if (!value || typeof value !== "object") return null;
   const item = value as Partial<SavedWorkspace>;
 
@@ -215,7 +215,7 @@ export function createWorkspace(
     savedAt: Date.now(),
   };
 
-  return normalizeWorkspace(workspace) ?? workspace;
+  return normalizeSavedWorkspace(workspace) ?? workspace;
 }
 
 export function loadWatchlist(fallback: MarketSymbol[]): MarketSymbol[] {
