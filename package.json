@@ -11,7 +11,8 @@
     "smoke:market": "node scripts/market-smoke.mjs",
     "smoke:ai-chart": "node scripts/ai-chart-smoke.mjs",
     "smoke:events": "node scripts/events-smoke.mjs",
-    "smoke:azure": "node scripts/azure-preview-smoke.mjs"
+    "smoke:azure": "node scripts/azure-preview-smoke.mjs",
+    "prepare:azure-api": "node scripts/prepare-azure-api.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
