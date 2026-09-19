@@ -1,0 +1,15 @@
+{
+  "name": "marketos",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.15.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @marketos/web dev",
+    "dev:api": "pnpm --filter @marketos/api start",
+    "build": "pnpm --filter @marketos/market-core build && pnpm --filter @marketos/web build && pnpm --filter @marketos/api build",
+    "typecheck": "pnpm --filter @marketos/market-core build && pnpm --filter @marketos/web typecheck && pnpm --filter @marketos/api typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

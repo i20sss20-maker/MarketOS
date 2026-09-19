@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vite/
+coverage/
+.env
+.env.*
+!.env.example
+local.settings.json
+.DS_Store
+*.log
