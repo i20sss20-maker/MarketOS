@@ -8,6 +8,7 @@ import {
 type Props = {
   open: boolean;
   entitlement: ResolvedEntitlement;
+  message?: string | null;
   onClose: () => void;
 };
 
@@ -128,6 +129,7 @@ function PlanCard({
 export default function PlansPanel({
   open,
   entitlement,
+  message,
   onClose,
 }: Props) {
   if (!open) return null;
@@ -169,6 +171,12 @@ export default function PlansPanel({
             ×
           </button>
         </header>
+
+        {message ? (
+          <div className="plans-gate-message">
+            {message}
+          </div>
+        ) : null}
 
         <div className="plans-grid">
           {planOrder.map((planId) => (
