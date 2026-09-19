@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   Candle,
   ChartAnalysisResponse,
+  CompanyRelease,
   MarketDataStatus,
   MarketEvent,
   MarketOverviewItem,
@@ -10,13 +11,16 @@ import type {
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
+import { createBrowserDemoFeed } from "./lib/demoFeed";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
+import { getCompanyFeed } from "./lib/feedApi";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
 import {
@@ -169,6 +173,11 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showScreener, setShowScreener] = useState(false);
+  const [showCompanyFeed, setShowCompanyFeed] = useState(false);
+  const [companyReleases, setCompanyReleases] = useState<CompanyRelease[]>([]);
+  const [companyFeedProvider, setCompanyFeedProvider] = useState("demo-company-feed");
+  const [companyFeedLoading, setCompanyFeedLoading] = useState(false);
+  const [companyFeedError, setCompanyFeedError] = useState<string | null>(null);
   const [showStrategyTester, setShowStrategyTester] = useState(false);
   const [showSystemPanel, setShowSystemPanel] = useState(false);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
@@ -611,6 +620,56 @@ export default function App() {
     void refreshEvents(eventsRangeDays);
   };
 
+  const refreshCompanyFeed = useCallback(async () => {
+    const symbols = watchlist.slice(0, 8);
+    if (symbols.length === 0) {
+      setCompanyReleases([]);
+      setCompanyFeedError("أضف رموزًا إلى قائمة المتابعة لعرض إعلانات الشركات.");
+      return;
+    }
+
+    setCompanyFeedLoading(true);
+    setCompanyFeedError(null);
+
+    try {
+      const result = await getCompanyFeed(symbols, 3);
+      setCompanyReleases(result.releases);
+      setCompanyFeedProvider(result.provider);
+    } catch {
+      setCompanyReleases(createBrowserDemoFeed(symbols, 2));
+      setCompanyFeedProvider("browser-demo-company-feed");
+      setCompanyFeedError(
+        "تعذر الوصول لمصدر إعلانات الشركات، لذلك تظهر بيانات Sample للتجربة فقط.",
+      );
+    } finally {
+      setCompanyFeedLoading(false);
+    }
+  }, [watchlist]);
+
+  const openCompanyFeed = () => {
+    setShowCompanyFeed(true);
+    void refreshCompanyFeed();
+  };
+
+  const openCompanyFeedSymbol = (ticker: string) => {
+    const normalized = ticker.replace(/\s+/g, "").toUpperCase();
+    const symbol = watchlist.find(
+      (item) =>
+        item.ticker.replace(/\s+/g, "").toUpperCase() === normalized ||
+        (item.providerSymbol ?? "").replace(/\s+/g, "").toUpperCase() === normalized,
+    );
+
+    setShowCompanyFeed(false);
+
+    if (symbol) {
+      chooseSymbol(symbol);
+      return;
+    }
+
+    setQuery(ticker);
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  };
+
   const refreshSystemHealth = useCallback(async () => {
     setSystemHealthLoading(true);
     setSystemHealthError(null);
@@ -854,7 +913,8 @@ export default function App() {
         showEvents ||
         showSystemPanel ||
         showStrategyTester ||
-        showIndicatorLab
+        showIndicatorLab ||
+        showCompanyFeed
       ) {
         return;
       }
@@ -893,6 +953,7 @@ export default function App() {
     showSystemPanel,
     showStrategyTester,
     showIndicatorLab,
+    showCompanyFeed,
   ]);
 
   const chooseComparison = (symbol: MarketSymbol) => {
@@ -1230,6 +1291,10 @@ export default function App() {
             الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
           </button>
 
+          <button className="ghost-button company-feed-button" onClick={openCompanyFeed}>
+            الشركات {companyReleases.length > 0 ? `(${companyReleases.length})` : ""}
+          </button>
+
           <button className="ghost-button strategy-button" onClick={() => setShowStrategyTester(true)}>
             الاختبار
           </button>
@@ -1329,6 +1394,17 @@ export default function App() {
         symbol={active}
         timeframe={timeframe}
         onClose={() => setShowStrategyTester(false)}
+      />
+
+      <CompanyFeedPanel
+        open={showCompanyFeed}
+        releases={companyReleases}
+        provider={companyFeedProvider}
+        loading={companyFeedLoading}
+        error={companyFeedError}
+        onRefresh={() => void refreshCompanyFeed()}
+        onClose={() => setShowCompanyFeed(false)}
+        onSelectSymbol={openCompanyFeedSymbol}
       />
 
       <SystemPanel
