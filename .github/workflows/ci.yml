@@ -126,6 +126,9 @@ jobs:
       - name: Analyst Forecast engine smoke test
         run: pnpm smoke:analyst-forecast
 
+      - name: Analyst historical calibration smoke test
+        run: pnpm smoke:analyst-calibration
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
