@@ -36,6 +36,7 @@ This repository is **fully isolated** from every other project:
 - 1x / 2x chart layouts
 - historical Replay with replay-aware AI context
 - Replay V2 with selectable start point, 0.5×–8× speeds, multi-bar jumps and live session statistics
+- independent pane links for symbol, timeframe and range/zoom, persisted in Workspace V4
 - watchlists and saved workspaces
 - Instrument Overview with Replay-safe performance, volatility, range and volume statistics
 - local and cloud-evaluated advanced alerts
