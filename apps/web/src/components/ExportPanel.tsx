@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 type Props = {
   open: boolean;
   ticker: string;
@@ -25,6 +26,17 @@ export default function ExportPanel({
   onCopyLink,
   onClose,
 }: Props) {
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
