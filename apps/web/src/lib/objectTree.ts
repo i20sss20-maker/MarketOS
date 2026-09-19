@@ -21,7 +21,7 @@ export function normalizeObjectQuery(
   value: string,
 ) {
   return value
-    .normalize("NFKD")
+    .normalize("NFC")
     .replace(/[\u064B-\u065F\u0670]/g, "")
     .toLocaleLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
