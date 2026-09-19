@@ -111,6 +111,19 @@ export default function SystemPanel({
 
                 <article className="system-service-card">
                   <div className="system-service-title">
+                    <StatusDot mode={health.companyFeed.mode} />
+                    <strong>Company Feed</strong>
+                  </div>
+                  <span className="system-service-provider">{health.companyFeed.provider}</span>
+                  <small>
+                    {health.companyFeed.mode === "provider"
+                      ? "إعلانات شركات خارجية متصلة"
+                      : "إعلانات Demo للتطوير"}
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
                     <StatusDot mode={health.ai.mode} />
                     <strong>AI Engine</strong>
                   </div>
