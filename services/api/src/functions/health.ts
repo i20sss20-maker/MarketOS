@@ -1,5 +1,6 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { marketEventsProvider } from "../events/index.js";
+import { companyFeedProvider } from "../feed/index.js";
 import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 
@@ -14,7 +15,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   return json(200, {
       ok: true,
       service: "marketos-api",
-      version: "0.3.0",
+      version: "0.4.0",
       environment,
       buildSha: buildSha.slice(0, 12),
       generatedAt: Math.floor(Date.now() / 1000),
@@ -22,6 +23,10 @@ export async function health(_request: HttpRequest, context: InvocationContext):
       marketEvents: {
         provider: marketEventsProvider.id,
         mode: marketEventsProvider.id.includes("demo") ? "demo" : "provider",
+      },
+      companyFeed: {
+        provider: companyFeedProvider.id,
+        mode: companyFeedProvider.id.includes("demo") ? "demo" : "provider",
       },
     ai: {
       provider: aiProvider,
