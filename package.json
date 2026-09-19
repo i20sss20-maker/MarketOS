@@ -27,6 +27,7 @@
     "smoke:cloud-state": "node scripts/cloud-state-smoke.mjs",
     "smoke:server-alerts": "node scripts/server-alerts-smoke.mjs",
     "smoke:alert-inbox": "node scripts/alert-inbox-smoke.mjs",
+    "smoke:web-push": "node scripts/web-push-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
     "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
     "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",
