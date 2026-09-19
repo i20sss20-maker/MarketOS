@@ -2846,7 +2846,15 @@ export default function App() {
         ? "صعودًا"
         : "هبوطًا";
 
-    return `تم إنشاء تنبيه ${active.ticker} عند ${formatPrice(spec.value)} ${direction}. استخدم الفحص السحابي لمزامنته وتشغيله بالخلفية.`;
+    const backgroundHint =
+      canUseFeature(
+        entitlement,
+        "backgroundAlerts",
+      )
+        ? " استخدم الفحص السحابي لمزامنته حتى يعمل مع الفحص بالخلفية."
+        : " تمّت إضافته إلى تنبيهاتك المحلية؛ الفحص بالخلفية يتطلب خطة تدعمه.";
+
+    return `تم إنشاء تنبيه ${active.ticker} عند ${formatPrice(spec.value)} ${direction}.${backgroundHint}`;
   };
 
   const deleteAlert = (id: string) => {
