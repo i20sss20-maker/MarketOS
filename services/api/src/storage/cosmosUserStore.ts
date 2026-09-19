@@ -3,6 +3,7 @@ import {
   UserStateConflictError,
   type AlertInboxEvent,
   type PushSubscriptionRecord,
+  type PushSubscriptionUpdater,
   type StoredUserState,
   type UserCloudState,
   type UserStatePutOptions,
@@ -213,7 +214,6 @@ export class CosmosUserStateStore implements UserStateStore {
     userId: string,
     alerts: unknown[],
     alertEvents?: AlertInboxEvent[],
-    pushSubscriptions?: PushSubscriptionRecord[],
   ) {
     const container = await this.container();
 
@@ -236,10 +236,6 @@ export class CosmosUserStateStore implements UserStateStore {
           alertEvents:
             alertEvents ??
             existing.payload.alertEvents ??
-            [],
-          pushSubscriptions:
-            pushSubscriptions ??
-            existing.payload.pushSubscriptions ??
             [],
           updatedAt: now,
         },
@@ -274,7 +270,7 @@ export class CosmosUserStateStore implements UserStateStore {
 
   async updatePushSubscriptions(
     userId: string,
-    pushSubscriptions: PushSubscriptionRecord[],
+    updater: PushSubscriptionUpdater,
   ) {
     const container = await this.container();
 
@@ -283,6 +279,9 @@ export class CosmosUserStateStore implements UserStateStore {
       if (!existing) return null;
       if (!existing._etag) return existing;
 
+      const pushSubscriptions = updater(
+        existing.payload.pushSubscriptions ?? [],
+      );
       const now = Date.now();
       const stored: StoredUserState = {
         id: existing.id,
