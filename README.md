@@ -41,6 +41,7 @@ This repository is **fully isolated** from every other project:
 - scheduled background alert evaluation with a persistent server-owned Alert Inbox
 - opt-in VAPID Web Push notifications that deep-link back to the Alert Inbox
 - local PNG chart snapshots, visible-candle CSV export and safe shareable chart links
+- global Command Palette with Ctrl/Cmd+K, live symbol search and fast workspace/tool navigation
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
 - Market Events / earnings calendar
