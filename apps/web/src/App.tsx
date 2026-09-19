@@ -19,6 +19,7 @@ import MarketChart, { type ChartView } from "./components/MarketChart";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
+import ChartSettingsPanel from "./components/ChartSettingsPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
@@ -30,6 +31,12 @@ import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getCompanyFeed } from "./lib/feedApi";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
+import {
+  loadChartSettings,
+  resetChartSettings,
+  saveChartSettings,
+  type ChartSettings,
+} from "./lib/chartSettings";
 import {
   loadCustomIndicators,
   saveCustomIndicators,
@@ -200,6 +207,9 @@ export default function App() {
   const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
   const [chartView, setChartView] = useState<ChartView>(() => readSaved("marketos:chart-view", "candles"));
+  const [chartSettings, setChartSettings] = useState<ChartSettings>(() => loadChartSettings());
+  const [showChartSettings, setShowChartSettings] = useState(false);
+  const [chartResetKey, setChartResetKey] = useState(0);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
@@ -924,6 +934,21 @@ export default function App() {
     saveSetting("marketos:chart-view", value);
   };
 
+  const updateChartSettings = useCallback((next: ChartSettings) => {
+    setChartSettings(next);
+    saveChartSettings(next);
+  }, []);
+
+  const restoreChartSettings = () => {
+    const next = resetChartSettings();
+    setChartSettings(next);
+    setChartResetKey((current) => current + 1);
+  };
+
+  const resetChartView = () => {
+    setChartResetKey((current) => current + 1);
+  };
+
   const toggleIndicator = (id: IndicatorId) => {
     setIndicators((current) => {
       const next = { ...current, [id]: !current[id] };
@@ -1570,6 +1595,8 @@ export default function App() {
             ? { symbol: comparisonSymbol, candles: displayComparisonCandles }
             : null
         }
+        settings={chartSettings}
+        resetViewKey={chartResetKey}
       />
       {textAnchor ? (
         <div className="text-note-composer" dir="rtl">
@@ -1618,6 +1645,8 @@ export default function App() {
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
         comparison={null}
+        settings={chartSettings}
+        resetViewKey={chartResetKey}
       />
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -1723,6 +1752,15 @@ export default function App() {
         onRefresh={() => void refreshCompanyFeed()}
         onClose={() => setShowCompanyFeed(false)}
         onSelectSymbol={openCompanyFeedSymbol}
+      />
+
+      <ChartSettingsPanel
+        open={showChartSettings}
+        settings={chartSettings}
+        onChange={updateChartSettings}
+        onResetSettings={restoreChartSettings}
+        onResetView={resetChartView}
+        onClose={() => setShowChartSettings(false)}
       />
 
       <CorrelationPanel
@@ -2190,6 +2228,14 @@ export default function App() {
               <button className={chartView === "candles" ? "selected" : ""} onClick={() => chooseChartView("candles")}>شموع</button>
               <button className={chartView === "line" ? "selected" : ""} onClick={() => chooseChartView("line")}>خط</button>
               <button className={chartView === "area" ? "selected" : ""} onClick={() => chooseChartView("area")}>مساحة</button>
+
+              <button
+                className="chart-settings-launch"
+                onClick={() => setShowChartSettings(true)}
+                title="إعدادات عرض الشارت"
+              >
+                ⚙ إعدادات
+              </button>
 
               <div className="compare-menu-wrap">
                 <button
