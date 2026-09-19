@@ -17,6 +17,7 @@ import type {
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import CommercialTopBar from "./components/CommercialTopBar";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
@@ -243,6 +244,12 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [watchlistOpen, setWatchlistOpen] = useState(
+    () => readSaved<"on" | "off">("marketos:ui-watchlist", "on") === "on",
+  );
+  const [aiPanelOpen, setAiPanelOpen] = useState(
+    () => readSaved<"on" | "off">("marketos:ui-ai", "on") === "on",
+  );
   const [watchlistOverview, setWatchlistOverview] = useState<MarketOverviewItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
@@ -766,6 +773,22 @@ export default function App() {
     setAutoRefreshEnabled((current) => {
       const next = !current;
       saveSetting("marketos:auto-refresh", next ? "on" : "off");
+      return next;
+    });
+  };
+
+  const toggleWatchlistPanel = () => {
+    setWatchlistOpen((current) => {
+      const next = !current;
+      saveSetting("marketos:ui-watchlist", next ? "on" : "off");
+      return next;
+    });
+  };
+
+  const toggleAiPanel = () => {
+    setAiPanelOpen((current) => {
+      const next = !current;
+      saveSetting("marketos:ui-ai", next ? "on" : "off");
       return next;
     });
   };
@@ -2146,57 +2169,36 @@ export default function App() {
 
   return (
     <main className="shell">
-      <header className="topbar">
-        <div>
-          <div className="brand">MarketOS <span>alpha</span></div>
-          <div className="tagline">Professional charts, market intelligence, AI-native workflow</div>
-        </div>
-        <div className="top-actions">
-          <div className="status-pill" title={providerStatus?.message}>
-            <span className={`status-dot ${dataState}`} />
-            {providerLabel}
-          </div>
-
-          <button className="ghost-button market-button" onClick={openScreener}>
-            السوق
-          </button>
-
-          <button className="ghost-button correlation-button" onClick={() => setShowCorrelation(true)}>
-            الارتباط
-          </button>
-
-          <button className="ghost-button events-button" onClick={openEvents}>
-            الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
-          </button>
-
-          <button className="ghost-button company-feed-button" onClick={openCompanyFeed}>
-            الشركات {companyReleases.length > 0 ? `(${companyReleases.length})` : ""}
-          </button>
-
-          <button className="ghost-button strategy-button" onClick={() => setShowStrategyTester(true)}>
-            الاختبار
-          </button>
-
-          <button className="ghost-button system-button" onClick={openSystemPanel}>
-            النظام
-          </button>
-
-          <div className="alert-menu-wrap">
+      <CommercialTopBar
+        previewMode={providerStatus?.mode === "demo"}
+        connected={dataState !== "loading"}
+        sessionLabel={sessionLabel}
+        alertCount={activeAlerts.length}
+        eventCount={marketEvents.length}
+        companyCount={companyReleases.length}
+        watchlistOpen={watchlistOpen}
+        aiOpen={aiPanelOpen}
+        onToggleWatchlist={toggleWatchlistPanel}
+        onToggleAi={toggleAiPanel}
+        onMarket={openScreener}
+        onAlerts={() => setShowAlertMenu(true)}
+        onCorrelation={() => setShowCorrelation(true)}
+        onEvents={openEvents}
+        onCompanyFeed={openCompanyFeed}
+        onStrategy={() => setShowStrategyTester(true)}
+        onSystem={openSystemPanel}
+        workspaceSlot={
+          <div className="workspace-menu-wrap commercial-workspace-wrap">
             <button
-              className={activeAlerts.length > 0 ? "ghost-button alerts-v2-button active" : "ghost-button alerts-v2-button"}
-              onClick={() => setShowAlertMenu(true)}
+              className="commercial-workspace-button"
+              onClick={() => setShowWorkspaceMenu((value) => !value)}
             >
-              التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
-            </button>
-          </div>
-
-          <div className="workspace-menu-wrap">
-            <button className="ghost-button" onClick={() => setShowWorkspaceMenu((value) => !value)}>
-              التخطيطات {savedWorkspaces.length > 0 ? `(${savedWorkspaces.length})` : ""}
+              <span>التخطيطات</span>
+              {savedWorkspaces.length > 0 ? <b>{savedWorkspaces.length}</b> : null}
             </button>
 
             {showWorkspaceMenu ? (
-              <div className="workspace-popover" dir="rtl">
+              <div className="workspace-popover commercial-workspace-popover" dir="rtl">
                 <button className="save-workspace-button" onClick={saveCurrentWorkspace}>
                   + حفظ التخطيط الحالي
                 </button>
@@ -2215,7 +2217,13 @@ export default function App() {
                           }
                         </small>
                       </button>
-                      <button className="workspace-delete" onClick={() => deleteWorkspace(workspace.id)} title="حذف">×</button>
+                      <button
+                        className="workspace-delete"
+                        onClick={() => deleteWorkspace(workspace.id)}
+                        title="حذف"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                   {savedWorkspaces.length === 0 ? (
@@ -2225,8 +2233,8 @@ export default function App() {
               </div>
             ) : null}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <IndicatorLab
         open={showIndicatorLab}
@@ -2541,8 +2549,13 @@ export default function App() {
         <span>FUTURES</span>
       </section>
 
-      <section className="workspace">
-        <aside className="watchlist panel">
+      <section className={[
+        "workspace",
+        "commercial-workspace",
+        watchlistOpen ? "" : "watchlist-hidden",
+        aiPanelOpen ? "" : "ai-hidden",
+      ].filter(Boolean).join(" ")}>
+        <aside className={watchlistOpen ? "watchlist panel commercial-side-panel" : "watchlist panel commercial-side-panel panel-collapsed"}>
           <div className="watchlist-head">
             <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
             <div className="watchlist-head-actions">
@@ -3102,7 +3115,7 @@ export default function App() {
           </div>
         </section>
 
-        <aside className="ai-panel panel">
+        <aside className={aiPanelOpen ? "ai-panel panel commercial-ai-panel" : "ai-panel panel commercial-ai-panel panel-collapsed"}>
           <div className="panel-title">MarketOS AI</div>
           <div className="ai-card">
             <span className="eyebrow">CHART CONTEXT</span>
