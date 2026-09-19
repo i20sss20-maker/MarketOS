@@ -182,11 +182,30 @@ export default function App() {
 
   const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteRefreshing, setQuoteRefreshing] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
+    () => readSaved<"on" | "off">("marketos:auto-refresh", "off") === "on",
+  );
   const [providerStatus, setProviderStatus] = useState<MarketDataStatus | null>(null);
   const [dataState, setDataState] = useState<"loading" | "provider" | "fallback">("fallback");
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const refreshQuote = useCallback(async (showLoading = false) => {
+    if (replayActive) return;
+
+    if (showLoading) setQuoteRefreshing(true);
+    try {
+      const response = await getMarketQuote(active);
+      setQuote(response.quote);
+      if (response.provider !== "demo") setDataState("provider");
+    } catch {
+      // Keep the last successful quote; market-data fallback is handled by the main load flow.
+    } finally {
+      if (showLoading) setQuoteRefreshing(false);
+    }
+  }, [active, replayActive]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -210,6 +229,38 @@ export default function App() {
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || replayActive) return;
+
+    const intervalMs =
+      quote?.isMarketOpen === false && !quote?.isExtendedHours
+        ? 60_000
+        : 30_000;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshQuote(false);
+      }
+    };
+
+    const interval = window.setInterval(refreshIfVisible, intervalMs);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshIfVisible();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [
+    autoRefreshEnabled,
+    replayActive,
+    quote?.isMarketOpen,
+    quote?.isExtendedHours,
+    refreshQuote,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -381,6 +432,42 @@ export default function App() {
       : dataState === "provider"
         ? providerStatus?.provider ?? quote?.source ?? "Provider"
         : "Demo fallback";
+
+  const sessionLabel = replayActive
+    ? "Replay"
+    : quote?.isExtendedHours
+      ? "جلسة ممتدة"
+      : quote?.isMarketOpen === true
+        ? "السوق مفتوح"
+        : quote?.isMarketOpen === false
+          ? "السوق مغلق"
+          : providerStatus?.mode === "demo"
+            ? "جلسة تجريبية"
+            : "حالة الجلسة غير متاحة";
+
+  const sessionState = replayActive
+    ? "replay"
+    : quote?.isMarketOpen === true || quote?.isExtendedHours
+      ? "open"
+      : quote?.isMarketOpen === false
+        ? "closed"
+        : "unknown";
+
+  const quoteTimeLabel = quote
+    ? new Date(quote.timestamp * 1000).toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "—";
+
+  const toggleAutoRefresh = () => {
+    setAutoRefreshEnabled((current) => {
+      const next = !current;
+      saveSetting("marketos:auto-refresh", next ? "on" : "off");
+      return next;
+    });
+  };
 
   const addToWatchlist = useCallback((symbol: MarketSymbol) => {
     setWatchlist((current) => {
@@ -1031,6 +1118,8 @@ export default function App() {
 
       <section className="market-strip" dir="ltr">
         <span>MARKET DATA <b>{providerStatus?.provider ?? "detecting"}</b></span>
+        <span>SESSION <b className={sessionState === "open" ? "positive" : sessionState === "closed" ? "negative" : ""}>{sessionLabel}</b></span>
+        <span>AUTO <b>{autoRefreshEnabled && !replayActive ? "ON" : "OFF"}</b></span>
         <span>US EQUITIES</span>
         <span>SAUDI EXCHANGE</span>
         <span>FOREX</span>
@@ -1091,12 +1180,34 @@ export default function App() {
               </div>
             </div>
 
-            <div className="quote">
-              <strong>{formatPrice(displayedPrice)}</strong>
-              <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
-                {formatPercent(displayedPercent)}
-              </span>
-              <small>{replayActive ? "REPLAY" : quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
+            <div className="quote-cluster">
+              <div className="instrument-live-controls">
+                <span className={`session-pill ${sessionState}`}>{sessionLabel}</span>
+                <button
+                  className="quote-refresh"
+                  onClick={() => void refreshQuote(true)}
+                  disabled={replayActive || quoteRefreshing}
+                  title="تحديث السعر الآن"
+                >
+                  {quoteRefreshing ? "…" : "↻"}
+                </button>
+                <button
+                  className={autoRefreshEnabled ? "auto-refresh-toggle active" : "auto-refresh-toggle"}
+                  onClick={toggleAutoRefresh}
+                  disabled={replayActive}
+                  title="تحديث تلقائي كل 30 ثانية تقريبًا أثناء فتح الصفحة"
+                >
+                  Auto
+                </button>
+              </div>
+              <div className="quote">
+                <strong>{formatPrice(displayedPrice)}</strong>
+                <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
+                  {formatPercent(displayedPercent)}
+                </span>
+                <small>{replayActive ? "REPLAY" : quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
+                <small>آخر بيانات: {replayActive ? replayDateLabel ?? "—" : quoteTimeLabel}</small>
+              </div>
             </div>
           </div>
 
