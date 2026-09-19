@@ -37,6 +37,14 @@ export class AsyncTtlCache<T> {
     return promise;
   }
 
+  set(key: string, value: T, ttlMs: number) {
+    this.values.set(key, {
+      expiresAt: Date.now() + Math.max(0, ttlMs),
+      value,
+    });
+    this.trim();
+  }
+
   clear() {
     this.values.clear();
     this.pending.clear();
