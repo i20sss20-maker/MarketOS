@@ -2183,7 +2183,15 @@ export default function App() {
                     <div className="workspace-row" key={workspace.id}>
                       <button className="workspace-open" onClick={() => restoreWorkspace(workspace)}>
                         <strong>{workspace.name}</strong>
-                        <small>{workspace.symbol.ticker} · {workspace.timeframe.toUpperCase()}</small>
+                        <small>
+                          {workspace.symbol.ticker} · {workspace.timeframe.toUpperCase()} · {
+                            workspace.layoutMode === "quad"
+                              ? "4×"
+                              : workspace.layoutMode === "split"
+                                ? "2×"
+                                : "1×"
+                          }
+                        </small>
                       </button>
                       <button className="workspace-delete" onClick={() => deleteWorkspace(workspace.id)} title="حذف">×</button>
                     </div>
