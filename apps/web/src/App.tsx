@@ -612,6 +612,71 @@ export default function App() {
             : null;
 
   const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
+  const replayDateLabel = replayActive && lastCandle
+    ? new Date(lastCandle.time * 1000).toLocaleString("ar-SA", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+
+  const ignoreDrawingCreated = useCallback((_drawing: ChartDrawing) => undefined, []);
+
+  const primaryChartNode = (
+    <div className="chart-host primary-chart-host">
+      {inspectedCandle ? (
+        <div className="ohlc-legend" dir="ltr">
+          <span>O <b>{formatPrice(inspectedCandle.open)}</b></span>
+          <span>H <b>{formatPrice(inspectedCandle.high)}</b></span>
+          <span>L <b>{formatPrice(inspectedCandle.low)}</b></span>
+          <span>C <b className={inspectedCandle.close >= inspectedCandle.open ? "positive" : "negative"}>
+            {formatPrice(inspectedCandle.close)}
+          </b></span>
+          {inspectedCandle.volume !== undefined ? (
+            <span>V <b>{Math.round(inspectedCandle.volume).toLocaleString("en-US")}</b></span>
+          ) : null}
+        </div>
+      ) : null}
+      <MarketChart
+        candles={displayCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        drawings={drawings}
+        drawingTool={drawingTool}
+        onDrawingCreated={handleDrawingCreated}
+        onCrosshairCandle={setHoverCandle}
+        comparison={
+          layoutMode === "single" && comparisonSymbol && displayComparisonCandles.length > 0
+            ? { symbol: comparisonSymbol, candles: displayComparisonCandles }
+            : null
+        }
+      />
+      {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
+      {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+      {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
+    </div>
+  );
+
+  const secondaryChartNode = comparisonSymbol && displayComparisonCandles.length > 0 ? (
+    <div className="chart-host secondary-chart-host">
+      <div className="secondary-chart-label" dir="ltr">
+        <strong>{comparisonSymbol.ticker}</strong>
+        <span>{comparisonSymbol.exchange}</span>
+      </div>
+      <MarketChart
+        candles={displayComparisonCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        drawings={[]}
+        drawingTool="cursor"
+        onDrawingCreated={ignoreDrawingCreated}
+        comparison={null}
+      />
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+    </div>
+  ) : null;
 
   return (
     <main className="shell">
