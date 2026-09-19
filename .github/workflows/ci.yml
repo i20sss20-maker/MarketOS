@@ -93,6 +93,9 @@ jobs:
       - name: Command Palette ranking smoke test
         run: pnpm smoke:command-palette
 
+      - name: Home Dashboard model smoke test
+        run: pnpm smoke:home-dashboard
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
