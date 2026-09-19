@@ -7882,3 +7882,23 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Server Alerts V1 */
+.advanced-alert-header-actions .advanced-alert-cloud-check {
+  border-color: rgba(34,201,154,.16);
+  background: rgba(15,65,51,.13);
+  color: #78c8ad;
+}
+
+.advanced-alert-header-actions .advanced-alert-cloud-check:hover:not(:disabled) {
+  border-color: rgba(34,201,154,.24);
+  background: rgba(15,75,57,.20);
+  color: #9adeca;
+}
+
+.advanced-alert-header-actions .advanced-alert-cloud-check:disabled {
+  border-color: rgba(148,163,184,.07);
+  background: rgba(148,163,184,.02);
+  color: #566378;
+}
