@@ -184,7 +184,7 @@ export default function App() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteRefreshing, setQuoteRefreshing] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
-    () => readSaved("marketos:auto-refresh", "off") === "on",
+    () => readSaved<"on" | "off">("marketos:auto-refresh", "off") === "on",
   );
   const [providerStatus, setProviderStatus] = useState<MarketDataStatus | null>(null);
   const [dataState, setDataState] = useState<"loading" | "provider" | "fallback">("fallback");
