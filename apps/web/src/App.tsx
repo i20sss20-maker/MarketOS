@@ -16,7 +16,10 @@ import type {
   Quote,
   Timeframe,
 } from "@marketos/market-core";
-import MarketChart, { type ChartView } from "./components/MarketChart";
+import MarketChart, {
+  type ChartSnapshotCapture,
+  type ChartView,
+} from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
 import AccountPanel from "./components/AccountPanel";
 import CommercialAiPanel from "./components/CommercialAiPanel";
@@ -28,6 +31,7 @@ import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
 import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
+import ExportPanel from "./components/ExportPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
@@ -48,6 +52,12 @@ import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoFeed } from "./lib/demoFeed";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getCompanyFeed } from "./lib/feedApi";
+import {
+  buildMarketShareUrl,
+  candlesToCsv,
+  exportFilename,
+  parseMarketShareState,
+} from "./lib/exportTools";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
 import {
@@ -158,8 +168,56 @@ function readSaved<T extends string>(key: string, fallback: T): T {
   }
 }
 
+function readSharedChartState() {
+  if (typeof window === "undefined") return null;
+  return parseMarketShareState(window.location.search);
+}
+
+function downloadBrowserBlob(
+  blob: Blob,
+  filename: string,
+) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function copyTextToClipboard(
+  value: string,
+) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  if (!copied) {
+    throw new Error("Clipboard is unavailable.");
+  }
+}
+
 function readSavedSymbol(): MarketSymbol {
   if (typeof window === "undefined") return initialSymbols[0];
+
+  const shared = readSharedChartState();
+  if (shared) return shared.symbol;
+
   try {
     const saved = window.localStorage.getItem("marketos:symbol-object");
     if (!saved) return initialSymbols[0];
@@ -265,8 +323,12 @@ function watchlistMatchesFilter(
 
 export default function App() {
   const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
-  const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
-  const [chartView, setChartView] = useState<ChartView>(() => readSaved("marketos:chart-view", "candles"));
+  const [timeframe, setTimeframe] = useState<Timeframe>(
+    () => readSharedChartState()?.timeframe ?? readSaved("marketos:timeframe", "1h"),
+  );
+  const [chartView, setChartView] = useState<ChartView>(
+    () => readSharedChartState()?.chartView ?? readSaved("marketos:chart-view", "candles"),
+  );
   const [chartSettings, setChartSettings] = useState<ChartSettings>(() => loadChartSettings());
   const [showChartSettings, setShowChartSettings] = useState(false);
   const [chartResetKey, setChartResetKey] = useState(0);
@@ -320,6 +382,10 @@ export default function App() {
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
   const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const snapshotCaptureRef = useRef<ChartSnapshotCapture | null>(null);
   const [showEvents, setShowEvents] = useState(false);
   const [marketEvents, setMarketEvents] = useState<MarketEvent[]>([]);
   const [eventsProvider, setEventsProvider] = useState("demo-events");
@@ -2450,6 +2516,13 @@ export default function App() {
     [watchlist],
   );
 
+  const registerPrimarySnapshot = useCallback(
+    (capture: ChartSnapshotCapture | null) => {
+      snapshotCaptureRef.current = capture;
+    },
+    [],
+  );
+
   const ignoreDrawingCreated = useCallback((_drawing: ChartDrawing) => undefined, []);
 
   const changePaneSymbol = (
@@ -2572,6 +2645,7 @@ export default function App() {
         onDrawingCreated={handleDrawingCreated}
         onTextAnchorRequested={requestTextAnchor}
         onCrosshairCandle={setHoverCandle}
+        onSnapshotCaptureReady={registerPrimarySnapshot}
         comparison={
           layoutMode === "single" && comparisonSymbol && displayComparisonCandles.length > 0
             ? { symbol: comparisonSymbol, candles: displayComparisonCandles }
@@ -2737,6 +2811,11 @@ export default function App() {
           void refreshAlertInbox();
         }}
         onOverview={() => setShowInstrumentOverview(true)}
+        onExport={() => {
+          setExportMessage(null);
+          setExportError(null);
+          setShowExportPanel(true);
+        }}
         onCorrelation={() => setShowCorrelation(true)}
         onEvents={openEvents}
         onCompanyFeed={openCompanyFeed}
@@ -2869,6 +2948,81 @@ export default function App() {
         quote={replayActive ? null : quote}
         replayMode={replayActive}
         onClose={() => setShowInstrumentOverview(false)}
+      />
+
+      <ExportPanel
+        open={showExportPanel}
+        ticker={active.ticker}
+        timeframe={timeframe}
+        candleCount={displayCandles.length}
+        canSnapshot={Boolean(snapshotCaptureRef.current)}
+        message={exportMessage}
+        error={exportError}
+        onExportPng={() => {
+          setExportMessage(null);
+          setExportError(null);
+
+          const canvas = snapshotCaptureRef.current?.();
+          if (!canvas) {
+            setExportError("الشارت غير جاهز لالتقاط الصورة الآن.");
+            return;
+          }
+
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              setExportError("تعذر إنشاء صورة الشارت.");
+              return;
+            }
+
+            downloadBrowserBlob(
+              blob,
+              exportFilename(active.ticker, timeframe, "png"),
+            );
+            setExportMessage("تم تجهيز صورة PNG للشارت.");
+          }, "image/png");
+        }}
+        onExportCsv={() => {
+          setExportMessage(null);
+          setExportError(null);
+
+          if (displayCandles.length === 0) {
+            setExportError("لا توجد شموع ظاهرة للتصدير.");
+            return;
+          }
+
+          downloadBrowserBlob(
+            new Blob(
+              [candlesToCsv(displayCandles)],
+              { type: "text/csv;charset=utf-8" },
+            ),
+            exportFilename(active.ticker, timeframe, "csv"),
+          );
+          setExportMessage(
+            `تم تصدير ${displayCandles.length} شمعة إلى CSV.`,
+          );
+        }}
+        onCopyLink={() => {
+          setExportMessage(null);
+          setExportError(null);
+
+          const shareUrl = buildMarketShareUrl(
+            window.location.href,
+            {
+              symbol: active,
+              timeframe,
+              chartView,
+            },
+          );
+
+          void copyTextToClipboard(shareUrl)
+            .then(() => {
+              setExportMessage("تم نسخ رابط الشارت.");
+            })
+            .catch(() => {
+              setExportError("تعذر نسخ الرابط من هذا المتصفح.");
+            });
+        }}
+        onClose={() => setShowExportPanel(false)}
       />
 
       <ChartSettingsPanel
