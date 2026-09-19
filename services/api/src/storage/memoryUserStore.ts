@@ -1,5 +1,6 @@
 import {
   UserStateConflictError,
+  type AlertInboxEvent,
   type StoredUserState,
   type UserCloudState,
   type UserStatePutOptions,
@@ -76,7 +77,11 @@ export class MemoryUserStateStore implements UserStateStore {
     return stored;
   }
 
-  async updateAlerts(userId: string, alerts: unknown[]) {
+  async updateAlerts(
+    userId: string,
+    alerts: unknown[],
+    alertEvents?: AlertInboxEvent[],
+  ) {
     const existing = this.states.get(userId);
     if (!existing) return null;
 
@@ -88,6 +93,10 @@ export class MemoryUserStateStore implements UserStateStore {
       payload: {
         ...existing.payload,
         alerts,
+        alertEvents:
+          alertEvents ??
+          existing.payload.alertEvents ??
+          [],
         updatedAt: now,
       },
     };
