@@ -58,6 +58,36 @@ assert.equal(analysis.drawingCount, 4);
 assert.deepEqual(analysis.activeIndicators, ["sma20", "rsi14"]);
 assert.ok(analysis.metrics.lastPrice > 0);
 assert.ok(analysis.metrics.rangeHigh20 > analysis.metrics.rangeLow20);
+assert.ok(
+  Number.isFinite(
+    analysis.metrics.ema20,
+  ),
+);
+assert.ok(
+  Number.isFinite(
+    analysis.metrics.ema50,
+  ),
+);
+assert.ok(
+  Number.isFinite(
+    analysis.metrics.rsi14,
+  ),
+);
+assert.ok(
+  Number.isFinite(
+    analysis.metrics.atr14,
+  ),
+);
+assert.ok(
+  Number.isFinite(
+    analysis.metrics.atrPercent,
+  ),
+);
+assert.ok(
+  Number.isFinite(
+    analysis.metrics.macdHistogram,
+  ),
+);
 assert.ok(analysis.observations.length >= 7);
 assert.ok(analysis.observations.some((item) => item.includes("قياس")));
 assert.ok(analysis.observations.some((item) => item.includes("ملاحظة")));
