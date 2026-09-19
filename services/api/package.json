@@ -10,11 +10,14 @@
     "start": "func start"
   },
   "dependencies": {
-    "@azure/functions": "^4.0.0",
-    "@marketos/market-core": "workspace:*"
+    "@azure/functions": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@marketos/market-core": "workspace:*"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
