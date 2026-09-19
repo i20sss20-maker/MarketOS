@@ -19,6 +19,7 @@ type Props = {
   onStrategy: () => void;
   onSystem: () => void;
   workspaceSlot: ReactNode;
+  accountSlot: ReactNode;
 };
 
 type IconName =
@@ -99,6 +100,7 @@ export default function CommercialTopBar({
   onStrategy,
   onSystem,
   workspaceSlot,
+  accountSlot,
 }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -151,6 +153,7 @@ export default function CommercialTopBar({
       </nav>
 
       <div className="commercial-topbar-end">
+        {accountSlot}
         {workspaceSlot}
 
         <div className="commercial-more-wrap">
