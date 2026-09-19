@@ -1781,6 +1781,40 @@ export default function App() {
     chooseAuxiliaryPaneSymbol(pane, symbol);
   };
 
+  const paneTimeframe = (pane: ChartPaneId): Timeframe => {
+    if (pane === "primary") return timeframe;
+    if (pane === "secondary") return comparisonTimeframe;
+    if (pane === "third") return thirdChartTimeframe;
+    return fourthChartTimeframe;
+  };
+
+  const changePaneTimeframe = (
+    pane: ChartPaneId,
+    nextTimeframe: Timeframe,
+  ) => {
+    setSyncedLogicalRange(null);
+
+    if (pane === "primary") {
+      chooseTimeframe(nextTimeframe);
+      return;
+    }
+
+    if (pane === "secondary") {
+      setComparisonTimeframe(nextTimeframe);
+      saveSetting("marketos:pane-secondary-timeframe", nextTimeframe);
+      return;
+    }
+
+    if (pane === "third") {
+      setThirdChartTimeframe(nextTimeframe);
+      saveSetting("marketos:pane-third-timeframe", nextTimeframe);
+      return;
+    }
+
+    setFourthChartTimeframe(nextTimeframe);
+    saveSetting("marketos:pane-fourth-timeframe", nextTimeframe);
+  };
+
   const renderPaneSymbolSelector = (
     pane: ChartPaneId,
     symbol: MarketSymbol,
@@ -1794,6 +1828,19 @@ export default function App() {
         {multiChartSymbolOptions.map((option) => (
           <option value={option.id} key={option.id}>
             {option.ticker} · {option.exchange}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="pane-timeframe-select"
+        value={paneTimeframe(pane)}
+        onChange={(event) => changePaneTimeframe(pane, event.target.value as Timeframe)}
+        aria-label={`فريم ${pane}`}
+      >
+        {timeframes.map((item) => (
+          <option value={item} key={item}>
+            {item.toUpperCase()}
           </option>
         ))}
       </select>
