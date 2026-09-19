@@ -109,8 +109,10 @@ const initialSymbols: MarketSymbol[] = [
 
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
-type ChartLayoutMode = "single" | "split";
-type MaximizedChartPane = "primary" | "secondary" | null;
+type ChartLayoutMode = "single" | "split" | "quad";
+type MaximizedChartPane = "primary" | "secondary" | "third" | "fourth" | null;
+type AuxiliaryPane = "secondary" | "third" | "fourth";
+type ChartPaneId = "primary" | AuxiliaryPane;
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
@@ -145,6 +147,31 @@ function saveSetting(key: string, value: string) {
     window.localStorage.setItem(key, value);
   } catch {
     // Storage may be unavailable in restricted webviews or privacy modes.
+  }
+}
+
+function readSavedPaneSymbol(key: string): MarketSymbol | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MarketSymbol;
+    return parsed?.id && parsed?.ticker ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePaneSymbol(key: string, symbol: MarketSymbol | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!symbol) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify(symbol));
+  } catch {
+    // Ignore storage restrictions.
   }
 }
 
@@ -257,8 +284,18 @@ export default function App() {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showDrawingMenu, setShowDrawingMenu] = useState(false);
   const [showComparisonMenu, setShowComparisonMenu] = useState(false);
-  const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(null);
+  const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(
+    () => readSavedPaneSymbol("marketos:pane-secondary"),
+  );
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(
+    () => readSavedPaneSymbol("marketos:pane-third"),
+  );
+  const [thirdChartCandles, setThirdChartCandles] = useState<Candle[]>([]);
+  const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(
+    () => readSavedPaneSymbol("marketos:pane-fourth"),
+  );
+  const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
   );
@@ -429,6 +466,40 @@ export default function App() {
   }, [comparisonSymbol, active.id, timeframe]);
 
   useEffect(() => {
+    if (layoutMode !== "quad" || !thirdChartSymbol) {
+      setThirdChartCandles([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    getMarketCandles(thirdChartSymbol, timeframe, 300, controller.signal)
+      .then((response) => setThirdChartCandles(response.candles))
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, timeframe, 300));
+      });
+
+    return () => controller.abort();
+  }, [layoutMode, thirdChartSymbol, timeframe]);
+
+  useEffect(() => {
+    if (layoutMode !== "quad" || !fourthChartSymbol) {
+      setFourthChartCandles([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    getMarketCandles(fourthChartSymbol, timeframe, 300, controller.signal)
+      .then((response) => setFourthChartCandles(response.candles))
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, timeframe, 300));
+      });
+
+    return () => controller.abort();
+  }, [layoutMode, fourthChartSymbol, timeframe]);
+
+  useEffect(() => {
     if (replayActive) return;
 
     const hasRelevantAlert = alerts.some(
@@ -583,6 +654,22 @@ export default function App() {
         ? comparisonCandles.filter((candle) => candle.time <= replayCutoff)
         : comparisonCandles,
     [comparisonCandles, replayActive, replayCutoff],
+  );
+
+  const displayThirdChartCandles = useMemo(
+    () =>
+      replayActive && replayCutoff !== undefined
+        ? thirdChartCandles.filter((candle) => candle.time <= replayCutoff)
+        : thirdChartCandles,
+    [thirdChartCandles, replayActive, replayCutoff],
+  );
+
+  const displayFourthChartCandles = useMemo(
+    () =>
+      replayActive && replayCutoff !== undefined
+        ? fourthChartCandles.filter((candle) => candle.time <= replayCutoff)
+        : fourthChartCandles,
+    [fourthChartCandles, replayActive, replayCutoff],
   );
 
   const activeIndicatorItems = useMemo(
@@ -904,14 +991,25 @@ export default function App() {
   };
 
   const chooseSymbol = (symbol: MarketSymbol) => {
+    const previousActive = active;
     setActive(symbol);
     setReplayActive(false);
     setReplayPlaying(false);
     setReplayIndex(null);
+
     if (comparisonSymbol?.id === symbol.id) {
-      setComparisonSymbol(null);
-      setComparisonCandles([]);
+      setComparisonSymbol(previousActive);
+      savePaneSymbol("marketos:pane-secondary", previousActive);
     }
+    if (thirdChartSymbol?.id === symbol.id) {
+      setThirdChartSymbol(previousActive);
+      savePaneSymbol("marketos:pane-third", previousActive);
+    }
+    if (fourthChartSymbol?.id === symbol.id) {
+      setFourthChartSymbol(previousActive);
+      savePaneSymbol("marketos:pane-fourth", previousActive);
+    }
+
     addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
@@ -1151,13 +1249,70 @@ export default function App() {
   const chooseComparison = (symbol: MarketSymbol) => {
     if (symbol.id === active.id) return;
     setComparisonSymbol(symbol);
+    savePaneSymbol("marketos:pane-secondary", symbol);
     setShowComparisonMenu(false);
     setMaximizedChartPane(null);
     setSyncedLogicalRange(null);
   };
 
+  const chooseAuxiliaryPaneSymbol = (
+    pane: AuxiliaryPane,
+    symbol: MarketSymbol,
+  ) => {
+    if (pane === "secondary") {
+      setComparisonSymbol(symbol);
+      savePaneSymbol("marketos:pane-secondary", symbol);
+    } else if (pane === "third") {
+      setThirdChartSymbol(symbol);
+      savePaneSymbol("marketos:pane-third", symbol);
+    } else {
+      setFourthChartSymbol(symbol);
+      savePaneSymbol("marketos:pane-fourth", symbol);
+    }
+    setMaximizedChartPane(null);
+    setSyncedLogicalRange(null);
+  };
+
+  const ensureMultiChartSymbols = (mode: ChartLayoutMode) => {
+    if (mode === "single") return;
+
+    const candidates = [
+      ...watchlist,
+      ...initialSymbols,
+    ].filter(
+      (symbol, index, list) =>
+        symbol.id !== active.id &&
+        list.findIndex((item) => item.id === symbol.id) === index,
+    );
+
+    let secondary = comparisonSymbol;
+    if (!secondary) {
+      secondary = candidates[0] ?? null;
+      setComparisonSymbol(secondary);
+      savePaneSymbol("marketos:pane-secondary", secondary);
+    }
+
+    if (mode !== "quad") return;
+
+    const used = new Set([active.id, secondary?.id].filter(Boolean));
+    let third = thirdChartSymbol;
+    if (!third || used.has(third.id)) {
+      third = candidates.find((symbol) => !used.has(symbol.id)) ?? candidates[0] ?? null;
+      setThirdChartSymbol(third);
+      savePaneSymbol("marketos:pane-third", third);
+    }
+    if (third) used.add(third.id);
+
+    let fourth = fourthChartSymbol;
+    if (!fourth || used.has(fourth.id)) {
+      fourth = candidates.find((symbol) => !used.has(symbol.id)) ?? candidates[1] ?? candidates[0] ?? null;
+      setFourthChartSymbol(fourth);
+      savePaneSymbol("marketos:pane-fourth", fourth);
+    }
+  };
+
   const chooseLayoutMode = (mode: ChartLayoutMode) => {
-    if (mode === "split" && !comparisonSymbol) return;
+    ensureMultiChartSymbols(mode);
     setLayoutMode(mode);
     setMaximizedChartPane(null);
     if (mode === "single") setSyncedLogicalRange(null);
@@ -1173,13 +1328,8 @@ export default function App() {
     });
   };
 
-  const handlePrimaryRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode !== "split") return;
-    setSyncedLogicalRange(range);
-  }, [chartSyncEnabled, layoutMode]);
-
-  const handleSecondaryRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode !== "split") return;
+  const handleSynchronizedRangeChange = useCallback((range: LogicalRange | null) => {
+    if (!chartSyncEnabled || layoutMode === "single") return;
     setSyncedLogicalRange(range);
   }, [chartSyncEnabled, layoutMode]);
 
@@ -1596,19 +1746,65 @@ export default function App() {
       })
     : null;
 
+  const multiChartSymbolOptions = useMemo(
+    () => [
+      ...new Map(
+        [...watchlist, ...initialSymbols].map((symbol) => [symbol.id, symbol]),
+      ).values(),
+    ],
+    [watchlist],
+  );
+
   const ignoreDrawingCreated = useCallback((_drawing: ChartDrawing) => undefined, []);
+
+  const changePaneSymbol = (
+    pane: ChartPaneId,
+    symbolId: string,
+  ) => {
+    const symbol = multiChartSymbolOptions.find((item) => item.id === symbolId);
+    if (!symbol) return;
+
+    if (pane === "primary") {
+      chooseSymbol(symbol);
+      return;
+    }
+
+    chooseAuxiliaryPaneSymbol(pane, symbol);
+  };
+
+  const renderPaneSymbolSelector = (
+    pane: ChartPaneId,
+    symbol: MarketSymbol,
+  ) => (
+    <div className="pane-symbol-selector" dir="ltr">
+      <select
+        value={symbol.id}
+        onChange={(event) => changePaneSymbol(pane, event.target.value)}
+        aria-label={`رمز ${pane}`}
+      >
+        {multiChartSymbolOptions.map((option) => (
+          <option value={option.id} key={option.id}>
+            {option.ticker} · {option.exchange}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 
   const primaryChartNode = (
     <div className="chart-host primary-chart-host">
-      {layoutMode === "split" ? (
-        <div className="chart-pane-actions primary-pane-actions">
+      {layoutMode !== "single" ? (
+        <>
+          {renderPaneSymbolSelector("primary", active)}
+          <div className="chart-pane-actions primary-pane-actions">
           <button
             onClick={() => toggleMaximizedPane("primary")}
             title={maximizedChartPane === "primary" ? "إرجاع الشارتين" : "تكبير الشارت"}
           >
             {maximizedChartPane === "primary" ? "⊞" : "⛶"}
           </button>
-        </div>
+          </div>
+        </>
       ) : null}
       {inspectedCandle ? (
         <div className="ohlc-legend" dir="ltr">
@@ -1642,7 +1838,7 @@ export default function App() {
         settings={chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
-        onVisibleLogicalRangeChange={handlePrimaryRangeChange}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {textAnchor ? (
         <div className="text-note-composer" dir="rtl">
@@ -1675,12 +1871,9 @@ export default function App() {
     </div>
   );
 
-  const secondaryChartNode = comparisonSymbol && displayComparisonCandles.length > 0 ? (
+  const secondaryChartNode = comparisonSymbol ? (
     <div className="chart-host secondary-chart-host">
-      <div className="secondary-chart-label" dir="ltr">
-        <strong>{comparisonSymbol.ticker}</strong>
-        <span>{comparisonSymbol.exchange}</span>
-      </div>
+      {renderPaneSymbolSelector("secondary", comparisonSymbol)}
       <div className="chart-pane-actions">
         <button
           onClick={() => toggleMaximizedPane("secondary")}
@@ -1702,8 +1895,77 @@ export default function App() {
         settings={chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
-        onVisibleLogicalRangeChange={handleSecondaryRangeChange}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
+      {displayComparisonCandles.length === 0 ? (
+        <div className="chart-state">تحميل Pane 2…</div>
+      ) : null}
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+    </div>
+  ) : null;
+
+  const thirdChartNode = thirdChartSymbol ? (
+    <div className="chart-host third-chart-host">
+      {renderPaneSymbolSelector("third", thirdChartSymbol)}
+      <div className="chart-pane-actions">
+        <button
+          onClick={() => toggleMaximizedPane("third")}
+          title={maximizedChartPane === "third" ? "إرجاع التخطيط" : "تكبير الشارت"}
+        >
+          {maximizedChartPane === "third" ? "⊞" : "⛶"}
+        </button>
+      </div>
+      <MarketChart
+        candles={displayThirdChartCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        customIndicators={customIndicators}
+        drawings={[]}
+        drawingTool="cursor"
+        onDrawingCreated={ignoreDrawingCreated}
+        comparison={null}
+        settings={chartSettings}
+        resetViewKey={chartResetKey}
+        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
+      />
+      {displayThirdChartCandles.length === 0 ? (
+        <div className="chart-state">تحميل Pane 3…</div>
+      ) : null}
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+    </div>
+  ) : null;
+
+  const fourthChartNode = fourthChartSymbol ? (
+    <div className="chart-host fourth-chart-host">
+      {renderPaneSymbolSelector("fourth", fourthChartSymbol)}
+      <div className="chart-pane-actions">
+        <button
+          onClick={() => toggleMaximizedPane("fourth")}
+          title={maximizedChartPane === "fourth" ? "إرجاع التخطيط" : "تكبير الشارت"}
+        >
+          {maximizedChartPane === "fourth" ? "⊞" : "⛶"}
+        </button>
+      </div>
+      <MarketChart
+        candles={displayFourthChartCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        customIndicators={customIndicators}
+        drawings={[]}
+        drawingTool="cursor"
+        onDrawingCreated={ignoreDrawingCreated}
+        comparison={null}
+        settings={chartSettings}
+        resetViewKey={chartResetKey}
+        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
+      />
+      {displayFourthChartCandles.length === 0 ? (
+        <div className="chart-state">تحميل Pane 4…</div>
+      ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
   ) : null;
@@ -2480,18 +2742,24 @@ export default function App() {
                 <button
                   className={layoutMode === "split" ? "selected" : ""}
                   onClick={() => chooseLayoutMode("split")}
-                  disabled={!comparisonSymbol}
-                  title={comparisonSymbol ? "شارتان جنبًا إلى جنب" : "اختر أصلًا للمقارنة أولًا"}
+                  title="شارتان جنبًا إلى جنب"
                 >
                   2×
+                </button>
+                <button
+                  className={layoutMode === "quad" ? "selected" : ""}
+                  onClick={() => chooseLayoutMode("quad")}
+                  title="أربعة شارتات مستقلة"
+                >
+                  4×
                 </button>
               </div>
 
               <button
-                className={chartSyncEnabled && layoutMode === "split" ? "chart-sync-toggle active" : "chart-sync-toggle"}
+                className={chartSyncEnabled && layoutMode !== "single" ? "chart-sync-toggle active" : "chart-sync-toggle"}
                 onClick={toggleChartSync}
-                disabled={layoutMode !== "split"}
-                title="مزامنة Zoom/Scroll بين الشارتين"
+                disabled={layoutMode === "single"}
+                title={layoutMode === "quad" ? "مزامنة Zoom/Scroll بين الأربع شارتات" : "مزامنة Zoom/Scroll بين الشارتين"}
               >
                 Sync
               </button>
@@ -2609,7 +2877,27 @@ export default function App() {
               </button>
             </div>
 
-            {layoutMode === "split" && secondaryChartNode ? (
+            {layoutMode === "quad" && secondaryChartNode && thirdChartNode && fourthChartNode ? (
+              <div className={[
+                "multi-chart-grid",
+                "quad-chart-grid",
+                maximizedChartPane ? "pane-maximized" : "",
+                maximizedChartPane ? `max-${maximizedChartPane}` : "",
+              ].filter(Boolean).join(" ")}>
+                <div className={maximizedChartPane && maximizedChartPane !== "primary" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {primaryChartNode}
+                </div>
+                <div className={maximizedChartPane && maximizedChartPane !== "secondary" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {secondaryChartNode}
+                </div>
+                <div className={maximizedChartPane && maximizedChartPane !== "third" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {thirdChartNode}
+                </div>
+                <div className={maximizedChartPane && maximizedChartPane !== "fourth" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {fourthChartNode}
+                </div>
+              </div>
+            ) : layoutMode === "split" && secondaryChartNode ? (
               <div className={[
                 "multi-chart-grid",
                 maximizedChartPane ? "pane-maximized" : "",
