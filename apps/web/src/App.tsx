@@ -629,6 +629,64 @@ export default function App() {
     });
   }, []);
 
+  const refreshWatchlistOverview = useCallback(async (showLoading = true) => {
+    const symbols = watchlist.slice(0, 25);
+    if (symbols.length === 0) {
+      setWatchlistOverview([]);
+      setWatchlistError(null);
+      setWatchlistUpdatedAt(Date.now());
+      return;
+    }
+
+    if (showLoading) setWatchlistLoading(true);
+    setWatchlistError(null);
+
+    try {
+      const response = await getMarketOverview(symbols);
+      const returnedIds = new Set(response.items.map((item) => item.symbol.id));
+      const missing = symbols.filter((symbol) => !returnedIds.has(symbol.id));
+      const items = missing.length > 0
+        ? [...response.items, ...fallbackOverview(missing)]
+        : response.items;
+
+      setWatchlistOverview(items);
+      setWatchlistProvider(response.provider);
+      setWatchlistUpdatedAt(Date.now());
+    } catch {
+      setWatchlistOverview(fallbackOverview(symbols));
+      setWatchlistProvider("browser-demo");
+      setWatchlistUpdatedAt(Date.now());
+      setWatchlistError("تعذر تحديث الأسعار المباشرة، تظهر لقطة Demo مؤقتًا.");
+    } finally {
+      if (showLoading) setWatchlistLoading(false);
+    }
+  }, [watchlist, fallbackOverview]);
+
+  useEffect(() => {
+    if (watchlistInitialLoadRef.current) return;
+    watchlistInitialLoadRef.current = true;
+    void refreshWatchlistOverview(false);
+  }, [refreshWatchlistOverview]);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || replayActive) return;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshWatchlistOverview(false);
+      }
+    };
+
+    refreshIfVisible();
+    const interval = window.setInterval(refreshIfVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [autoRefreshEnabled, replayActive, refreshWatchlistOverview]);
+
   const refreshScreener = useCallback(async () => {
     const symbols = watchlist.slice(0, 25);
     if (symbols.length === 0) {
