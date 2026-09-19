@@ -16,16 +16,16 @@ const featureLabels: Array<{
   key: keyof PlanDefinition["features"];
   label: string;
 }> = [
-  ["multiChart", "شارتات متعددة"],
-  ["quadChart", "تخطيط 4×"],
-  ["customIndicatorLab", "معمل المؤشرات"],
-  ["strategyTester", "Strategy Tester"],
-  ["smartScreener", "Smart Screener"],
-  ["correlationMatrix", "Correlation Matrix"],
-  ["multiTimeframeAi", "Multi‑Timeframe AI"],
-  ["serverAlerts", "تنبيهات سحابية"],
-  ["backgroundAlerts", "تنبيهات بالخلفية"],
-  ["companyFeed", "إفصاحات الشركات"],
+  { key: "multiChart", label: "شارتات متعددة" },
+  { key: "quadChart", label: "تخطيط 4×" },
+  { key: "customIndicatorLab", label: "معمل المؤشرات" },
+  { key: "strategyTester", label: "Strategy Tester" },
+  { key: "smartScreener", label: "Smart Screener" },
+  { key: "correlationMatrix", label: "Correlation Matrix" },
+  { key: "multiTimeframeAi", label: "Multi‑Timeframe AI" },
+  { key: "serverAlerts", label: "تنبيهات سحابية" },
+  { key: "backgroundAlerts", label: "تنبيهات بالخلفية" },
+  { key: "companyFeed", label: "إفصاحات الشركات" },
 ];
 
 const planOrder: PlanId[] = [
