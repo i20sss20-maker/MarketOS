@@ -511,9 +511,39 @@ export default function App() {
     };
   }, [query]);
 
+  const watchlistQuoteMap = useMemo(
+    () => new Map(watchlistOverview.map((item) => [item.symbol.id, item.quote])),
+    [watchlistOverview],
+  );
+
+  const filteredWatchlist = useMemo(
+    () => watchlist.filter((symbol) => watchlistMatchesFilter(symbol, watchlistFilter)),
+    [watchlist, watchlistFilter],
+  );
+
+  const sortedWatchlist = useMemo(() => {
+    if (watchlistSort === "manual") return filteredWatchlist;
+
+    const nextSymbols = [...filteredWatchlist];
+    if (watchlistSort === "symbol") {
+      return nextSymbols.sort((a, b) => a.ticker.localeCompare(b.ticker));
+    }
+
+    return nextSymbols.sort((a, b) => {
+      const aChange = watchlistQuoteMap.get(a.id)?.percentChange;
+      const bChange = watchlistQuoteMap.get(b.id)?.percentChange;
+      const aValue = typeof aChange === "number" ? aChange : -Infinity;
+      const bValue = typeof bChange === "number" ? bChange : -Infinity;
+
+      return watchlistSort === "change-desc"
+        ? bValue - aValue
+        : aValue - bValue;
+    });
+  }, [filteredWatchlist, watchlistSort, watchlistQuoteMap]);
+
   const visibleSymbols = useMemo(
-    () => query.trim() ? searchResults : watchlist,
-    [query, searchResults, watchlist],
+    () => query.trim() ? searchResults : sortedWatchlist,
+    [query, searchResults, sortedWatchlist],
   );
 
   const safeReplayIndex = replayActive
