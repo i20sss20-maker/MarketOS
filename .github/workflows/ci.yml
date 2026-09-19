@@ -111,6 +111,9 @@ jobs:
       - name: Replay V2 runtime smoke test
         run: pnpm smoke:replay-v2
 
+      - name: Drawing Alerts bridge smoke test
+        run: pnpm smoke:drawing-alerts
+
       - name: Pane Linking workspace smoke test
         run: pnpm smoke:pane-linking
 
