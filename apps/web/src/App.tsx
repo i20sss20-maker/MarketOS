@@ -1871,7 +1871,7 @@ export default function App() {
     </div>
   );
 
-  const secondaryChartNode = comparisonSymbol && displayComparisonCandles.length > 0 ? (
+  const secondaryChartNode = comparisonSymbol ? (
     <div className="chart-host secondary-chart-host">
       {renderPaneSymbolSelector("secondary", comparisonSymbol)}
       <div className="chart-pane-actions">
@@ -1897,6 +1897,75 @@ export default function App() {
         syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
+      {displayComparisonCandles.length === 0 ? (
+        <div className="chart-state">تحميل Pane 2…</div>
+      ) : null}
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+    </div>
+  ) : null;
+
+  const thirdChartNode = thirdChartSymbol ? (
+    <div className="chart-host third-chart-host">
+      {renderPaneSymbolSelector("third", thirdChartSymbol)}
+      <div className="chart-pane-actions">
+        <button
+          onClick={() => toggleMaximizedPane("third")}
+          title={maximizedChartPane === "third" ? "إرجاع التخطيط" : "تكبير الشارت"}
+        >
+          {maximizedChartPane === "third" ? "⊞" : "⛶"}
+        </button>
+      </div>
+      <MarketChart
+        candles={displayThirdChartCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        customIndicators={customIndicators}
+        drawings={[]}
+        drawingTool="cursor"
+        onDrawingCreated={ignoreDrawingCreated}
+        comparison={null}
+        settings={chartSettings}
+        resetViewKey={chartResetKey}
+        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
+      />
+      {displayThirdChartCandles.length === 0 ? (
+        <div className="chart-state">تحميل Pane 3…</div>
+      ) : null}
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+    </div>
+  ) : null;
+
+  const fourthChartNode = fourthChartSymbol ? (
+    <div className="chart-host fourth-chart-host">
+      {renderPaneSymbolSelector("fourth", fourthChartSymbol)}
+      <div className="chart-pane-actions">
+        <button
+          onClick={() => toggleMaximizedPane("fourth")}
+          title={maximizedChartPane === "fourth" ? "إرجاع التخطيط" : "تكبير الشارت"}
+        >
+          {maximizedChartPane === "fourth" ? "⊞" : "⛶"}
+        </button>
+      </div>
+      <MarketChart
+        candles={displayFourthChartCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        customIndicators={customIndicators}
+        drawings={[]}
+        drawingTool="cursor"
+        onDrawingCreated={ignoreDrawingCreated}
+        comparison={null}
+        settings={chartSettings}
+        resetViewKey={chartResetKey}
+        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
+      />
+      {displayFourthChartCandles.length === 0 ? (
+        <div className="chart-state">تحميل Pane 4…</div>
+      ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
   ) : null;
