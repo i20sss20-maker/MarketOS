@@ -1,47 +1,11 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
-import {
-  evaluateAdvancedAlerts,
-  type AdvancedAlert,
-} from "@marketos/alert-core";
-import type {
-  MarketSymbol,
-  Timeframe,
-} from "@marketos/market-core";
-import { sanitizeAdvancedAlerts } from "../alerts/validation.js";
+import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 import { userStateStore } from "../storage/index.js";
 
 const MAX_GROUPS_PER_CHECK = 20;
-const CANDLE_LIMIT = 80;
-
-type AlertGroup = {
-  key: string;
-  symbol: MarketSymbol;
-  timeframe: Timeframe;
-};
-
-function activeGroups(alerts: AdvancedAlert[]): AlertGroup[] {
-  const groups = new Map<string, AlertGroup>();
-
-  for (const alert of alerts) {
-    if (!alert.enabled || alert.triggeredAt) continue;
-
-    const key = `${alert.symbol.id}::${alert.timeframe}`;
-    if (groups.has(key)) continue;
-
-    groups.set(key, {
-      key,
-      symbol: alert.symbol,
-      timeframe: alert.timeframe,
-    });
-
-    if (groups.size >= MAX_GROUPS_PER_CHECK) break;
-  }
-
-  return [...groups.values()];
-}
 
 export async function userAlertCheck(
   request: HttpRequest,
@@ -62,87 +26,27 @@ export async function userAlertCheck(
       return json(200, {
         ok: true,
         storageMode: userStateStore.mode,
+        provider: marketDataProvider.id,
         checkedGroups: 0,
+        totalAlerts: 0,
         triggered: [],
         failures: [],
+        capped: false,
         message: "No cloud state is stored for this user.",
       });
     }
 
-    let alerts = sanitizeAdvancedAlerts(
-      stored.payload.alerts,
-      100,
+    const result = await evaluateStoredUserAlerts(
+      stored,
+      {
+        maxGroups: MAX_GROUPS_PER_CHECK,
+      },
     );
 
-    const groups = activeGroups(alerts);
-    const failures: Array<{
-      symbol: string;
-      timeframe: Timeframe;
-      error: string;
-    }> = [];
-    const triggered: Array<{
-      alertId: string;
-      symbol: string;
-      timeframe: Timeframe;
-      snapshot: unknown;
-      conditions: unknown;
-      triggeredAt: number | undefined;
-    }> = [];
-
-    const now = Date.now();
-
-    for (const group of groups) {
-      try {
-        const [candles, quote] = await Promise.all([
-          marketDataProvider.getCandles(
-            group.symbol,
-            group.timeframe,
-            CANDLE_LIMIT,
-          ),
-          marketDataProvider
-            .getQuote(group.symbol)
-            .catch(() => null),
-        ]);
-
-        const result = evaluateAdvancedAlerts(
-          alerts,
-          {
-            symbol: group.symbol,
-            timeframe: group.timeframe,
-            candles,
-            quote,
-          },
-          now,
-        );
-
-        alerts = result.alerts;
-
-        for (const item of result.triggered) {
-          triggered.push({
-            alertId: item.alert.id,
-            symbol: item.alert.symbol.ticker,
-            timeframe: item.alert.timeframe,
-            snapshot: item.evaluation.snapshot,
-            conditions: item.evaluation.conditions,
-            triggeredAt: item.alert.triggeredAt,
-          });
-        }
-      } catch (error) {
-        failures.push({
-          symbol: group.symbol.ticker,
-          timeframe: group.timeframe,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Unknown alert evaluation error.",
-        });
-      }
-    }
-
-    if (groups.length > 0) {
+    if (result.checkedGroups > 0) {
       await userStateStore.put(user.userId, {
         ...stored.payload,
-        alerts,
+        alerts: result.alerts,
         updatedAt: Date.now(),
       });
     }
@@ -151,14 +55,11 @@ export async function userAlertCheck(
       ok: true,
       storageMode: userStateStore.mode,
       provider: marketDataProvider.id,
-      checkedGroups: groups.length,
-      totalAlerts: alerts.length,
-      triggered,
-      failures,
-      capped:
-        activeGroups(
-          sanitizeAdvancedAlerts(stored.payload.alerts, 100),
-        ).length >= MAX_GROUPS_PER_CHECK,
+      checkedGroups: result.checkedGroups,
+      totalAlerts: result.alerts.length,
+      triggered: result.triggered,
+      failures: result.failures,
+      capped: result.capped,
     });
   } catch (error) {
     return json(500, {
