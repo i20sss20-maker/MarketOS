@@ -42,6 +42,9 @@ jobs:
       - name: AI chart context runtime smoke test
         run: pnpm smoke:ai-chart
 
+      - name: Multi-Timeframe AI runtime smoke test
+        run: pnpm smoke:multi-timeframe
+
       - name: Strategy Tester runtime smoke test
         run: pnpm smoke:backtest
 

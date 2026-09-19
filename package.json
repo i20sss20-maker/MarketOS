@@ -19,7 +19,8 @@
     "smoke:formula": "node scripts/formula-smoke.mjs",
     "smoke:feed": "node scripts/feed-smoke.mjs",
     "smoke:feed-provider": "node scripts/feed-provider-smoke.mjs",
-    "smoke:screener": "node scripts/screener-smoke.mjs"
+    "smoke:screener": "node scripts/screener-smoke.mjs",
+    "smoke:multi-timeframe": "node scripts/multi-timeframe-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

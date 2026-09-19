@@ -1,6 +1,9 @@
 import type {
   ChartAnalysisResponse,
   ChartContext,
+  MarketSymbol,
+  MultiTimeframeAnalysisResponse,
+  Timeframe,
 } from "@marketos/market-core";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -28,6 +31,43 @@ export async function analyzeChart(
   const payload = await response.json().catch(() => null) as ChartAnalyzeResponse | null;
   if (!response.ok || !payload?.ok || !payload.analysis) {
     throw new Error(payload?.error || `Chart analysis request failed (${response.status}).`);
+  }
+
+  return payload.analysis;
+}
+
+type MultiTimeframeResponse = {
+  ok: boolean;
+  provider?: string;
+  analysis?: MultiTimeframeAnalysisResponse;
+  error?: string;
+};
+
+export async function analyzeMultipleTimeframes(
+  symbol: MarketSymbol,
+  timeframes: Timeframe[],
+  indicators: string[],
+  prompt?: string,
+  signal?: AbortSignal,
+): Promise<MultiTimeframeAnalysisResponse> {
+  const response = await fetch(`${API_BASE_URL}/ai/multi-timeframe`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      symbol,
+      timeframes: timeframes.slice(0, 4),
+      indicators: indicators.slice(0, 20),
+      prompt,
+    }),
+    signal,
+  });
+
+  const payload = await response.json().catch(() => null) as MultiTimeframeResponse | null;
+  if (!response.ok || !payload?.ok || !payload.analysis) {
+    throw new Error(payload?.error || `Multi-timeframe analysis failed (${response.status}).`);
   }
 
   return payload.analysis;

@@ -183,3 +183,35 @@ export type ChartAnalysisResponse = {
   activeIndicators: string[];
   drawingCount: number;
 };
+
+
+export type MultiTimeframeTrend = "up" | "down" | "sideways";
+export type MultiTimeframeAlignment = "up" | "down" | "sideways" | "mixed";
+
+export type MultiTimeframeItem = {
+  timeframe: Timeframe;
+  trend: MultiTimeframeTrend;
+  analysis: ChartAnalysisResponse;
+};
+
+export type MultiTimeframeFailure = {
+  timeframe: Timeframe;
+  error: string;
+};
+
+export type MultiTimeframeAnalysisResponse = {
+  engine: string;
+  generatedAt: number;
+  symbol: string;
+  requestedTimeframes: Timeframe[];
+  items: MultiTimeframeItem[];
+  failures: MultiTimeframeFailure[];
+  alignment: MultiTimeframeAlignment;
+  upCount: number;
+  downCount: number;
+  sidewaysCount: number;
+  rangeLow: number;
+  rangeHigh: number;
+  summary: string;
+  observations: string[];
+};
