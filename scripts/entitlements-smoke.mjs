@@ -40,8 +40,20 @@ const {
 );
 
 assert.equal(
+  PLAN_DEFINITIONS.free.limits.watchlists,
+  1,
+);
+assert.equal(
   PLAN_DEFINITIONS.free.limits.watchlistItems,
   10,
+);
+assert.equal(
+  PLAN_DEFINITIONS.pro.limits.watchlists,
+  5,
+);
+assert.equal(
+  PLAN_DEFINITIONS.elite.limits.watchlists,
+  20,
 );
 assert.equal(
   PLAN_DEFINITIONS.pro.features.quadChart,
@@ -86,6 +98,7 @@ const free = resolveEntitlement({
 
 const violations = cloudStateViolations(
   {
+    watchlists: 2,
     watchlistItems: 11,
     savedWorkspaces: 3,
     alerts: 4,
@@ -95,7 +108,12 @@ const violations = cloudStateViolations(
   free,
 );
 
-assert.equal(violations.length, 5);
+assert.equal(violations.length, 6);
+assert.ok(
+  violations.some(
+    (item) => item.key === "watchlists",
+  ),
+);
 assert.ok(
   violations.some(
     (item) => item.key === "chartTemplates",
@@ -208,6 +226,32 @@ const overFreeState = {
       id: `SYMBOL-${index}`,
     }),
   ),
+  watchlistCollections: [
+    {
+      id: "list-a",
+      name: "List A",
+      symbols: Array.from(
+        { length: 6 },
+        (_, index) => ({
+          id: `A-${index}`,
+        }),
+      ),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+    {
+      id: "list-b",
+      name: "List B",
+      symbols: Array.from(
+        { length: 6 },
+        (_, index) => ({
+          id: `B-${index}`,
+        }),
+      ),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    },
+  ],
   workspaces: [],
   alerts: [],
   chartSettings: null,
@@ -236,6 +280,13 @@ assert.equal(
 assert.equal(
   rejected.jsonBody?.plan,
   "free",
+);
+assert.ok(
+  rejected.jsonBody?.violations
+    ?.some(
+      (item) =>
+        item.key === "watchlists",
+    ),
 );
 assert.ok(
   rejected.jsonBody?.violations
@@ -333,6 +384,10 @@ assert.equal(accepted.status, 200);
 assert.equal(
   accepted.jsonBody?.state?.watchlist?.length,
   11,
+);
+assert.equal(
+  accepted.jsonBody?.state?.watchlistCollections?.length,
+  2,
 );
 
 await userStateStore.delete(principal.userId);

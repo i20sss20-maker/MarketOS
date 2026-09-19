@@ -144,12 +144,22 @@ import {
 } from "./lib/indicators";
 import {
   createWorkspace,
-  loadWatchlist,
   loadWorkspaces,
   saveWatchlist,
   saveWorkspaces,
   type SavedWorkspace,
 } from "./lib/workspace";
+import {
+  createWatchlistCollection,
+  loadActiveWatchlistId,
+  loadWatchlistCollections,
+  renameWatchlistCollection,
+  saveActiveWatchlistId,
+  saveWatchlistCollections,
+  totalWatchlistItems,
+  updateCollectionSymbols,
+  type WatchlistCollection,
+} from "./lib/watchlistCollections";
 import {
   getMarketCandles,
   getMarketOverview,
@@ -374,7 +384,22 @@ export default function App() {
   const [chartResetKey, setChartResetKey] = useState(0);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [watchlistCollections, setWatchlistCollections] = useState<WatchlistCollection[]>(() =>
+    loadWatchlistCollections(initialSymbols),
+  );
+  const [activeWatchlistId, setActiveWatchlistId] = useState(() => {
+    const collections = loadWatchlistCollections(initialSymbols);
+    return loadActiveWatchlistId(collections);
+  });
+  const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => {
+    const collections = loadWatchlistCollections(initialSymbols);
+    const activeId = loadActiveWatchlistId(collections);
+    return (
+      collections.find((collection) => collection.id === activeId)?.symbols ??
+      collections[0]?.symbols ??
+      initialSymbols
+    );
+  });
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [showHomeDashboard, setShowHomeDashboard] = useState(() => shouldAutoOpenHome());
   const [homeAutoOpen, setHomeAutoOpen] = useState(
@@ -1556,6 +1581,220 @@ export default function App() {
     });
   };
 
+  const activeWatchlist =
+    watchlistCollections.find(
+      (collection) =>
+        collection.id === activeWatchlistId,
+    ) ??
+    watchlistCollections[0] ??
+    null;
+
+  const totalWatchlistItemCount =
+    totalWatchlistItems(
+      watchlistCollections,
+    );
+
+  const persistActiveWatchlist = useCallback(
+    (symbols: MarketSymbol[]) => {
+      const next = [
+        ...new Map(
+          symbols.map((symbol) => [
+            symbol.id,
+            symbol,
+          ]),
+        ).values(),
+      ];
+
+      setWatchlist(next);
+
+      // Keep the legacy active-list key for backward compatibility.
+      saveWatchlist(next);
+
+      setWatchlistCollections(
+        (current) => {
+          const updated =
+            updateCollectionSymbols(
+              current,
+              activeWatchlistId,
+              next,
+            );
+
+          saveWatchlistCollections(
+            updated,
+          );
+
+          return updated;
+        },
+      );
+    },
+    [activeWatchlistId],
+  );
+
+  const selectWatchlistCollection = useCallback(
+    (collectionId: string) => {
+      const collection =
+        watchlistCollections.find(
+          (item) =>
+            item.id === collectionId,
+        );
+
+      if (!collection) return;
+
+      setActiveWatchlistId(
+        collection.id,
+      );
+      saveActiveWatchlistId(
+        collection.id,
+      );
+
+      setWatchlist(
+        collection.symbols,
+      );
+      saveWatchlist(
+        collection.symbols,
+      );
+
+      setQuery("");
+      setWatchlistOverview([]);
+      setOverview([]);
+      watchlistInitialLoadRef.current =
+        false;
+    },
+    [watchlistCollections],
+  );
+
+  const createWatchlist = useCallback(
+    (name: string) => {
+      if (
+        watchlistCollections.length >=
+        planLimits.watchlists
+      ) {
+        showPlanRequirement(
+          `خطة ${entitlement.definition.name} تسمح بـ ${planLimits.watchlists} قوائم متابعة.`,
+        );
+        return;
+      }
+
+      try {
+        const collection =
+          createWatchlistCollection(
+            name,
+          );
+
+        const next = [
+          ...watchlistCollections,
+          collection,
+        ];
+
+        setWatchlistCollections(next);
+        saveWatchlistCollections(next);
+
+        setActiveWatchlistId(
+          collection.id,
+        );
+        saveActiveWatchlistId(
+          collection.id,
+        );
+
+        setWatchlist([]);
+        saveWatchlist([]);
+
+        setQuery("");
+        setWatchlistOverview([]);
+        setOverview([]);
+        watchlistInitialLoadRef.current =
+          false;
+      } catch {
+        // The manager keeps invalid names disabled; no extra UI error is needed here.
+      }
+    },
+    [
+      watchlistCollections,
+      planLimits.watchlists,
+      entitlement.definition.name,
+      showPlanRequirement,
+    ],
+  );
+
+  const renameWatchlist = useCallback(
+    (
+      collectionId: string,
+      name: string,
+    ) => {
+      const next =
+        renameWatchlistCollection(
+          watchlistCollections,
+          collectionId,
+          name,
+        );
+
+      setWatchlistCollections(next);
+      saveWatchlistCollections(next);
+    },
+    [watchlistCollections],
+  );
+
+  const deleteWatchlist = useCallback(
+    (collectionId: string) => {
+      if (
+        watchlistCollections.length <= 1
+      ) {
+        return;
+      }
+
+      const next =
+        watchlistCollections.filter(
+          (collection) =>
+            collection.id !==
+            collectionId,
+        );
+
+      if (
+        next.length ===
+        watchlistCollections.length
+      ) {
+        return;
+      }
+
+      setWatchlistCollections(next);
+      saveWatchlistCollections(next);
+
+      if (
+        activeWatchlistId !==
+        collectionId
+      ) {
+        return;
+      }
+
+      const fallback =
+        next[0];
+
+      setActiveWatchlistId(
+        fallback.id,
+      );
+      saveActiveWatchlistId(
+        fallback.id,
+      );
+
+      setWatchlist(
+        fallback.symbols,
+      );
+      saveWatchlist(
+        fallback.symbols,
+      );
+
+      setQuery("");
+      setWatchlistOverview([]);
+      setOverview([]);
+      watchlistInitialLoadRef.current =
+        false;
+    },
+    [
+      watchlistCollections,
+      activeWatchlistId,
+    ],
+  );
+
   const addToWatchlist = useCallback(
     (symbol: MarketSymbol) => {
       if (
@@ -1568,31 +1807,27 @@ export default function App() {
       }
 
       if (
-        watchlist.length >=
+        totalWatchlistItemCount >=
         planLimits.watchlistItems
       ) {
         showPlanRequirement(
-          `وصلت حد قائمة المتابعة في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز.`,
+          `وصلت حد الرموز الإجمالي في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز عبر كل القوائم.`,
         );
         return;
       }
 
-      const next = [
+      persistActiveWatchlist([
         symbol,
         ...watchlist,
-      ].slice(
-        0,
-        planLimits.watchlistItems,
-      );
-
-      setWatchlist(next);
-      saveWatchlist(next);
+      ]);
     },
     [
       watchlist,
+      totalWatchlistItemCount,
       planLimits.watchlistItems,
       entitlement.definition.name,
       showPlanRequirement,
+      persistActiveWatchlist,
     ],
   );
 
@@ -1850,37 +2085,29 @@ export default function App() {
       );
 
     if (exists) {
-      const next =
+      persistActiveWatchlist(
         watchlist.filter(
           (item) =>
             item.id !== active.id,
-        );
-
-      setWatchlist(next);
-      saveWatchlist(next);
-      return;
-    }
-
-    if (
-      watchlist.length >=
-      planLimits.watchlistItems
-    ) {
-      showPlanRequirement(
-        `وصلت حد قائمة المتابعة في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز.`,
+        ),
       );
       return;
     }
 
-    const next = [
+    if (
+      totalWatchlistItemCount >=
+      planLimits.watchlistItems
+    ) {
+      showPlanRequirement(
+        `وصلت حد الرموز الإجمالي في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز عبر كل القوائم.`,
+      );
+      return;
+    }
+
+    persistActiveWatchlist([
       active,
       ...watchlist,
-    ].slice(
-      0,
-      planLimits.watchlistItems,
-    );
-
-    setWatchlist(next);
-    saveWatchlist(next);
+    ]);
   };
 
   const chooseSymbol = (symbol: MarketSymbol) => {
@@ -2757,43 +2984,43 @@ export default function App() {
       fourthPane?.symbol,
     ].filter((symbol): symbol is MarketSymbol => Boolean(symbol));
 
-    setWatchlist((current) => {
-      const merged =
-        new Map<string, MarketSymbol>(
-          current.map((symbol) => [
-            symbol.id,
-            symbol,
-          ]),
-        );
-
-      for (
-        const symbol
-        of restoredSymbols
-      ) {
-        if (
-          merged.size >=
-            planLimits.watchlistItems &&
-          !merged.has(symbol.id)
-        ) {
-          break;
-        }
-
-        merged.set(
-          symbol.id,
-          symbol,
-        );
-      }
-
-      const next = [
-        ...merged.values(),
-      ].slice(
+    const outsideActiveCount =
+      Math.max(
         0,
-        planLimits.watchlistItems,
+        totalWatchlistItemCount -
+          watchlist.length,
       );
 
-      saveWatchlist(next);
-      return next;
-    });
+    const merged =
+      new Map<string, MarketSymbol>(
+        watchlist.map((symbol) => [
+          symbol.id,
+          symbol,
+        ]),
+      );
+
+    for (
+      const symbol
+      of restoredSymbols
+    ) {
+      if (
+        !merged.has(symbol.id) &&
+        outsideActiveCount +
+          merged.size >=
+          planLimits.watchlistItems
+      ) {
+        break;
+      }
+
+      merged.set(
+        symbol.id,
+        symbol,
+      );
+    }
+
+    persistActiveWatchlist([
+      ...merged.values(),
+    ]);
 
     saveSetting("marketos:symbol", primaryPane.symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
@@ -3107,7 +3334,10 @@ export default function App() {
     ...new Map(
       [
         ...commandSymbolResults,
-        ...watchlist,
+        ...watchlistCollections.flatMap(
+          (collection) =>
+            collection.symbols,
+        ),
         ...initialSymbols,
       ].map((symbol) => [symbol.id, symbol]),
     ).values(),
@@ -3123,6 +3353,34 @@ export default function App() {
       priority: 110,
       onSelect: openHomeDashboard,
     },
+    ...watchlistCollections.map(
+      (collection, index) => ({
+        id: `watchlist:${collection.id}`,
+        group: "Watchlists",
+        label: collection.name,
+        description: `${collection.symbols.length} رمز`,
+        keywords: [
+          "watchlist",
+          "قائمة",
+          "متابعة",
+          collection.name,
+        ],
+        priority:
+          collection.id ===
+          activeWatchlistId
+            ? 96
+            : 66 - index,
+        badge:
+          collection.id ===
+          activeWatchlistId
+            ? "الحالية"
+            : undefined,
+        onSelect: () =>
+          selectWatchlistCollection(
+            collection.id,
+          ),
+      }),
+    ),
     ...commandSymbolOptions.map((symbol, index) => ({
       id: `symbol:${symbol.id}`,
       group: "رموز",
@@ -4321,7 +4579,9 @@ export default function App() {
           </strong>
         </span>
         <span>{active.exchange}</span>
-        <span>Watchlist <b>{watchlist.length}</b></span>
+        <span>
+          {activeWatchlist?.name ?? "Watchlist"} <b>{watchlist.length}</b>
+        </span>
         <span>Alerts <b>{activeAlerts.length}</b></span>
         <span>{replayActive ? "Replay mode" : autoRefreshEnabled ? "Auto refresh" : "Manual refresh"}</span>
       </section>
@@ -4334,12 +4594,17 @@ export default function App() {
       ].filter(Boolean).join(" ")}>
         <CommercialWatchlistPanel
           open={watchlistOpen}
-          title={query.trim() ? "نتائج البحث" : "قائمة المتابعة"}
+          title={query.trim() ? "نتائج البحث" : activeWatchlist?.name ?? "قائمة المتابعة"}
           query={query}
           searchLoading={searchLoading}
           searchInputRef={searchInputRef}
           filter={watchlistFilter}
           sort={watchlistSort}
+          collections={watchlistCollections}
+          activeCollectionId={activeWatchlistId}
+          collectionLimit={planLimits.watchlists}
+          totalItemCount={totalWatchlistItemCount}
+          totalItemLimit={planLimits.watchlistItems}
           visibleSymbols={visibleSymbols}
           activeId={active.id}
           activeQuote={quote ?? undefined}
@@ -4361,6 +4626,10 @@ export default function App() {
             setWatchlistSort(value);
             saveSetting("marketos:watchlist-sort", value);
           }}
+          onCollectionChange={selectWatchlistCollection}
+          onCreateCollection={createWatchlist}
+          onRenameCollection={renameWatchlist}
+          onDeleteCollection={deleteWatchlist}
           onSelect={chooseSymbol}
           formatPrice={formatPrice}
           formatPercent={formatPercent}

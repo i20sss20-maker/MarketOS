@@ -10306,3 +10306,201 @@ button.chart-template-card {
   }
 }
 
+/* Multiple Watchlists V1 --------------------------------------------------- */
+.account-plan-limits {
+  grid-template-columns: repeat(3,minmax(0,1fr));
+}
+
+.watchlist-collection-bar {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 30px;
+  gap: 5px;
+  padding: 6px 7px 0;
+}
+
+.watchlist-collection-bar select {
+  min-width: 0;
+  min-height: 29px;
+  border: 1px solid rgba(148,163,184,.075);
+  border-radius: 6px;
+  padding: 0 7px;
+  outline: 0;
+  background: #080d16;
+  color: #7c899d;
+  cursor: pointer;
+  font-size: 7px;
+}
+
+.watchlist-collection-bar select:focus {
+  border-color: rgba(124,131,255,.18);
+}
+
+.watchlist-collection-bar button {
+  width: 30px;
+  min-height: 29px;
+  border: 1px solid rgba(148,163,184,.075);
+  border-radius: 6px;
+  background: rgba(148,163,184,.025);
+  color: #647187;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.watchlist-collection-bar button.active,
+.watchlist-collection-bar button:hover {
+  border-color: rgba(124,131,255,.15);
+  background: rgba(124,131,255,.06);
+  color: #99a2e9;
+}
+
+.watchlist-collection-manager {
+  margin: 5px 7px 0;
+  border: 1px solid rgba(148,163,184,.07);
+  border-radius: 7px;
+  background: #070c14;
+  box-shadow: 0 18px 55px rgba(0,0,0,.32);
+  overflow: hidden;
+}
+
+.watchlist-collection-create {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 5px;
+  padding: 6px;
+  border-bottom: 1px solid rgba(148,163,184,.05);
+}
+
+.watchlist-collection-create input {
+  min-width: 0;
+  min-height: 29px;
+  border: 1px solid rgba(148,163,184,.075);
+  border-radius: 6px;
+  padding: 0 7px;
+  outline: 0;
+  background: #090f18;
+  color: #aab5c4;
+  font-size: 7px;
+}
+
+.watchlist-collection-create input:focus {
+  border-color: rgba(124,131,255,.18);
+}
+
+.watchlist-collection-create button {
+  min-height: 29px;
+  border: 1px solid rgba(124,131,255,.13);
+  border-radius: 6px;
+  padding: 0 8px;
+  background: rgba(79,70,229,.08);
+  color: #9ca4ec;
+  cursor: pointer;
+  font-size: 7px;
+  font-weight: 750;
+}
+
+.watchlist-collection-create button:disabled {
+  opacity: .32;
+  cursor: default;
+}
+
+.watchlist-collection-list {
+  max-height: 190px;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.watchlist-collection-row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 27px 27px;
+  gap: 3px;
+  align-items: stretch;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.watchlist-collection-row.active {
+  border-color: rgba(124,131,255,.10);
+  background: rgba(124,131,255,.045);
+}
+
+.watchlist-collection-row > button {
+  border: 0;
+  background: transparent;
+  color: #68768b;
+  cursor: pointer;
+}
+
+.watchlist-collection-row > button:not(.watchlist-collection-open) {
+  border-radius: 5px;
+  font-size: 8px;
+}
+
+.watchlist-collection-row > button:not(.watchlist-collection-open):hover {
+  background: rgba(148,163,184,.045);
+  color: #9ba7b8;
+}
+
+.watchlist-collection-row > button.danger:hover:not(:disabled) {
+  background: rgba(240,93,111,.06);
+  color: #c77a87;
+}
+
+.watchlist-collection-row > button:disabled {
+  opacity: .25;
+  cursor: default;
+}
+
+.watchlist-collection-open {
+  min-width: 0;
+  min-height: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5px 7px;
+  text-align: right;
+}
+
+.watchlist-collection-open strong,
+.watchlist-collection-open small {
+  display: block;
+}
+
+.watchlist-collection-open strong {
+  max-width: 100%;
+  overflow: hidden;
+  color: #8f9cad;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-collection-row.active .watchlist-collection-open strong {
+  color: #b7bdf5;
+}
+
+.watchlist-collection-open small {
+  margin-top: 2px;
+  color: #4f5d71;
+  font-size: 6px;
+}
+
+.watchlist-collection-manager footer {
+  min-height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 0 7px;
+  border-top: 1px solid rgba(148,163,184,.05);
+  color: #4b596d;
+  font-size: 6px;
+}
+
+@media (max-width: 760px) {
+  .account-plan-limits {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
+

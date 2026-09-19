@@ -89,6 +89,16 @@ const sanitized = sanitizeUserCloudState({
     { length: 100 },
     (_, index) => ({ id: index }),
   ),
+  watchlistCollections: Array.from(
+    { length: 25 },
+    (_, index) => ({
+      id: "list-" + index,
+      name: "List " + index,
+      symbols: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }),
+  ),
   workspaces: Array.from(
     { length: 30 },
     (_, index) => ({ id: index }),
@@ -146,6 +156,7 @@ const sanitized = sanitizeUserCloudState({
 
 assert.equal(sanitized.version, 1);
 assert.equal(sanitized.watchlist.length, 80);
+assert.equal(sanitized.watchlistCollections.length, 20);
 assert.equal(sanitized.workspaces.length, 20);
 assert.equal(sanitized.alerts.length, 150);
 assert.deepEqual(
@@ -181,6 +192,7 @@ assert.throws(
   () =>
     sanitizeUserCloudState({
       watchlist: [],
+      watchlistCollections: [],
       workspaces: [],
       alerts: [],
       chartSettings: null,

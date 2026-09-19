@@ -1,6 +1,7 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 import type { MarketSymbol, Quote } from "@marketos/market-core";
 import CommercialSkeleton from "./CommercialSkeleton";
+import type { WatchlistCollection } from "../lib/watchlistCollections";
 
 export type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 export type WatchlistSort = "manual" | "change-desc" | "change-asc" | "symbol";
@@ -13,6 +14,11 @@ type Props = {
   searchInputRef: RefObject<HTMLInputElement | null>;
   filter: WatchlistFilter;
   sort: WatchlistSort;
+  collections: WatchlistCollection[];
+  activeCollectionId: string;
+  collectionLimit: number;
+  totalItemCount: number;
+  totalItemLimit: number;
   visibleSymbols: MarketSymbol[];
   activeId: string;
   activeQuote?: Quote;
@@ -28,6 +34,10 @@ type Props = {
   onSearchChange: (value: string) => void;
   onFilterChange: (value: WatchlistFilter) => void;
   onSortChange: (value: WatchlistSort) => void;
+  onCollectionChange: (id: string) => void;
+  onCreateCollection: (name: string) => void;
+  onRenameCollection: (id: string, name: string) => void;
+  onDeleteCollection: (id: string) => void;
   onSelect: (symbol: MarketSymbol) => void;
   formatPrice: (value?: number) => string;
   formatPercent: (value?: number) => string;
@@ -41,6 +51,11 @@ export default function CommercialWatchlistPanel({
   searchInputRef,
   filter,
   sort,
+  collections,
+  activeCollectionId,
+  collectionLimit,
+  totalItemCount,
+  totalItemLimit,
   visibleSymbols,
   activeId,
   activeQuote,
@@ -56,10 +71,20 @@ export default function CommercialWatchlistPanel({
   onSearchChange,
   onFilterChange,
   onSortChange,
+  onCollectionChange,
+  onCreateCollection,
+  onRenameCollection,
+  onDeleteCollection,
   onSelect,
   formatPrice,
   formatPercent,
 }: Props) {
+  const [manageOpen, setManageOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+
+  const canCreate =
+    collections.length < collectionLimit;
+
   return (
     <aside className={open ? "watchlist panel commercial-side-panel" : "watchlist panel commercial-side-panel panel-collapsed"}>
       <div className="watchlist-head commercial-panel-head">
@@ -83,6 +108,167 @@ export default function CommercialWatchlistPanel({
           </button>
         </div>
       </div>
+
+      <div className="watchlist-collection-bar">
+        <select
+          value={activeCollectionId}
+          onChange={(event) =>
+            onCollectionChange(
+              event.target.value,
+            )
+          }
+          aria-label="قائمة المتابعة النشطة"
+        >
+          {collections.map(
+            (collection) => (
+              <option
+                key={collection.id}
+                value={collection.id}
+              >
+                {collection.name} · {collection.symbols.length}
+              </option>
+            ),
+          )}
+        </select>
+
+        <button
+          className={manageOpen ? "active" : ""}
+          onClick={() =>
+            setManageOpen(
+              (value) => !value,
+            )
+          }
+          title="إدارة قوائم المتابعة"
+        >
+          ☷
+        </button>
+      </div>
+
+      {manageOpen ? (
+        <div
+          className="watchlist-collection-manager"
+          dir="rtl"
+        >
+          <div className="watchlist-collection-create">
+            <input
+              value={newName}
+              maxLength={60}
+              onChange={(event) =>
+                setNewName(
+                  event.target.value,
+                )
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  newName.trim() &&
+                  canCreate
+                ) {
+                  onCreateCollection(
+                    newName,
+                  );
+                  setNewName("");
+                }
+              }}
+              placeholder="اسم قائمة جديدة…"
+            />
+            <button
+              onClick={() => {
+                if (!newName.trim()) return;
+                onCreateCollection(
+                  newName,
+                );
+                setNewName("");
+              }}
+              disabled={
+                !newName.trim() ||
+                !canCreate
+              }
+            >
+              + قائمة
+            </button>
+          </div>
+
+          <div className="watchlist-collection-list">
+            {collections.map(
+              (collection) => (
+                <div
+                  className={
+                    collection.id ===
+                    activeCollectionId
+                      ? "watchlist-collection-row active"
+                      : "watchlist-collection-row"
+                  }
+                  key={collection.id}
+                >
+                  <button
+                    className="watchlist-collection-open"
+                    onClick={() =>
+                      onCollectionChange(
+                        collection.id,
+                      )
+                    }
+                  >
+                    <strong>
+                      {collection.name}
+                    </strong>
+                    <small>
+                      {collection.symbols.length} رمز
+                    </small>
+                  </button>
+
+                  <button
+                    title="إعادة تسمية"
+                    onClick={() => {
+                      const next =
+                        window.prompt(
+                          "اسم القائمة",
+                          collection.name,
+                        );
+                      if (next?.trim()) {
+                        onRenameCollection(
+                          collection.id,
+                          next,
+                        );
+                      }
+                    }}
+                  >
+                    ✎
+                  </button>
+
+                  <button
+                    className="danger"
+                    title={
+                      collections.length <= 1
+                        ? "يجب الاحتفاظ بقائمة واحدة على الأقل"
+                        : "حذف القائمة"
+                    }
+                    disabled={
+                      collections.length <= 1
+                    }
+                    onClick={() =>
+                      onDeleteCollection(
+                        collection.id,
+                      )
+                    }
+                  >
+                    ×
+                  </button>
+                </div>
+              ),
+            )}
+          </div>
+
+          <footer>
+            <span>
+              {collections.length} / {collectionLimit} قوائم
+            </span>
+            <span>
+              {totalItemCount} / {totalItemLimit} رمز إجمالي
+            </span>
+          </footer>
+        </div>
+      ) : null}
 
       <div className="search-box">
         <span>{searchLoading ? "…" : "⌕"}</span>
@@ -190,6 +376,7 @@ export default function CommercialWatchlistPanel({
                 })
               : "—"}
           </span>
+          <small>{title}</small>
           {error ? <small>تعذر تحديث بعض الأسعار.</small> : null}
         </div>
       ) : null}

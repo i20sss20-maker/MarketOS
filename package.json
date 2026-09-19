@@ -32,6 +32,7 @@
     "smoke:command-palette": "node scripts/command-palette-smoke.mjs",
     "smoke:home-dashboard": "node scripts/home-dashboard-smoke.mjs",
     "smoke:chart-templates": "node scripts/chart-templates-smoke.mjs",
+    "smoke:multiple-watchlists": "node scripts/multiple-watchlists-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
     "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
     "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",

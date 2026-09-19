@@ -30,6 +30,7 @@ export type FeatureId =
   | "companyFeed";
 
 export type PlanLimits = {
+  watchlists: number;
   watchlistItems: number;
   savedWorkspaces: number;
   alerts: number;
@@ -85,6 +86,7 @@ export const PLAN_DEFINITIONS: Record<
       companyFeed: true,
     },
     limits: {
+      watchlists: 1,
       watchlistItems: 10,
       savedWorkspaces: 2,
       alerts: 3,
@@ -115,6 +117,7 @@ export const PLAN_DEFINITIONS: Record<
       companyFeed: true,
     },
     limits: {
+      watchlists: 5,
       watchlistItems: 50,
       savedWorkspaces: 12,
       alerts: 25,
@@ -145,6 +148,7 @@ export const PLAN_DEFINITIONS: Record<
       companyFeed: true,
     },
     limits: {
+      watchlists: 20,
       watchlistItems: 100,
       savedWorkspaces: 30,
       alerts: 100,
@@ -234,6 +238,7 @@ export function canUseFeature(
 }
 
 export type CloudStateCounts = {
+  watchlists: number;
   watchlistItems: number;
   savedWorkspaces: number;
   alerts: number;
@@ -261,6 +266,11 @@ export function cloudStateViolations(
       number,
     ]
   > = [
+    [
+      "watchlists",
+      counts.watchlists,
+      limits.watchlists,
+    ],
     [
       "watchlistItems",
       counts.watchlistItems,
