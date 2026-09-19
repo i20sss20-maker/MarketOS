@@ -737,6 +737,7 @@ export default function App() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandSymbolResults, setCommandSymbolResults] = useState<MarketSymbol[]>([]);
   const [commandSymbolLoading, setCommandSymbolLoading] = useState(false);
+  const [commandNewTabMode, setCommandNewTabMode] = useState(false);
 
   useEffect(() => {
     saveChartTabs(chartTabs);
@@ -770,6 +771,7 @@ export default function App() {
       event.preventDefault();
       setCommandQuery("");
       setCommandSymbolResults([]);
+      setCommandNewTabMode(false);
       setShowCommandPalette((current) => !current);
     };
 
@@ -4300,6 +4302,9 @@ export default function App() {
         "marketos:chart-view",
         next.chartView,
       );
+      updateActiveChartTabSession({
+        chartView: next.chartView,
+      });
       setIndicators(next.indicators);
       saveIndicatorSelection(
         next.indicators,
@@ -4508,7 +4513,17 @@ export default function App() {
       ],
       priority: symbol.id === active.id ? 100 : 88 - Math.min(index, 20),
       badge: symbol.id === active.id ? "الحالي" : undefined,
-      onSelect: () => chooseSymbol(symbol),
+      onSelect: () => {
+        if (commandNewTabMode) {
+          openChartTabForSymbol(
+            symbol,
+          );
+          setCommandNewTabMode(false);
+          return;
+        }
+
+        chooseSymbol(symbol);
+      },
     })),
     ...timeframes.map((item) => ({
       id: `timeframe:${item}`,
@@ -5163,6 +5178,7 @@ export default function App() {
         onCommandPalette={() => {
           setCommandQuery("");
           setCommandSymbolResults([]);
+          setCommandNewTabMode(false);
           setShowCommandPalette(true);
         }}
         onToggleAi={toggleAiPanel}
@@ -5335,6 +5351,7 @@ export default function App() {
           setShowHomeDashboard(false);
           setCommandQuery("");
           setCommandSymbolResults([]);
+          setCommandNewTabMode(false);
           setShowCommandPalette(true);
         }}
       />
@@ -5344,7 +5361,10 @@ export default function App() {
         items={commandPaletteItems}
         loading={commandSymbolLoading}
         onQueryChange={setCommandQuery}
-        onClose={() => setShowCommandPalette(false)}
+        onClose={() => {
+          setShowCommandPalette(false);
+          setCommandNewTabMode(false);
+        }}
       />
 
       <AccountPanel
@@ -5975,6 +5995,7 @@ export default function App() {
             onOpenSearch={() => {
               setCommandQuery("");
               setCommandSymbolResults([]);
+              setCommandNewTabMode(true);
               setShowCommandPalette(true);
             }}
           />
