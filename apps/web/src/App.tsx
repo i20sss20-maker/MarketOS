@@ -3,6 +3,7 @@ import type {
   Candle,
   ChartAnalysisResponse,
   MarketDataStatus,
+  MarketOverviewItem,
   MarketSymbol,
   Quote,
   Timeframe,
@@ -40,6 +41,7 @@ import {
 } from "./lib/workspace";
 import {
   getMarketCandles,
+  getMarketOverview,
   getMarketQuote,
   getMarketStatus,
   searchMarketSymbols,
@@ -59,6 +61,8 @@ const initialSymbols: MarketSymbol[] = [
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 type ChartLayoutMode = "single" | "split";
+type ScreenerMode = "heatmap" | "table";
+type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -121,6 +125,13 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [showScreener, setShowScreener] = useState(false);
+  const [screenerMode, setScreenerMode] = useState<ScreenerMode>("heatmap");
+  const [screenerFilter, setScreenerFilter] = useState<ScreenerFilter>("all");
+  const [overview, setOverview] = useState<MarketOverviewItem[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [overviewProvider, setOverviewProvider] = useState("demo");
   const [savedWorkspaces, setSavedWorkspaces] = useState<SavedWorkspace[]>(() => loadWorkspaces());
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showDrawingMenu, setShowDrawingMenu] = useState(false);
