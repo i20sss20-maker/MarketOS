@@ -1991,7 +1991,16 @@ export default function App() {
         <aside className="watchlist panel">
           <div className="watchlist-head">
             <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
-            <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
+            <div className="watchlist-head-actions">
+              <button
+                title="تحديث أسعار القائمة"
+                onClick={() => void refreshWatchlistOverview(true)}
+                disabled={watchlistLoading || replayActive}
+              >
+                {watchlistLoading ? "…" : "↻"}
+              </button>
+              <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
+            </div>
           </div>
 
           <div className="search-box">
@@ -2004,23 +2013,100 @@ export default function App() {
             />
           </div>
 
-          <div className="symbol-list">
-            {visibleSymbols.map((symbol) => (
-              <button
-                className={`symbol-row ${symbol.id === active.id ? "active" : ""}`}
-                key={symbol.id}
-                onClick={() => chooseSymbol(symbol)}
+          {!query.trim() ? (
+            <div className="watchlist-controls">
+              <select
+                value={watchlistFilter}
+                onChange={(event) => {
+                  const value = event.target.value as WatchlistFilter;
+                  setWatchlistFilter(value);
+                  saveSetting("marketos:watchlist-filter", value);
+                }}
+                aria-label="فلتر قائمة المتابعة"
               >
-                <span className="symbol-meta">
-                  <strong>{symbol.ticker}</strong>
-                  <small>{symbol.name}</small>
-                  <small>{symbol.exchange}{symbol.currency ? ` · ${symbol.currency}` : ""}</small>
-                </span>
-                <span className="asset-badge">{symbol.assetClass}</span>
-              </button>
-            ))}
+                <option value="all">الكل</option>
+                <option value="equities">أسهم</option>
+                <option value="forex">فوركس</option>
+                <option value="crypto">كريبتو</option>
+                <option value="futures">عقود/سلع</option>
+              </select>
+
+              <select
+                value={watchlistSort}
+                onChange={(event) => {
+                  const value = event.target.value as WatchlistSort;
+                  setWatchlistSort(value);
+                  saveSetting("marketos:watchlist-sort", value);
+                }}
+                aria-label="ترتيب قائمة المتابعة"
+              >
+                <option value="manual">ترتيب القائمة</option>
+                <option value="change-desc">الأعلى حركة</option>
+                <option value="change-asc">الأقل حركة</option>
+                <option value="symbol">الرمز A-Z</option>
+              </select>
+            </div>
+          ) : null}
+
+          <div className="symbol-list watchlist-v2-list">
+            {visibleSymbols.map((symbol) => {
+              const rowQuote =
+                watchlistQuoteMap.get(symbol.id) ??
+                (symbol.id === active.id ? quote ?? undefined : undefined);
+              const movement = rowQuote?.percentChange;
+              const alertCount = watchlistAlertCounts.get(symbol.id) ?? 0;
+
+              return (
+                <button
+                  className={`symbol-row watchlist-v2-row ${symbol.id === active.id ? "active" : ""}`}
+                  key={symbol.id}
+                  onClick={() => chooseSymbol(symbol)}
+                >
+                  <span className="symbol-meta">
+                    <strong>
+                      {symbol.ticker}
+                      {alertCount > 0 ? (
+                        <em className="watchlist-alert-count" title={`${alertCount} تنبيه نشط`}>
+                          {alertCount}
+                        </em>
+                      ) : null}
+                    </strong>
+                    <small>{symbol.exchange}</small>
+                    <small className="watchlist-asset-label">{symbol.assetClass}</small>
+                  </span>
+
+                  <span className="watchlist-quote-cell" dir="ltr">
+                    <strong>{formatPrice(rowQuote?.price)}</strong>
+                    <small className={
+                      movement === undefined
+                        ? ""
+                        : movement >= 0
+                          ? "positive"
+                          : "negative"
+                    }>
+                      {formatPercent(movement)}
+                    </small>
+                  </span>
+                </button>
+              );
+            })}
             {visibleSymbols.length === 0 ? <div className="empty-search">لا توجد نتائج</div> : null}
           </div>
+
+          {!query.trim() ? (
+            <div className="watchlist-footer">
+              <span>{watchlistProvider}</span>
+              <span>
+                {watchlistUpdatedAt
+                  ? new Date(watchlistUpdatedAt).toLocaleTimeString("ar-SA", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "—"}
+              </span>
+              {watchlistError ? <small>{watchlistError}</small> : null}
+            </div>
+          ) : null}
         </aside>
 
         <section className="chart-area panel">
