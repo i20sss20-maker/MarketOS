@@ -26,15 +26,28 @@ import {
   objectMatchesQuery,
 } from "../lib/objectTree";
 
+export type ObjectTreePaneId =
+  | "primary"
+  | "secondary"
+  | "third"
+  | "fourth";
+
 type Props = {
   open: boolean;
   symbol: MarketSymbol;
+  paneId: ObjectTreePaneId;
+  paneOptions: Array<{
+    id: ObjectTreePaneId;
+    label: string;
+  }>;
   indicators: IndicatorSelection;
   customIndicators:
     CustomIndicatorDefinition[];
   drawings: ChartDrawing[];
   comparisonSymbol:
     MarketSymbol | null;
+  onPaneChange:
+    (pane: ObjectTreePaneId) => void;
   onClose: () => void;
   onToggleIndicator:
     (id: IndicatorId) => void;
@@ -54,10 +67,13 @@ type Props = {
 export default function ObjectTreePanel({
   open,
   symbol,
+  paneId,
+  paneOptions,
   indicators,
   customIndicators,
   drawings,
   comparisonSymbol,
+  onPaneChange,
   onClose,
   onToggleIndicator,
   onToggleCustom,
@@ -203,6 +219,30 @@ export default function ObjectTreePanel({
             ×
           </button>
         </header>
+
+        <div className="object-tree-pane-picker">
+          <span>Pane</span>
+          <select
+            value={paneId}
+            onChange={(event) =>
+              onPaneChange(
+                event.target.value as ObjectTreePaneId,
+              )
+            }
+          >
+            {paneOptions.map((pane) => (
+              <option
+                key={pane.id}
+                value={pane.id}
+              >
+                {pane.label}
+              </option>
+            ))}
+          </select>
+          <small>
+            المؤشرات الجاهزة تخص الـPane المختار
+          </small>
+        </div>
 
         <div className="object-tree-summary">
           <span>
