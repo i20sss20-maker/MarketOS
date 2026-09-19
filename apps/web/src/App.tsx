@@ -19,6 +19,7 @@ import type {
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
 import AccountPanel from "./components/AccountPanel";
+import NotificationCenterPanel from "./components/NotificationCenterPanel";
 import CommercialAiPanel from "./components/CommercialAiPanel";
 import CommercialWatchlistPanel from "./components/CommercialWatchlistPanel";
 import DrawingToolIcon from "./components/DrawingToolIcon";
@@ -47,6 +48,13 @@ import { createBrowserDemoFeed } from "./lib/demoFeed";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getCompanyFeed } from "./lib/feedApi";
 import { getMarketEvents } from "./lib/eventsApi";
+import {
+  clearNotifications,
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationsRead,
+  type MarketNotification,
+} from "./lib/notificationsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
 import {
   loadChartSettings,
@@ -261,6 +269,11 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showAccountPanel, setShowAccountPanel] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<MarketNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+  const [notificationStorageMode, setNotificationStorageMode] = useState<"memory" | "cosmos" | null>(null);
   const [authUser, setAuthUser] = useState<AuthPrincipal | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [cloudState, setCloudState] = useState<CloudStateResponse | null>(null);
@@ -388,6 +401,104 @@ export default function App() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const refreshNotifications = useCallback(async () => {
+    if (!authUser) {
+      setNotifications([]);
+      setNotificationStorageMode(null);
+      setNotificationsError(null);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+
+    try {
+      const response = await getNotifications();
+      setNotifications(response.notifications);
+      setNotificationStorageMode(response.storageMode);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error
+          ? error.message
+          : "تعذر تحميل الإشعارات.",
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  }, [authUser]);
+
+  const markNotificationItemsRead = async (
+    ids: string[],
+  ) => {
+    if (!authUser || ids.length === 0) return;
+
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+
+    try {
+      const response =
+        await markNotificationsRead(ids);
+      setNotifications(response.notifications);
+      setNotificationStorageMode(response.storageMode);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error
+          ? error.message
+          : "تعذر تحديث حالة الإشعار.",
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const markAllNotificationItemsRead = async () => {
+    if (!authUser) return;
+
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+
+    try {
+      const response =
+        await markAllNotificationsRead();
+      setNotifications(response.notifications);
+      setNotificationStorageMode(response.storageMode);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error
+          ? error.message
+          : "تعذر تعليم الإشعارات كمقروءة.",
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const clearNotificationHistory = async () => {
+    if (!authUser) return;
+
+    const confirmed = window.confirm(
+      "سيتم مسح سجل إشعارات MarketOS السحابي. قواعد التنبيه نفسها لن تُحذف. هل تريد المتابعة؟",
+    );
+    if (!confirmed) return;
+
+    setNotificationsLoading(true);
+    setNotificationsError(null);
+
+    try {
+      const response = await clearNotifications();
+      setNotifications(response.notifications);
+      setNotificationStorageMode(response.storageMode);
+    } catch (error) {
+      setNotificationsError(
+        error instanceof Error
+          ? error.message
+          : "تعذر مسح سجل الإشعارات.",
+      );
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
 
   const refreshCloudState = useCallback(async () => {
     if (!authUser) {
@@ -550,6 +661,41 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!authUser) {
+      setNotifications([]);
+      setNotificationStorageMode(null);
+      setNotificationsError(null);
+      return;
+    }
+
+    void refreshNotifications();
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshNotifications();
+      }
+    };
+
+    const interval = window.setInterval(
+      refreshIfVisible,
+      60_000,
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      refreshIfVisible,
+    );
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshIfVisible,
+      );
+    };
+  }, [authUser, refreshNotifications]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1780,6 +1926,8 @@ export default function App() {
         ].filter(Boolean).join(" · "),
       );
 
+      void refreshNotifications();
+
       if (result.triggered.length > 0) {
         const latestTriggered =
           result.triggered[result.triggered.length - 1];
@@ -2133,6 +2281,9 @@ export default function App() {
     (alert) => alert.enabled && !alert.triggeredAt,
   );
 
+  const unreadNotificationCount =
+    notifications.filter((item) => !item.readAt).length;
+
   const watchlistAlertCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const alert of activeAlerts) {
@@ -2428,6 +2579,7 @@ export default function App() {
         connected={dataState !== "loading"}
         sessionLabel={sessionLabel}
         alertCount={activeAlerts.length}
+        notificationCount={unreadNotificationCount}
         eventCount={marketEvents.length}
         companyCount={companyReleases.length}
         watchlistOpen={watchlistOpen}
@@ -2436,6 +2588,14 @@ export default function App() {
         onToggleAi={toggleAiPanel}
         onMarket={openScreener}
         onAlerts={() => setShowAlertMenu(true)}
+        onNotifications={() => {
+          if (!authUser) {
+            setShowAccountPanel(true);
+            return;
+          }
+          setShowNotifications(true);
+          void refreshNotifications();
+        }}
         onCorrelation={() => setShowCorrelation(true)}
         onEvents={openEvents}
         onCompanyFeed={openCompanyFeed}
@@ -2520,6 +2680,19 @@ export default function App() {
         onUpload={() => void uploadCurrentDeviceToCloud()}
         onRestore={() => void restoreCloudToThisDevice()}
         onDeleteCloud={() => void removeCloudCopy()}
+      />
+
+      <NotificationCenterPanel
+        open={showNotifications}
+        notifications={notifications}
+        loading={notificationsLoading}
+        error={notificationsError}
+        storageMode={notificationStorageMode}
+        onClose={() => setShowNotifications(false)}
+        onRefresh={() => void refreshNotifications()}
+        onMarkRead={(ids) => void markNotificationItemsRead(ids)}
+        onMarkAllRead={() => void markAllNotificationItemsRead()}
+        onClear={() => void clearNotificationHistory()}
       />
 
       <IndicatorLab
