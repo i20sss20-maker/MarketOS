@@ -11,6 +11,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle, MarketSymbol, Timeframe } from "@marketos/market-core";
+import { evaluateFormula } from "@marketos/formula-core";
 import type { ChartDrawing, DrawingPoint, DrawingTool } from "../lib/drawings";
 import { createDrawingId } from "../lib/drawings";
 import {
@@ -19,6 +20,7 @@ import {
   TextPrimitive,
   ZonePrimitive,
 } from "../lib/drawingPrimitives";
+import type { CustomIndicatorDefinition } from "../lib/customIndicators";
 import type { IndicatorSelection } from "../lib/indicators";
 import {
   calculateAtr,
@@ -42,6 +44,7 @@ type Props = {
   timeframe: Timeframe;
   chartView: ChartView;
   indicators: IndicatorSelection;
+  customIndicators?: CustomIndicatorDefinition[];
   drawings: ChartDrawing[];
   drawingTool: DrawingTool;
   onDrawingCreated: (drawing: ChartDrawing) => void;
@@ -62,6 +65,7 @@ export default function MarketChart({
   timeframe,
   chartView,
   indicators,
+  customIndicators = [],
   drawings,
   drawingTool,
   onDrawingCreated,
@@ -134,6 +138,31 @@ export default function MarketChart({
       low: point.low,
       close: point.close,
     }));
+
+    const customIndicatorColors = [
+      "#22d3ee",
+      "#f97316",
+      "#a78bfa",
+      "#4ade80",
+      "#f472b6",
+      "#facc15",
+    ];
+
+    const evaluatedCustomIndicators = customIndicators
+      .filter((indicator) => indicator.enabled)
+      .flatMap((indicator, index) => {
+        try {
+          const points = evaluateFormula(candles, indicator.formula);
+          if (points.length === 0) return [];
+          return [{
+            indicator,
+            points,
+            color: customIndicatorColors[index % customIndicatorColors.length],
+          }];
+        } catch {
+          return [];
+        }
+      });
 
     if (chartView === "candles") {
       const priceSeries = chart.addSeries(CandlestickSeries, {
@@ -257,6 +286,24 @@ export default function MarketChart({
       upper.setData(lineData(bands.upper));
       middle.setData(lineData(bands.middle));
       lower.setData(lineData(bands.lower));
+    }
+
+    for (const custom of evaluatedCustomIndicators.filter(
+      (item) => item.indicator.pane === "price",
+    )) {
+      const series = chart.addSeries(LineSeries, {
+        color: custom.color,
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        title: custom.indicator.name,
+      });
+      series.setData(
+        custom.points.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.value,
+        })),
+      );
     }
 
     const volumeData = candles
@@ -432,6 +479,30 @@ export default function MarketChart({
       chart.panes()[stochasticPaneIndex]?.setHeight(110);
     }
 
+    for (const custom of evaluatedCustomIndicators.filter(
+      (item) => item.indicator.pane === "separate",
+    )) {
+      const paneIndex = nextPaneIndex++;
+      const series = chart.addSeries(
+        LineSeries,
+        {
+          color: custom.color,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: custom.indicator.name,
+        },
+        paneIndex,
+      );
+      series.setData(
+        custom.points.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.value,
+        })),
+      );
+      chart.panes()[paneIndex]?.setHeight(110);
+    }
+
     for (const drawing of drawings) {
       if (drawing.hidden) continue;
 
@@ -578,6 +649,7 @@ export default function MarketChart({
     timeframe,
     chartView,
     indicators,
+    customIndicators,
     drawings,
     drawingTool,
     onDrawingCreated,
