@@ -42,6 +42,7 @@
     "smoke:chart-tabs": "node scripts/chart-tabs-smoke.mjs",
     "smoke:analyst-forecast": "node scripts/analyst-forecast-smoke.mjs",
     "smoke:analyst-calibration": "node scripts/analyst-calibration-smoke.mjs",
+    "smoke:forecast-journal": "node scripts/forecast-journal-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
     "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
     "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",

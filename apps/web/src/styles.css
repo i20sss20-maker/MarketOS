@@ -12396,3 +12396,147 @@ button.object-tree-row {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+
+/* Forecast Journal V1 ------------------------------------------------------ */
+.analyst-scorecard {
+  margin: 10px 0;
+  border: 1px solid rgba(34,197,94,.10);
+  border-radius: 10px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 92% -20%, rgba(34,197,94,.07), transparent 34%),
+    rgba(8,13,22,.68);
+}
+
+.analyst-scorecard > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.analyst-scorecard > header span,
+.analyst-scorecard > header strong {
+  display: block;
+}
+
+.analyst-scorecard > header span {
+  color: #5f8b72;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.analyst-scorecard > header strong {
+  margin-top: 3px;
+  color: #bec9d4;
+  font-size: 9px;
+}
+
+.analyst-scorecard > header b {
+  flex: 0 0 auto;
+  border: 1px solid rgba(34,197,94,.12);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(34,197,94,.05);
+  color: #82b795;
+  font-size: 7px;
+}
+
+.analyst-scorecard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 6px;
+}
+
+.analyst-scorecard-grid > div {
+  min-width: 0;
+  border: 1px solid rgba(148,163,184,.05);
+  border-radius: 7px;
+  padding: 7px;
+  background: rgba(2,6,15,.25);
+}
+
+.analyst-scorecard-grid span,
+.analyst-scorecard-grid strong,
+.analyst-scorecard-grid small {
+  display: block;
+}
+
+.analyst-scorecard-grid span {
+  color: #5c697d;
+  font-size: 6px;
+}
+
+.analyst-scorecard-grid strong {
+  margin-top: 3px;
+  color: #c1cad7;
+  font-size: 10px;
+}
+
+.analyst-scorecard-grid small {
+  margin-top: 2px;
+  color: #526074;
+  font-size: 5.5px;
+}
+
+.analyst-journal-list {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.analyst-journal-row {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(148,163,184,.045);
+  border-radius: 7px;
+  padding: 6px 8px;
+  background: rgba(148,163,184,.018);
+}
+
+.analyst-journal-row.resolved {
+  border-color: rgba(34,197,94,.065);
+}
+
+.analyst-journal-row > div:last-child {
+  text-align: left;
+}
+
+.analyst-journal-row strong,
+.analyst-journal-row small {
+  display: block;
+}
+
+.analyst-journal-row strong {
+  color: #9fabbc;
+  font-size: 7px;
+}
+
+.analyst-journal-row small {
+  margin-top: 2px;
+  color: #536176;
+  font-size: 5.5px;
+}
+
+.analyst-scorecard > p {
+  margin: 8px 0 0;
+  color: #5f6c80;
+  font-size: 6px;
+  line-height: 1.7;
+}
+
+.analyst-scorecard > p b {
+  color: #8aa697;
+}
+
+@media (max-width: 760px) {
+  .analyst-scorecard-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}

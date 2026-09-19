@@ -129,6 +129,9 @@ jobs:
       - name: Analyst historical calibration smoke test
         run: pnpm smoke:analyst-calibration
 
+      - name: Forecast Journal scorecard smoke test
+        run: pnpm smoke:forecast-journal
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 

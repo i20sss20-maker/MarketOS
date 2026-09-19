@@ -1,6 +1,17 @@
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type {
   AnalystForecastResponse,
 } from "@marketos/market-core";
+import {
+  loadForecastJournal,
+  saveForecastJournal,
+  summarizeForecastJournal,
+  updateForecastJournal,
+} from "../lib/forecastJournal";
 
 type Props = {
   result: AnalystForecastResponse | null;
@@ -75,6 +86,21 @@ function calibrationReliabilityLabel(
   return "عينة محدودة";
 }
 
+function outcomeLabel(
+  outcome:
+    "bull" | "base" | "bear",
+) {
+  if (outcome === "bull") {
+    return "صاعد";
+  }
+
+  if (outcome === "bear") {
+    return "هابط";
+  }
+
+  return "محايد";
+}
+
 export default function AnalystForecastView({
   result,
   loading,
@@ -83,6 +109,49 @@ export default function AnalystForecastView({
   onRun,
   formatPrice,
 }: Props) {
+  const [journal, setJournal] =
+    useState(
+      () =>
+        loadForecastJournal(),
+    );
+
+  useEffect(() => {
+    if (!result) return;
+
+    setJournal((current) => {
+      const next =
+        updateForecastJournal(
+          current,
+          result,
+        );
+
+      saveForecastJournal(next);
+      return next;
+    });
+  }, [result]);
+
+  const symbolJournal =
+    useMemo(
+      () =>
+        result
+          ? journal.filter(
+              (record) =>
+                record.symbolId ===
+                result.symbol.id,
+            )
+          : [],
+      [journal, result],
+    );
+
+  const scorecard =
+    useMemo(
+      () =>
+        summarizeForecastJournal(
+          symbolJournal,
+        ),
+      [symbolJournal],
+    );
+
   return (
     <section
       className="analyst-forecast"
@@ -301,6 +370,154 @@ export default function AnalystForecastView({
               </p>
             </div>
           ) : null}
+
+          <div className="analyst-scorecard">
+            <header>
+              <div>
+                <span>
+                  FORECAST SCORECARD
+                </span>
+                <strong>
+                  سجل دقة التوقعات
+                </strong>
+              </div>
+              <b>
+                {scorecard.providerAccuracy ===
+                null
+                  ? "يتعلم"
+                  : `${scorecard.providerAccuracy}%`}
+              </b>
+            </header>
+
+            <div className="analyst-scorecard-grid">
+              <div>
+                <span>قيد التحقق</span>
+                <strong>
+                  {scorecard.pending}
+                </strong>
+                <small>
+                  توقع محفوظ
+                </small>
+              </div>
+              <div>
+                <span>محسوم</span>
+                <strong>
+                  {scorecard.providerResolved}
+                </strong>
+                <small>
+                  بيانات مزود
+                </small>
+              </div>
+              <div>
+                <span>إصابات</span>
+                <strong>
+                  {scorecard.providerCorrect}
+                </strong>
+                <small>
+                  اتجاه صحيح
+                </small>
+              </div>
+              <div>
+                <span>Brier</span>
+                <strong>
+                  {scorecard.providerBrierScore ??
+                    "—"}
+                </strong>
+                <small>
+                  الأقل أفضل
+                </small>
+              </div>
+            </div>
+
+            {symbolJournal.length > 0 ? (
+              <div className="analyst-journal-list">
+                {symbolJournal
+                  .slice(0, 5)
+                  .map((record) => (
+                    <div
+                      key={record.id}
+                      className={
+                        `analyst-journal-row ${record.status}`
+                      }
+                    >
+                      <div>
+                        <strong>
+                          {outcomeLabel(
+                            record.expectedOutcome,
+                          )}{" "}
+                          {record.expectedProbability}%
+                        </strong>
+                        <small>
+                          {new Date(
+                            record.generatedAt *
+                              1000,
+                          ).toLocaleDateString(
+                            "ar-SA",
+                          )}
+                          {" · "}
+                          {record.dataMode ===
+                          "provider"
+                            ? "Provider"
+                            : "Demo"}
+                        </small>
+                      </div>
+
+                      <div>
+                        {record.status ===
+                        "resolved" ? (
+                          <>
+                            <strong>
+                              {record.correct
+                                ? "✓ صحيح"
+                                : "× مختلف"}
+                            </strong>
+                            <small>
+                              {record.realizedReturnPercent !==
+                                undefined &&
+                              record.realizedReturnPercent >
+                                0
+                                ? "+"
+                                : ""}
+                              {record.realizedReturnPercent ??
+                                0}
+                              % ·{" "}
+                              {record.realizedOutcome
+                                ? outcomeLabel(
+                                    record.realizedOutcome,
+                                  )
+                                : "—"}
+                            </small>
+                          </>
+                        ) : (
+                          <>
+                            <strong>
+                              قيد التحقق
+                            </strong>
+                            <small>
+                              حتى{" "}
+                              {new Date(
+                                record.dueAt *
+                                  1000,
+                              ).toLocaleDateString(
+                                "ar-SA",
+                              )}
+                            </small>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ) : null}
+
+            <p>
+              الدقة الرسمية تحسب فقط
+              توقعات <b>بيانات المزود</b>.
+              نتائج Demo تبقى في السجل
+              للتجربة ولا تدخل في نسبة
+              الدقة.
+            </p>
+          </div>
 
           <div className="analyst-levels">
             <div>
