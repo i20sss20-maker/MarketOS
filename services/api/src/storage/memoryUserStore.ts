@@ -1,7 +1,9 @@
-import type {
-  StoredUserState,
-  UserCloudState,
-  UserStateStore,
+import {
+  UserStateConflictError,
+  type StoredUserState,
+  type UserCloudState,
+  type UserStatePutOptions,
+  type UserStateStore,
 } from "./types.js";
 
 export class MemoryUserStateStore implements UserStateStore {
@@ -12,14 +14,81 @@ export class MemoryUserStateStore implements UserStateStore {
     return this.states.get(userId) ?? null;
   }
 
-  async put(userId: string, state: UserCloudState) {
+  async put(
+    userId: string,
+    state: UserCloudState,
+    options?: UserStatePutOptions,
+  ) {
+    const existing = this.states.get(userId) ?? null;
+    const expectedClient =
+      options?.expectedClientRevision;
+    const expectedServer =
+      options?.expectedServerRevision;
+
+    if (
+      (expectedClient === null || expectedServer === null) &&
+      existing
+    ) {
+      throw new UserStateConflictError(
+        existing.clientRevision,
+        existing.serverRevision,
+        "A cloud copy already exists.",
+      );
+    }
+
+    if (
+      expectedClient !== undefined &&
+      expectedClient !== null &&
+      (!existing || existing.clientRevision !== expectedClient)
+    ) {
+      throw new UserStateConflictError(
+        existing?.clientRevision ?? null,
+        existing?.serverRevision ?? null,
+      );
+    }
+
+    if (
+      expectedServer !== undefined &&
+      expectedServer !== null &&
+      (!existing || existing.serverRevision !== expectedServer)
+    ) {
+      throw new UserStateConflictError(
+        existing?.clientRevision ?? null,
+        existing?.serverRevision ?? null,
+      );
+    }
+
+    const now = Date.now();
     const stored: StoredUserState = {
       id: "state",
       userId,
-      updatedAt: Date.now(),
+      updatedAt: now,
+      clientUpdatedAt: now,
+      clientRevision: (existing?.clientRevision ?? 0) + 1,
+      serverRevision: (existing?.serverRevision ?? 0) + 1,
       payload: {
         ...state,
-        updatedAt: Date.now(),
+        updatedAt: now,
+      },
+    };
+
+    this.states.set(userId, stored);
+    return stored;
+  }
+
+  async updateAlerts(userId: string, alerts: unknown[]) {
+    const existing = this.states.get(userId);
+    if (!existing) return null;
+
+    const now = Date.now();
+    const stored: StoredUserState = {
+      ...existing,
+      updatedAt: now,
+      serverRevision: existing.serverRevision + 1,
+      payload: {
+        ...existing.payload,
+        alerts,
+        updatedAt: now,
       },
     };
 
