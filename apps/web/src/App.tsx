@@ -26,6 +26,7 @@ import MarketChart, {
   type ChartView,
 } from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
+import HomeDashboard from "./components/HomeDashboard";
 import CommandPalette, { type CommandPaletteItem } from "./components/CommandPalette";
 import AccountPanel from "./components/AccountPanel";
 import CommercialAiPanel from "./components/CommercialAiPanel";
@@ -182,6 +183,23 @@ function readSaved<T extends string>(key: string, fallback: T): T {
 function readSharedChartState() {
   if (typeof window === "undefined") return null;
   return parseMarketShareState(window.location.search);
+}
+
+function shouldAutoOpenHome() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  if (
+    params.get("marketos-share") === "1" ||
+    params.get("inbox") === "alerts"
+  ) {
+    return false;
+  }
+
+  return readSaved<"on" | "off">(
+    "marketos:home-auto",
+    "on",
+  ) === "on";
 }
 
 function downloadBrowserBlob(
@@ -346,6 +364,11 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showAccountPanel, setShowAccountPanel] = useState(false);
+  const [showHomeDashboard, setShowHomeDashboard] = useState(() => shouldAutoOpenHome());
+  const [homeAutoOpen, setHomeAutoOpen] = useState(
+    () => readSaved<"on" | "off">("marketos:home-auto", "on") === "on",
+  );
+  const homeInitialLoadRef = useRef(false);
   const [authUser, setAuthUser] = useState<AuthPrincipal | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [entitlement, setEntitlement] = useState<ResolvedEntitlement>(
@@ -1688,6 +1711,31 @@ export default function App() {
     void refreshEvents(eventsRangeDays);
   };
 
+  const openHomeDashboard = () => {
+    setShowHomeDashboard(true);
+    void refreshWatchlistOverview(false);
+    if (!eventsLoading) {
+      void refreshEvents(7);
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !showHomeDashboard ||
+      homeInitialLoadRef.current
+    ) {
+      return;
+    }
+
+    homeInitialLoadRef.current = true;
+    void refreshWatchlistOverview(false);
+    void refreshEvents(7);
+  }, [
+    showHomeDashboard,
+    refreshWatchlistOverview,
+    refreshEvents,
+  ]);
+
   const refreshCompanyFeed = useCallback(async () => {
     const symbols = watchlist.slice(0, 8);
     if (symbols.length === 0) {
@@ -2946,6 +2994,15 @@ export default function App() {
   ];
 
   const commandPaletteItems: CommandPaletteItem[] = [
+    {
+      id: "panel:home",
+      group: "التنقل",
+      label: "لوحة البداية",
+      description: "ملخص السوق والتنبيهات والأحداث والتخطيطات",
+      keywords: ["home", "dashboard", "الرئيسية", "لوحة"],
+      priority: 110,
+      onSelect: openHomeDashboard,
+    },
     ...commandSymbolOptions.map((symbol, index) => ({
       id: `symbol:${symbol.id}`,
       group: "رموز",
@@ -3471,6 +3528,7 @@ export default function App() {
         companyCount={companyReleases.length}
         watchlistOpen={watchlistOpen}
         aiOpen={aiPanelOpen}
+        onHome={openHomeDashboard}
         onToggleWatchlist={toggleWatchlistPanel}
         onCommandPalette={() => {
           setCommandQuery("");
@@ -3589,6 +3647,57 @@ export default function App() {
             ) : null}
           </div>
         }
+      />
+
+      <HomeDashboard
+        open={showHomeDashboard}
+        autoOpenEnabled={homeAutoOpen}
+        activeSymbol={active}
+        overview={watchlistOverview}
+        overviewLoading={watchlistLoading}
+        overviewProvider={watchlistProvider}
+        overviewUpdatedAt={watchlistUpdatedAt}
+        events={marketEvents}
+        eventsLoading={eventsLoading}
+        alertEvents={alertInboxEvents}
+        signedIn={Boolean(authUser)}
+        workspaces={savedWorkspaces}
+        planName={entitlement.definition.name}
+        sessionLabel={sessionLabel}
+        onClose={() => setShowHomeDashboard(false)}
+        onToggleAutoOpen={(enabled) => {
+          setHomeAutoOpen(enabled);
+          saveSetting("marketos:home-auto", enabled ? "on" : "off");
+        }}
+        onSelectSymbol={chooseSymbol}
+        onOpenMarket={() => {
+          setShowHomeDashboard(false);
+          openScreener();
+        }}
+        onOpenAlerts={() => {
+          setShowHomeDashboard(false);
+          setShowAlertMenu(true);
+        }}
+        onOpenInbox={() => {
+          setShowHomeDashboard(false);
+          if (!authUser) {
+            setShowAccountPanel(true);
+            return;
+          }
+          setShowAlertInbox(true);
+          void refreshAlertInbox();
+        }}
+        onOpenEvents={() => {
+          setShowHomeDashboard(false);
+          openEvents();
+        }}
+        onRestoreWorkspace={restoreWorkspace}
+        onOpenCommandPalette={() => {
+          setShowHomeDashboard(false);
+          setCommandQuery("");
+          setCommandSymbolResults([]);
+          setShowCommandPalette(true);
+        }}
       />
 
       <CommandPalette

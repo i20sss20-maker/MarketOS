@@ -10,6 +10,7 @@ type Props = {
   companyCount: number;
   watchlistOpen: boolean;
   aiOpen: boolean;
+  onHome: () => void;
   onToggleWatchlist: () => void;
   onToggleAi: () => void;
   onCommandPalette: () => void;
@@ -29,6 +30,7 @@ type Props = {
 
 type IconName =
   | "menu"
+  | "home"
   | "watchlist"
   | "sparkles"
   | "search"
@@ -56,6 +58,9 @@ function Icon({ name }: { name: IconName }) {
     "aria-hidden": true,
   };
 
+  if (name === "home") {
+    return <svg {...common}><path d="m4 10 8-6 8 6" /><path d="M6 9v11h12V9" /><path d="M10 20v-6h4v6" /></svg>;
+  }
   if (name === "menu") {
     return <svg {...common}><path d="M4 7h16M4 12h16M4 17h16" /></svg>;
   }
@@ -108,6 +113,7 @@ export default function CommercialTopBar({
   companyCount,
   watchlistOpen,
   aiOpen,
+  onHome,
   onToggleWatchlist,
   onToggleAi,
   onCommandPalette,
@@ -140,6 +146,11 @@ export default function CommercialTopBar({
       </div>
 
       <nav className="commercial-primary-actions" aria-label="أدوات MarketOS الرئيسية">
+        <button className="commercial-icon-button" onClick={onHome} title="لوحة البداية">
+          <Icon name="home" />
+          <span>الرئيسية</span>
+        </button>
+
         <button
           className={watchlistOpen ? "commercial-icon-button active" : "commercial-icon-button"}
           onClick={onToggleWatchlist}

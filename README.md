@@ -42,6 +42,7 @@ This repository is **fully isolated** from every other project:
 - opt-in VAPID Web Push notifications that deep-link back to the Alert Inbox
 - local PNG chart snapshots, visible-candle CSV export and safe shareable chart links
 - global Command Palette with Ctrl/Cmd+K, live symbol search and fast workspace/tool navigation
+- MarketOS Home Dashboard with watchlist pulse, breadth, alert inbox, market events and recent workspaces
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
 - Market Events / earnings calendar
