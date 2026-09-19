@@ -1165,10 +1165,29 @@ export default function App() {
     [customIndicators],
   );
 
-  const updateCustomIndicators = useCallback((next: CustomIndicatorDefinition[]) => {
-    setCustomIndicators(next);
-    saveCustomIndicators(next);
-  }, []);
+  const updateCustomIndicators = useCallback(
+    (
+      next: CustomIndicatorDefinition[],
+    ) => {
+      if (
+        next.length >
+        planLimits.customIndicators
+      ) {
+        showPlanRequirement(
+          `خطة ${entitlement.definition.name} تسمح بـ ${planLimits.customIndicators} مؤشر مخصص.`,
+        );
+        return;
+      }
+
+      setCustomIndicators(next);
+      saveCustomIndicators(next);
+    },
+    [
+      planLimits.customIndicators,
+      entitlement.definition.name,
+      showPlanRequirement,
+    ],
+  );
 
   const toggleCustomIndicator = (id: string) => {
     updateCustomIndicators(
@@ -1259,14 +1278,45 @@ export default function App() {
     });
   };
 
-  const addToWatchlist = useCallback((symbol: MarketSymbol) => {
-    setWatchlist((current) => {
-      if (current.some((item) => item.id === symbol.id)) return current;
-      const next = [symbol, ...current].slice(0, 50);
+  const addToWatchlist = useCallback(
+    (symbol: MarketSymbol) => {
+      if (
+        watchlist.some(
+          (item) =>
+            item.id === symbol.id,
+        )
+      ) {
+        return;
+      }
+
+      if (
+        watchlist.length >=
+        planLimits.watchlistItems
+      ) {
+        showPlanRequirement(
+          `وصلت حد قائمة المتابعة في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز.`,
+        );
+        return;
+      }
+
+      const next = [
+        symbol,
+        ...watchlist,
+      ].slice(
+        0,
+        planLimits.watchlistItems,
+      );
+
+      setWatchlist(next);
       saveWatchlist(next);
-      return next;
-    });
-  }, []);
+    },
+    [
+      watchlist,
+      planLimits.watchlistItems,
+      entitlement.definition.name,
+      showPlanRequirement,
+    ],
+  );
 
   const fallbackOverview = useCallback((symbols: MarketSymbol[]) => {
     return symbols.slice(0, 25).map((symbol) => {
@@ -1823,11 +1873,28 @@ export default function App() {
   };
 
   const chooseLayoutMode = (mode: ChartLayoutMode) => {
+    if (
+      mode === "quad" &&
+      !requireFeature(
+        "quadChart",
+        "تخطيط 4×",
+      )
+    ) {
+      return;
+    }
+
     ensureMultiChartSymbols(mode);
     setLayoutMode(mode);
     setMaximizedChartPane(null);
-    if (mode === "single") setSyncedLogicalRange(null);
-    saveSetting("marketos:chart-layout", mode);
+
+    if (mode === "single") {
+      setSyncedLogicalRange(null);
+    }
+
+    saveSetting(
+      "marketos:chart-layout",
+      mode,
+    );
   };
 
   const visiblePaneTimeframes = [
@@ -1884,6 +1951,16 @@ export default function App() {
     logic: AlertLogic,
     conditions: AdvancedAlertCondition[],
   ) => {
+    if (
+      alerts.length >=
+      planLimits.alerts
+    ) {
+      showPlanRequirement(
+        `وصلت حد التنبيهات في خطة ${entitlement.definition.name}: ${planLimits.alerts} تنبيه.`,
+      );
+      return;
+    }
+
     const alert = createAdvancedAlert(
       active,
       alertTimeframe,
@@ -2104,6 +2181,16 @@ export default function App() {
 
 
   const saveCurrentWorkspace = () => {
+    if (
+      savedWorkspaces.length >=
+      planLimits.savedWorkspaces
+    ) {
+      showPlanRequirement(
+        `وصلت حد التخطيطات المحفوظة في خطة ${entitlement.definition.name}: ${planLimits.savedWorkspaces} تخطيط.`,
+      );
+      return;
+    }
+
     const workspace = createWorkspace({
       name: `تخطيط ${savedWorkspaces.length + 1}`,
       symbol: active,
@@ -2249,6 +2336,15 @@ export default function App() {
   };
 
   const runMultiTimeframeReading = async () => {
+    if (
+      !requireFeature(
+        "multiTimeframeAi",
+        "Multi‑Timeframe AI",
+      )
+    ) {
+      return;
+    }
+
     if (multiTimeframeLoading) return;
 
     setMultiTimeframeLoading(true);
