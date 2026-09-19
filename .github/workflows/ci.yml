@@ -78,6 +78,9 @@ jobs:
       - name: Server alerts end-to-end smoke test
         run: pnpm smoke:server-alerts
 
+      - name: Alert inbox runtime smoke test
+        run: pnpm smoke:alert-inbox
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
