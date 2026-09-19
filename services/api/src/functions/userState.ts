@@ -111,7 +111,7 @@ export async function userState(
 
       const watchlistItems =
         collections.length > 0
-          ? collections.reduce(
+          ? collections.reduce<number>(
               (sum, raw) => {
                 if (
                   !raw ||
