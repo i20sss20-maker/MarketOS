@@ -61,6 +61,8 @@ type Props = {
     (id: string) => void;
   onEditDrawing:
     (drawing: ChartDrawing) => void;
+  onCreateDrawingAlert:
+    (drawing: ChartDrawing) => string;
   onRemoveComparison: () => void;
 };
 
@@ -81,15 +83,19 @@ export default function ObjectTreePanel({
   onToggleDrawingLocked,
   onDeleteDrawing,
   onEditDrawing,
+  onCreateDrawingAlert,
   onRemoveComparison,
 }: Props) {
   const [query, setQuery] =
     useState("");
+  const [actionMessage, setActionMessage] =
+    useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return undefined;
 
     setQuery("");
+    setActionMessage(null);
 
     const onKeyDown = (
       event: KeyboardEvent,
@@ -290,6 +296,12 @@ export default function ObjectTreePanel({
             autoComplete="off"
           />
         </div>
+
+        {actionMessage ? (
+          <div className="object-tree-action-message">
+            {actionMessage}
+          </div>
+        ) : null}
 
         <div className="object-tree-content">
           {showComparison ? (
@@ -501,6 +513,22 @@ export default function ObjectTreePanel({
                           ? "🔒"
                           : "🔓"}
                       </button>
+
+                      {drawing.type === "horizontal" ? (
+                        <button
+                          className="object-tree-alert-action"
+                          onClick={() =>
+                            setActionMessage(
+                              onCreateDrawingAlert(
+                                drawing,
+                              ),
+                            )
+                          }
+                          title="إنشاء تنبيه عند هذا المستوى"
+                        >
+                          ♢
+                        </button>
+                      ) : null}
 
                       {drawing.type === "text" ? (
                         <button
