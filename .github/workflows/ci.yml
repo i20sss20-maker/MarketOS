@@ -36,6 +36,9 @@ jobs:
       - name: Market data runtime smoke test
         run: pnpm smoke:market
 
+      - name: Twelve Data adapter/cache smoke test
+        run: pnpm smoke:twelvedata
+
       - name: AI chart context runtime smoke test
         run: pnpm smoke:ai-chart
 
