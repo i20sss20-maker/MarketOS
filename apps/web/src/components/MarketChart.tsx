@@ -27,6 +27,11 @@ import type { CustomIndicatorDefinition } from "../lib/customIndicators";
 import type { ChartSettings } from "../lib/chartSettings";
 import type { IndicatorSelection } from "../lib/indicators";
 import {
+  nearestCandleByTime,
+  type CrosshairPaneId,
+  type LinkedCrosshairPoint,
+} from "../lib/crosshairLink";
+import {
   calculateAtr,
   calculateBollinger,
   calculateEma,
@@ -56,6 +61,11 @@ type Props = {
   onDrawingCreated: (drawing: ChartDrawing) => void;
   onTextAnchorRequested?: (point: DrawingPoint) => void;
   onCrosshairCandle?: (candle: Candle | null) => void;
+  paneId: CrosshairPaneId;
+  syncedCrosshair?: LinkedCrosshairPoint | null;
+  onCrosshairLinkChange?: (
+    point: LinkedCrosshairPoint | null,
+  ) => void;
   comparison?: ComparisonData | null;
   settings: ChartSettings;
   resetViewKey?: number;
@@ -101,6 +111,9 @@ export default function MarketChart({
   onDrawingCreated,
   onTextAnchorRequested,
   onCrosshairCandle,
+  paneId,
+  syncedCrosshair = null,
+  onCrosshairLinkChange,
   comparison,
   settings,
   resetViewKey = 0,
@@ -111,6 +124,10 @@ export default function MarketChart({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartApiRef = useRef<IChartApi | null>(null);
   const applyingSyncedRangeRef = useRef(false);
+  const applyingSyncedCrosshairRef = useRef(false);
+  const applySyncedCrosshairRef = useRef<
+    ((point: LinkedCrosshairPoint | null) => void) | null
+  >(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -266,6 +283,40 @@ export default function MarketChart({
         value: point.close,
       })),
     );
+
+    applySyncedCrosshairRef.current = (
+      point: LinkedCrosshairPoint | null,
+    ) => {
+      applyingSyncedCrosshairRef.current = true;
+
+      try {
+        if (!point) {
+          chart.clearCrosshairPosition();
+          return;
+        }
+
+        const candle =
+          nearestCandleByTime(
+            candles,
+            point.time,
+          );
+
+        if (!candle) {
+          chart.clearCrosshairPosition();
+          return;
+        }
+
+        chart.setCrosshairPosition(
+          candle.close,
+          candle.time as UTCTimestamp,
+          interactionSeries,
+        );
+      } finally {
+        queueMicrotask(() => {
+          applyingSyncedCrosshairRef.current = false;
+        });
+      }
+    };
 
     if (comparison?.candles.length) {
       const comparisonSeries = chart.addSeries(LineSeries, {
@@ -668,12 +719,34 @@ export default function MarketChart({
     const handleCrosshairMove = (
       param: Parameters<Parameters<typeof chart.subscribeCrosshairMove>[0]>[0],
     ) => {
-      if (!onCrosshairCandle) return;
-      if (typeof param.time !== "number") {
-        onCrosshairCandle(null);
+      const candle =
+        typeof param.time === "number"
+          ? (
+              candleByTime.get(param.time) ??
+              nearestCandleByTime(
+                candles,
+                param.time,
+              )
+            )
+          : null;
+
+      onCrosshairCandle?.(candle);
+
+      if (
+        applyingSyncedCrosshairRef.current ||
+        !onCrosshairLinkChange
+      ) {
         return;
       }
-      onCrosshairCandle(candleByTime.get(param.time) ?? null);
+
+      onCrosshairLinkChange(
+        candle
+          ? {
+              sourcePane: paneId,
+              time: candle.time,
+            }
+          : null,
+      );
     };
 
     const handleVisibleLogicalRangeChange = (range: LogicalRange | null) => {
@@ -702,6 +775,7 @@ export default function MarketChart({
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
       onCrosshairCandle?.(null);
       onSnapshotCaptureReady?.(null);
+      applySyncedCrosshairRef.current = null;
       chartApiRef.current = null;
       chart.remove();
     };
@@ -716,6 +790,8 @@ export default function MarketChart({
     onDrawingCreated,
     onTextAnchorRequested,
     onCrosshairCandle,
+    paneId,
+    onCrosshairLinkChange,
     comparison,
     settings,
     resetViewKey,
@@ -736,6 +812,21 @@ export default function MarketChart({
       });
     }
   }, [syncedLogicalRange]);
+
+  useEffect(() => {
+    if (
+      syncedCrosshair?.sourcePane === paneId
+    ) {
+      return;
+    }
+
+    applySyncedCrosshairRef.current?.(
+      syncedCrosshair,
+    );
+  }, [
+    paneId,
+    syncedCrosshair,
+  ]);
 
   return (
     <div
