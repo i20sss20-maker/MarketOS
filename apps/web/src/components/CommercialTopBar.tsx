@@ -178,10 +178,10 @@ export default function CommercialTopBar({
         <button
           className={aiOpen ? "commercial-icon-button ai active" : "commercial-icon-button ai"}
           onClick={onToggleAi}
-          title="MarketOS AI"
+          title="MarketOS Analyst"
         >
           <Icon name="sparkles" />
-          <span>AI</span>
+          <span>المحلل</span>
         </button>
       </nav>
 
