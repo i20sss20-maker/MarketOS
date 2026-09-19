@@ -32,6 +32,7 @@ export type UserCloudState = {
   version: 1;
   updatedAt: number;
   watchlist: unknown[];
+  watchlistCollections: unknown[];
   workspaces: unknown[];
   alerts: unknown[];
   alertEvents?: AlertInboxEvent[];
