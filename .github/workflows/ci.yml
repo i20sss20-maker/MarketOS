@@ -45,6 +45,9 @@ jobs:
       - name: Multi-Timeframe AI runtime smoke test
         run: pnpm smoke:multi-timeframe
 
+      - name: Advanced Alerts runtime smoke test
+        run: pnpm smoke:alerts
+
       - name: Strategy Tester runtime smoke test
         run: pnpm smoke:backtest
 
