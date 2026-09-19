@@ -103,6 +103,8 @@ const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 type ChartLayoutMode = "single" | "split";
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
+type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
+type WatchlistSort = "manual" | "change-desc" | "change-asc" | "symbol";
 
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -178,6 +180,21 @@ function overviewMatchesFilter(item: MarketOverviewItem, filter: ScreenerFilter)
   return item.symbol.assetClass === "future" || item.symbol.assetClass === "commodity";
 }
 
+function watchlistMatchesFilter(
+  symbol: MarketSymbol,
+  filter: WatchlistFilter,
+) {
+  if (filter === "all") return true;
+  if (filter === "equities") {
+    return symbol.assetClass === "stock" ||
+      symbol.assetClass === "index" ||
+      symbol.assetClass === "etf";
+  }
+  if (filter === "forex") return symbol.assetClass === "forex";
+  if (filter === "crypto") return symbol.assetClass === "crypto";
+  return symbol.assetClass === "future" || symbol.assetClass === "commodity";
+}
+
 export default function App() {
   const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
@@ -185,6 +202,18 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [watchlistOverview, setWatchlistOverview] = useState<MarketOverviewItem[]>([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [watchlistError, setWatchlistError] = useState<string | null>(null);
+  const [watchlistProvider, setWatchlistProvider] = useState("demo");
+  const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
+  const [watchlistFilter, setWatchlistFilter] = useState<WatchlistFilter>(
+    () => readSaved<WatchlistFilter>("marketos:watchlist-filter", "all"),
+  );
+  const [watchlistSort, setWatchlistSort] = useState<WatchlistSort>(
+    () => readSaved<WatchlistSort>("marketos:watchlist-sort", "manual"),
+  );
+  const watchlistInitialLoadRef = useRef(false);
   const [showScreener, setShowScreener] = useState(false);
   const [showCompanyFeed, setShowCompanyFeed] = useState(false);
   const [companyReleases, setCompanyReleases] = useState<CompanyRelease[]>([]);
@@ -482,9 +511,41 @@ export default function App() {
     };
   }, [query]);
 
+  const watchlistQuoteMap = useMemo(
+    () => new Map(watchlistOverview.map((item) => [item.symbol.id, item.quote])),
+    [watchlistOverview],
+  );
+
+  const filteredWatchlist = useMemo(
+    () => watchlist.filter((symbol) => watchlistMatchesFilter(symbol, watchlistFilter)),
+    [watchlist, watchlistFilter],
+  );
+
+  const sortedWatchlist = useMemo(() => {
+    if (watchlistSort === "manual") return filteredWatchlist;
+
+    const nextSymbols = [...filteredWatchlist];
+    if (watchlistSort === "symbol") {
+      return nextSymbols.sort((a, b) => a.ticker.localeCompare(b.ticker));
+    }
+
+    return nextSymbols.sort((a, b) => {
+      const aChange = watchlistQuoteMap.get(a.id)?.percentChange;
+      const bChange = watchlistQuoteMap.get(b.id)?.percentChange;
+
+      if (typeof aChange !== "number" && typeof bChange !== "number") return 0;
+      if (typeof aChange !== "number") return 1;
+      if (typeof bChange !== "number") return -1;
+
+      return watchlistSort === "change-desc"
+        ? bChange - aChange
+        : aChange - bChange;
+    });
+  }, [filteredWatchlist, watchlistSort, watchlistQuoteMap]);
+
   const visibleSymbols = useMemo(
-    () => query.trim() ? searchResults : watchlist,
-    [query, searchResults, watchlist],
+    () => query.trim() ? searchResults : sortedWatchlist,
+    [query, searchResults, sortedWatchlist],
   );
 
   const safeReplayIndex = replayActive
@@ -599,6 +660,64 @@ export default function App() {
       };
     });
   }, []);
+
+  const refreshWatchlistOverview = useCallback(async (showLoading = true) => {
+    const symbols = watchlist.slice(0, 25);
+    if (symbols.length === 0) {
+      setWatchlistOverview([]);
+      setWatchlistError(null);
+      setWatchlistUpdatedAt(Date.now());
+      return;
+    }
+
+    if (showLoading) setWatchlistLoading(true);
+    setWatchlistError(null);
+
+    try {
+      const response = await getMarketOverview(symbols);
+      const returnedIds = new Set(response.items.map((item) => item.symbol.id));
+      const missing = symbols.filter((symbol) => !returnedIds.has(symbol.id));
+      const items = missing.length > 0
+        ? [...response.items, ...fallbackOverview(missing)]
+        : response.items;
+
+      setWatchlistOverview(items);
+      setWatchlistProvider(response.provider);
+      setWatchlistUpdatedAt(Date.now());
+    } catch {
+      setWatchlistOverview(fallbackOverview(symbols));
+      setWatchlistProvider("browser-demo");
+      setWatchlistUpdatedAt(Date.now());
+      setWatchlistError("تعذر تحديث الأسعار المباشرة، تظهر لقطة Demo مؤقتًا.");
+    } finally {
+      if (showLoading) setWatchlistLoading(false);
+    }
+  }, [watchlist, fallbackOverview]);
+
+  useEffect(() => {
+    if (watchlistInitialLoadRef.current) return;
+    watchlistInitialLoadRef.current = true;
+    void refreshWatchlistOverview(false);
+  }, [refreshWatchlistOverview]);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || replayActive) return;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshWatchlistOverview(false);
+      }
+    };
+
+    refreshIfVisible();
+    const interval = window.setInterval(refreshIfVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [autoRefreshEnabled, replayActive, refreshWatchlistOverview]);
 
   const refreshScreener = useCallback(async () => {
     const symbols = watchlist.slice(0, 25);
@@ -1398,6 +1517,17 @@ export default function App() {
   const activeAlerts = alerts.filter(
     (alert) => alert.enabled && !alert.triggeredAt,
   );
+
+  const watchlistAlertCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const alert of activeAlerts) {
+      counts.set(
+        alert.symbol.id,
+        (counts.get(alert.symbol.id) ?? 0) + 1,
+      );
+    }
+    return counts;
+  }, [activeAlerts]);
   const replayDateLabel = replayActive && lastCandle
     ? new Date(lastCandle.time * 1000).toLocaleString("ar-SA", {
         dateStyle: "medium",
@@ -1863,7 +1993,16 @@ export default function App() {
         <aside className="watchlist panel">
           <div className="watchlist-head">
             <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
-            <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
+            <div className="watchlist-head-actions">
+              <button
+                title="تحديث أسعار القائمة"
+                onClick={() => void refreshWatchlistOverview(true)}
+                disabled={watchlistLoading || replayActive}
+              >
+                {watchlistLoading ? "…" : "↻"}
+              </button>
+              <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
+            </div>
           </div>
 
           <div className="search-box">
@@ -1876,23 +2015,100 @@ export default function App() {
             />
           </div>
 
-          <div className="symbol-list">
-            {visibleSymbols.map((symbol) => (
-              <button
-                className={`symbol-row ${symbol.id === active.id ? "active" : ""}`}
-                key={symbol.id}
-                onClick={() => chooseSymbol(symbol)}
+          {!query.trim() ? (
+            <div className="watchlist-controls">
+              <select
+                value={watchlistFilter}
+                onChange={(event) => {
+                  const value = event.target.value as WatchlistFilter;
+                  setWatchlistFilter(value);
+                  saveSetting("marketos:watchlist-filter", value);
+                }}
+                aria-label="فلتر قائمة المتابعة"
               >
-                <span className="symbol-meta">
-                  <strong>{symbol.ticker}</strong>
-                  <small>{symbol.name}</small>
-                  <small>{symbol.exchange}{symbol.currency ? ` · ${symbol.currency}` : ""}</small>
-                </span>
-                <span className="asset-badge">{symbol.assetClass}</span>
-              </button>
-            ))}
+                <option value="all">الكل</option>
+                <option value="equities">أسهم</option>
+                <option value="forex">فوركس</option>
+                <option value="crypto">كريبتو</option>
+                <option value="futures">عقود/سلع</option>
+              </select>
+
+              <select
+                value={watchlistSort}
+                onChange={(event) => {
+                  const value = event.target.value as WatchlistSort;
+                  setWatchlistSort(value);
+                  saveSetting("marketos:watchlist-sort", value);
+                }}
+                aria-label="ترتيب قائمة المتابعة"
+              >
+                <option value="manual">ترتيب القائمة</option>
+                <option value="change-desc">الأعلى حركة</option>
+                <option value="change-asc">الأقل حركة</option>
+                <option value="symbol">الرمز A-Z</option>
+              </select>
+            </div>
+          ) : null}
+
+          <div className="symbol-list watchlist-v2-list">
+            {visibleSymbols.map((symbol) => {
+              const rowQuote =
+                watchlistQuoteMap.get(symbol.id) ??
+                (symbol.id === active.id ? quote ?? undefined : undefined);
+              const movement = rowQuote?.percentChange;
+              const alertCount = watchlistAlertCounts.get(symbol.id) ?? 0;
+
+              return (
+                <button
+                  className={`symbol-row watchlist-v2-row ${symbol.id === active.id ? "active" : ""}`}
+                  key={symbol.id}
+                  onClick={() => chooseSymbol(symbol)}
+                >
+                  <span className="symbol-meta">
+                    <strong>
+                      {symbol.ticker}
+                      {alertCount > 0 ? (
+                        <em className="watchlist-alert-count" title={`${alertCount} تنبيه نشط`}>
+                          {alertCount}
+                        </em>
+                      ) : null}
+                    </strong>
+                    <small>{symbol.exchange}</small>
+                    <small className="watchlist-asset-label">{symbol.assetClass}</small>
+                  </span>
+
+                  <span className="watchlist-quote-cell" dir="ltr">
+                    <strong>{formatPrice(rowQuote?.price)}</strong>
+                    <small className={
+                      movement === undefined
+                        ? ""
+                        : movement >= 0
+                          ? "positive"
+                          : "negative"
+                    }>
+                      {formatPercent(movement)}
+                    </small>
+                  </span>
+                </button>
+              );
+            })}
             {visibleSymbols.length === 0 ? <div className="empty-search">لا توجد نتائج</div> : null}
           </div>
+
+          {!query.trim() ? (
+            <div className="watchlist-footer">
+              <span>{watchlistProvider}</span>
+              <span>
+                {watchlistUpdatedAt
+                  ? new Date(watchlistUpdatedAt).toLocaleTimeString("ar-SA", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "—"}
+              </span>
+              {watchlistError ? <small>{watchlistError}</small> : null}
+            </div>
+          ) : null}
         </aside>
 
         <section className="chart-area panel">

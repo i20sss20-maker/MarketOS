@@ -4777,3 +4777,144 @@ input:focus-visible {
     justify-content: flex-start;
   }
 }
+
+
+/* Watchlist V2 */
+.watchlist-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.watchlist-head-actions button:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.watchlist-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin: 0 8px 7px;
+}
+
+.watchlist-controls select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(148,163,184,.08);
+  border-radius: 6px;
+  padding: 6px 7px;
+  outline: 0;
+  background: #080d17;
+  color: #6f7e93;
+  font-size: 7px;
+  cursor: pointer;
+}
+
+.watchlist-controls select:focus {
+  border-color: rgba(129,140,248,.22);
+}
+
+.watchlist-v2-list {
+  min-height: 0;
+}
+
+.watchlist-v2-row {
+  min-height: 52px;
+  gap: 8px;
+}
+
+.watchlist-v2-row .symbol-meta {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.watchlist-v2-row .symbol-meta > strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  direction: ltr;
+  justify-content: flex-end;
+}
+
+.watchlist-v2-row .symbol-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-asset-label {
+  display: inline-block !important;
+  margin-top: 2px !important;
+  color: #445166 !important;
+  font-size: 6px !important;
+  text-transform: uppercase;
+}
+
+.watchlist-alert-count {
+  min-width: 16px;
+  height: 16px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(129,140,248,.13);
+  color: #abb3ff;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.watchlist-quote-cell {
+  flex: 0 0 72px;
+  min-width: 0;
+  text-align: left;
+}
+
+.watchlist-quote-cell > strong {
+  color: #aeb9c9;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-quote-cell > small {
+  margin-top: 3px;
+  color: #5b697e;
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+.watchlist-footer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 8px;
+  align-items: center;
+  padding: 7px 9px 8px;
+  border-top: 1px solid rgba(148,163,184,.055);
+  color: #455267;
+  font-size: 6px;
+  direction: ltr;
+}
+
+.watchlist-footer > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.watchlist-footer > small {
+  grid-column: 1 / -1;
+  color: #8a6b3c;
+  line-height: 1.4;
+  direction: rtl;
+  text-align: right;
+}
+
+@media (max-width: 1120px) {
+  .watchlist-quote-cell {
+    flex-basis: 64px;
+  }
+}
