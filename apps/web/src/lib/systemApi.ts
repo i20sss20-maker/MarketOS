@@ -30,6 +30,10 @@ export type SystemHealth = {
     provider: "memory" | "cosmos";
     persistent: boolean;
   };
+  backgroundAlerts: {
+    enabled: boolean;
+    mode: "scheduled-worker";
+  };
 };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
