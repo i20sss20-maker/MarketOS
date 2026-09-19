@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@azure/functions": "^4.0.0",
-    "@azure/cosmos": "^4.4.1"
+    "@azure/cosmos": "^4.4.1",
+    "@marketos/alert-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

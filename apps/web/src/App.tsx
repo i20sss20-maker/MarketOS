@@ -87,9 +87,11 @@ import {
   createAdvancedAlert,
   loadAlerts,
   rearmAlert,
+  sanitizeAlerts,
   saveAlerts,
   toggleAlertEnabled,
 } from "./lib/alerts";
+import { checkServerAlerts } from "./lib/serverAlertsApi";
 import type { IndicatorId, IndicatorSelection } from "./lib/indicators";
 import {
   indicatorCatalog,
@@ -350,6 +352,7 @@ export default function App() {
   const [alerts, setAlerts] = useState<AdvancedAlert[]>(() => loadAlerts(timeframe));
   const [showAlertMenu, setShowAlertMenu] = useState(false);
   const [alertsChecking, setAlertsChecking] = useState(false);
+  const [serverAlertsChecking, setServerAlertsChecking] = useState(false);
   const [alertCheckMessage, setAlertCheckMessage] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
@@ -1723,6 +1726,89 @@ export default function App() {
     }
   };
 
+  const checkServerAdvancedAlerts = async () => {
+    if (serverAlertsChecking || alertsChecking) return;
+
+    if (!authUser) {
+      setAlertCheckMessage("سجل الدخول أولًا لاستخدام الفحص السحابي.");
+      setShowAccountPanel(true);
+      return;
+    }
+
+    const pending = alerts.filter(
+      (alert) => alert.enabled && !alert.triggeredAt,
+    );
+    if (pending.length === 0) {
+      setAlertCheckMessage("لا توجد تنبيهات نشطة للفحص السحابي.");
+      return;
+    }
+
+    setServerAlertsChecking(true);
+    setAlertCheckMessage(null);
+
+    try {
+      const uploaded = await putCloudState(
+        collectLocalCloudState(),
+      );
+      setCloudState(uploaded);
+
+      const result = await checkServerAlerts();
+
+      const refreshed = await getCloudState();
+      setCloudState(refreshed);
+
+      const nextAlerts = sanitizeAlerts(
+        refreshed.state?.alerts,
+      );
+
+      if (nextAlerts.length > 0 || alerts.length === 0) {
+        setAlerts(nextAlerts);
+        saveAlerts(nextAlerts);
+      }
+
+      setAlertCheckMessage(
+        [
+          `سحابي: تم فحص ${result.checkedGroups} مجموعة رمز/فريم`,
+          `تفعّل ${result.triggered.length}`,
+          result.failures.length > 0
+            ? `تعذر ${result.failures.length}`
+            : "",
+          result.capped ? "تم تطبيق حد الفحص" : "",
+          result.storageMode === "cosmos"
+            ? "محفوظ في Cosmos"
+            : "تخزين Preview",
+        ].filter(Boolean).join(" · "),
+      );
+
+      if (result.triggered.length > 0) {
+        const latestTriggered =
+          result.triggered[result.triggered.length - 1];
+        const matchingAlert = nextAlerts.find(
+          (alert) => alert.id === latestTriggered.alertId,
+        );
+
+        setAlertMessage(
+          matchingAlert
+            ? `تنبيه سحابي ${matchingAlert.symbol.ticker} · ${matchingAlert.timeframe.toUpperCase()}: ${describeAdvancedAlert(matchingAlert)}`
+            : `تم تفعيل ${result.triggered.length} تنبيه سحابي.`,
+        );
+        window.setTimeout(
+          () => setAlertMessage(null),
+          7000,
+        );
+      }
+    } catch (error) {
+      setAlertCheckMessage(
+        error instanceof Error
+          ? `تعذر الفحص السحابي: ${error.message}`
+          : "تعذر الفحص السحابي.",
+      );
+    } finally {
+      setServerAlertsChecking(false);
+    }
+  };
+
+
   const saveCurrentWorkspace = () => {
     const workspace = createWorkspace({
       name: `تخطيط ${savedWorkspaces.length + 1}`,
@@ -2486,12 +2572,15 @@ export default function App() {
         currentPrice={displayedPrice}
         alerts={alerts}
         checking={alertsChecking}
+        serverChecking={serverAlertsChecking}
+        cloudAvailable={Boolean(authUser)}
         checkMessage={alertCheckMessage}
         onCreate={addAdvancedAlert}
         onDelete={deleteAlert}
         onRearm={rearmAdvancedAlert}
         onToggleEnabled={toggleAdvancedAlert}
         onCheckAll={() => void checkAllAdvancedAlerts()}
+        onServerCheck={() => void checkServerAdvancedAlerts()}
         onClose={() => setShowAlertMenu(false)}
       />
 

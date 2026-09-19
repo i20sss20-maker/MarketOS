@@ -47,9 +47,23 @@ assert.equal(
   "^4.4.1",
   "Standalone Azure API must include the Cosmos SDK for persistent user state",
 );
+assert.equal(
+  stagedPackage?.dependencies?.["@marketos/alert-core"],
+  "file:vendor/alert-core",
+  "Standalone Azure API must vendor the shared alert engine",
+);
 assert.ok(
-  !Object.keys(stagedPackage?.dependencies ?? {}).some((name) => name.startsWith("@marketos/")),
-  "Standalone Azure API must not depend on MarketOS workspace packages at runtime",
+  existsSync("artifacts/azure-api/vendor/alert-core/dist/index.js"),
+  "Azure bundle must contain the vendored alert-core runtime",
+);
+const marketosRuntimeDependencies = Object.entries(
+  stagedPackage?.dependencies ?? {},
+).filter(([name]) => name.startsWith("@marketos/"));
+
+assert.deepEqual(
+  marketosRuntimeDependencies,
+  [["@marketos/alert-core", "file:vendor/alert-core"]],
+  "Standalone Azure API may only use the explicitly vendored alert-core MarketOS package",
 );
 
 const javascriptFiles = [];

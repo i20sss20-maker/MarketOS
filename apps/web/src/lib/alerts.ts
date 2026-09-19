@@ -77,7 +77,7 @@ function validCondition(value: unknown): value is AdvancedAlertCondition {
   );
 }
 
-function validAlert(value: unknown): value is AdvancedAlert {
+export function validAlert(value: unknown): value is AdvancedAlert {
   if (!value || typeof value !== "object") return false;
   const alert = value as Partial<AdvancedAlert>;
 
@@ -147,7 +147,7 @@ export function loadAlerts(
     if (raw) {
       const parsed = JSON.parse(raw) as unknown[];
       if (!Array.isArray(parsed)) return [];
-      return parsed.filter(validAlert).slice(0, 100);
+      return sanitizeAlerts(parsed);
     }
 
     const legacyRaw = storage.getItem(LEGACY_STORAGE_KEY);
@@ -162,6 +162,12 @@ export function loadAlerts(
   } catch {
     return [];
   }
+}
+
+export function sanitizeAlerts(value: unknown): AdvancedAlert[] {
+  return Array.isArray(value)
+    ? value.filter(validAlert).slice(0, 100)
+    : [];
 }
 
 export function saveAlerts(alerts: AdvancedAlert[]) {
