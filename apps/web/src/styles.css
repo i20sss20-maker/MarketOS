@@ -12540,3 +12540,291 @@ button.object-tree-row {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+
+/* Analyst Radar V1 -------------------------------------------------------- */
+.commercial-panel-tabs.analyst-tabs {
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+}
+
+.analyst-radar {
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.analyst-radar-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid rgba(99,102,241,.10);
+  border-radius: 10px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 90% -20%, rgba(99,102,241,.08), transparent 38%),
+    rgba(7,11,20,.72);
+}
+
+.analyst-radar-hero > div {
+  min-width: 0;
+}
+
+.analyst-radar-hero span {
+  display: block;
+  color: #737bb8;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.analyst-radar-hero h2 {
+  margin: 4px 0 3px;
+  color: #c7cfdd;
+  font-size: 12px;
+}
+
+.analyst-radar-hero p {
+  max-width: 310px;
+  margin: 0;
+  color: #69778a;
+  font-size: 6.5px;
+  line-height: 1.75;
+}
+
+.analyst-radar-hero button {
+  flex: 0 0 auto;
+  min-width: 82px;
+  border: 1px solid rgba(129,140,248,.16);
+  border-radius: 7px;
+  padding: 7px 9px;
+  background: rgba(99,102,241,.08);
+  color: #aab2ed;
+  font-size: 7px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.analyst-radar-hero button:disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+.analyst-radar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px 5px;
+  color: #59677b;
+  font-size: 6px;
+}
+
+.analyst-radar-progress {
+  height: 2px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(148,163,184,.06);
+}
+
+.analyst-radar-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(99,102,241,.55),
+    rgba(56,189,248,.55)
+  );
+  transition: width .18s ease;
+}
+
+.analyst-radar-empty {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-height: 110px;
+  padding: 16px;
+  text-align: center;
+}
+
+.analyst-radar-empty strong {
+  color: #9aa6b9;
+  font-size: 9px;
+}
+
+.analyst-radar-empty small {
+  max-width: 290px;
+  color: #59677b;
+  font-size: 6px;
+  line-height: 1.7;
+}
+
+.analyst-radar-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.analyst-radar-row {
+  display: grid;
+  grid-template-columns:
+    24px minmax(60px, .9fr)
+    minmax(64px, .8fr)
+    minmax(64px, .8fr)
+    minmax(80px, 1fr)
+    minmax(64px, .8fr);
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(148,163,184,.05);
+  border-radius: 8px;
+  padding: 7px;
+  background: rgba(2,6,15,.25);
+}
+
+.analyst-radar-row.bull {
+  border-right-color: rgba(34,197,94,.26);
+}
+
+.analyst-radar-row.bear {
+  border-right-color: rgba(248,113,113,.26);
+}
+
+.analyst-radar-row.base {
+  border-right-color: rgba(148,163,184,.18);
+}
+
+.analyst-radar-rank {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(148,163,184,.04);
+  color: #6d798b;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.analyst-radar-symbol strong,
+.analyst-radar-symbol small,
+.analyst-radar-direction span,
+.analyst-radar-direction strong,
+.analyst-radar-direction small,
+.analyst-radar-confidence span,
+.analyst-radar-confidence strong,
+.analyst-radar-confidence small,
+.analyst-radar-context span,
+.analyst-radar-context strong,
+.analyst-radar-context small,
+.analyst-radar-action small {
+  display: block;
+}
+
+.analyst-radar-symbol strong {
+  color: #c5cedb;
+  font-size: 8px;
+}
+
+.analyst-radar-symbol small,
+.analyst-radar-direction small,
+.analyst-radar-confidence small,
+.analyst-radar-context small,
+.analyst-radar-action small {
+  margin-top: 2px;
+  color: #526074;
+  font-size: 5.5px;
+}
+
+.analyst-radar-direction span,
+.analyst-radar-confidence span,
+.analyst-radar-context span {
+  color: #607086;
+  font-size: 5.5px;
+}
+
+.analyst-radar-direction strong,
+.analyst-radar-confidence strong,
+.analyst-radar-context strong {
+  margin-top: 2px;
+  color: #aab5c5;
+  font-size: 8px;
+}
+
+.analyst-radar-row.bull
+.analyst-radar-direction strong {
+  color: #80b993;
+}
+
+.analyst-radar-row.bear
+.analyst-radar-direction strong {
+  color: #c88c8c;
+}
+
+.analyst-radar-action {
+  min-width: 0;
+  text-align: left;
+}
+
+.analyst-radar-action button {
+  border: 1px solid rgba(129,140,248,.12);
+  border-radius: 6px;
+  padding: 4px 7px;
+  background: rgba(129,140,248,.05);
+  color: #929adc;
+  font-size: 6px;
+  cursor: pointer;
+}
+
+.analyst-radar-action small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyst-radar-failures {
+  margin-top: 8px;
+  border-top: 1px solid rgba(148,163,184,.05);
+  padding-top: 7px;
+  color: #68768a;
+  font-size: 6px;
+}
+
+.analyst-radar-failures summary {
+  cursor: pointer;
+  color: #8b7880;
+}
+
+.analyst-radar-failures p {
+  margin: 5px 0 0;
+  line-height: 1.6;
+}
+
+.analyst-radar-note {
+  margin-top: 8px;
+  border-top: 1px solid rgba(148,163,184,.05);
+  padding-top: 7px;
+  color: #536176;
+  font-size: 5.5px;
+  line-height: 1.7;
+}
+
+@media (max-width: 980px) {
+  .analyst-radar-row {
+    grid-template-columns:
+      22px minmax(60px,1fr)
+      minmax(58px,.7fr)
+      minmax(58px,.7fr);
+  }
+
+  .analyst-radar-context {
+    display: none;
+  }
+
+  .analyst-radar-action {
+    grid-column: 2 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+}
