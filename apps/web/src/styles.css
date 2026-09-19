@@ -11050,3 +11050,47 @@ button.object-tree-row {
     padding-block: 6px;
   }
 }
+
+
+.object-tree-pane-picker {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(148,163,184,.05);
+  background: rgba(6,10,18,.54);
+}
+
+.object-tree-pane-picker > span {
+  color: #637187;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.object-tree-pane-picker select {
+  min-height: 30px;
+  border: 1px solid rgba(148,163,184,.075);
+  border-radius: 7px;
+  padding: 0 8px;
+  outline: 0;
+  background: #090f18;
+  color: #aab5c5;
+  font-size: 7px;
+}
+
+.object-tree-pane-picker small {
+  color: #4e5c70;
+  font-size: 6px;
+}
+
+@media (max-width: 760px) {
+  .object-tree-pane-picker {
+    grid-template-columns: auto minmax(0,1fr);
+  }
+
+  .object-tree-pane-picker small {
+    grid-column: 1 / -1;
+  }
+}
