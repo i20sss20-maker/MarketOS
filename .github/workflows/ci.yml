@@ -36,6 +36,9 @@ jobs:
       - name: Market data runtime smoke test
         run: pnpm smoke:market
 
+      - name: AI chart context runtime smoke test
+        run: pnpm smoke:ai-chart
+
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4
         with:
