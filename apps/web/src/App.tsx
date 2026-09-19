@@ -18,6 +18,7 @@ import type {
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
+import CorrelationPanel from "./components/CorrelationPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
@@ -215,6 +216,7 @@ export default function App() {
   );
   const watchlistInitialLoadRef = useRef(false);
   const [showScreener, setShowScreener] = useState(false);
+  const [showCorrelation, setShowCorrelation] = useState(false);
   const [showCompanyFeed, setShowCompanyFeed] = useState(false);
   const [companyReleases, setCompanyReleases] = useState<CompanyRelease[]>([]);
   const [companyFeedProvider, setCompanyFeedProvider] = useState("demo-company-feed");
@@ -1638,6 +1640,10 @@ export default function App() {
             السوق
           </button>
 
+          <button className="ghost-button correlation-button" onClick={() => setShowCorrelation(true)}>
+            الارتباط
+          </button>
+
           <button className="ghost-button events-button" onClick={openEvents}>
             الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
           </button>
@@ -1717,6 +1723,14 @@ export default function App() {
         onRefresh={() => void refreshCompanyFeed()}
         onClose={() => setShowCompanyFeed(false)}
         onSelectSymbol={openCompanyFeedSymbol}
+      />
+
+      <CorrelationPanel
+        open={showCorrelation}
+        watchlist={watchlist}
+        activeSymbol={active}
+        onSelectSymbol={chooseSymbol}
+        onClose={() => setShowCorrelation(false)}
       />
 
       <AdvancedAlertsPanel
