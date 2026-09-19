@@ -36,6 +36,7 @@ This repository is **fully isolated** from every other project:
 - 1x / 2x chart layouts
 - historical Replay with replay-aware AI context
 - watchlists and saved workspaces
+- Instrument Overview with Replay-safe performance, volatility, range and volume statistics
 - local price alerts
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
