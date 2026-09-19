@@ -56,9 +56,14 @@ assert.ok(
   existsSync("artifacts/azure-api/vendor/alert-core/dist/index.js"),
   "Azure bundle must contain the vendored alert-core runtime",
 );
-assert.ok(
-  !Object.keys(stagedPackage?.dependencies ?? {}).some((name) => name.startsWith("@marketos/")),
-  "Standalone Azure API must not depend on MarketOS workspace packages at runtime",
+const marketosRuntimeDependencies = Object.entries(
+  stagedPackage?.dependencies ?? {},
+).filter(([name]) => name.startsWith("@marketos/"));
+
+assert.deepEqual(
+  marketosRuntimeDependencies,
+  [["@marketos/alert-core", "file:vendor/alert-core"]],
+  "Standalone Azure API may only use the explicitly vendored alert-core MarketOS package",
 );
 
 const javascriptFiles = [];
