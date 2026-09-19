@@ -15,5 +15,28 @@
   },
   "platform": {
     "apiRuntime": "node:20"
-  }
+  },
+  "routes": [
+    {
+      "route": "/api/user/*",
+      "allowedRoles": [
+        "authenticated"
+      ],
+      "headers": {
+        "Cache-Control": "no-store"
+      }
+    },
+    {
+      "route": "/login/microsoft",
+      "redirect": "/.auth/login/aad"
+    },
+    {
+      "route": "/login/github",
+      "redirect": "/.auth/login/github"
+    },
+    {
+      "route": "/logout",
+      "redirect": "/.auth/logout"
+    }
+  ]
 }

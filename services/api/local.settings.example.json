@@ -7,6 +7,10 @@
     "TWELVE_DATA_API_KEY": "",
     "MARKETOS_WEB_ORIGIN": "http://localhost:5173",
     "MARKET_EVENTS_PROVIDER": "demo",
-    "MARKET_FEED_PROVIDER": "demo"
+    "MARKET_FEED_PROVIDER": "demo",
+    "USER_DATA_PROVIDER": "memory",
+    "COSMOS_CONNECTION_STRING": "",
+    "COSMOS_DATABASE": "marketos",
+    "COSMOS_CONTAINER": "userState"
   }
 }

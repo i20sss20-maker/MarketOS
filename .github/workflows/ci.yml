@@ -69,6 +69,9 @@ jobs:
       - name: Company Feed provider security/cache smoke test
         run: pnpm smoke:feed-provider
 
+      - name: Cloud auth/state runtime smoke test
+        run: pnpm smoke:cloud-state
+
       - name: Prepare Azure API bundle
         run: pnpm prepare:azure-api
 
@@ -79,6 +82,7 @@ jobs:
         shell: pwsh
         run: |
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-preview.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-cosmos.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4

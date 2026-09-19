@@ -13,6 +13,23 @@ assert.ok(
   "Security headers must include a CSP",
 );
 
+const securedUserRoute = config?.routes?.find(
+  (route) => route?.route === "/api/user/*",
+);
+assert.deepEqual(
+  securedUserRoute?.allowedRoles,
+  ["authenticated"],
+  "Cloud user API routes must require the authenticated role",
+);
+assert.ok(
+  config?.routes?.some((route) => route?.route === "/login/microsoft"),
+  "Static Web Apps config must expose the Microsoft login shortcut",
+);
+assert.ok(
+  config?.routes?.some((route) => route?.route === "/login/github"),
+  "Static Web Apps config must expose the GitHub login shortcut",
+);
+
 const apiDist = "artifacts/azure-api/dist";
 assert.ok(existsSync(apiDist), "Standalone Azure API dist folder must exist after staging");
 
@@ -24,6 +41,11 @@ assert.equal(
   stagedPackage?.dependencies?.["@azure/functions"],
   "^4.0.0",
   "Standalone Azure API must include the Azure Functions runtime dependency",
+);
+assert.equal(
+  stagedPackage?.dependencies?.["@azure/cosmos"],
+  "^4.4.1",
+  "Standalone Azure API must include the Cosmos SDK for persistent user state",
 );
 assert.ok(
   !Object.keys(stagedPackage?.dependencies ?? {}).some((name) => name.startsWith("@marketos/")),
@@ -63,6 +85,11 @@ assert.ok(
 const bootstrap = readFileSync("infrastructure/azure/bootstrap-preview.ps1", "utf8");
 assert.ok(bootstrap.includes("rg-marketos-dev"), "Bootstrap script must stay scoped to the MarketOS dev resource group");
 assert.ok(bootstrap.includes("--sku Free"), "Bootstrap script must create a Free Static Web App");
+
+const cosmosBootstrap = readFileSync("infrastructure/azure/bootstrap-cosmos.ps1", "utf8");
+assert.ok(cosmosBootstrap.includes("--enable-free-tier true"), "Cosmos bootstrap must request Free Tier");
+assert.ok(cosmosBootstrap.includes("--partition-key-path \"/userId\""), "Cosmos user state must partition by /userId");
+assert.ok(!cosmosBootstrap.includes("Write-Host $connectionString"), "Cosmos connection string must never be printed");
 
 console.log(
   `Azure preview smoke test passed: ${javascriptFiles.length} staged API JS files, Node ${config.platform.apiRuntime}`,

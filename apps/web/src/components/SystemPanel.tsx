@@ -134,6 +134,21 @@ export default function SystemPanel({
                       : "محرك MarketOS المحلي"}
                   </small>
                 </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
+                    <StatusDot mode={health.userData.persistent ? "provider" : "demo"} />
+                    <strong>Cloud User Data</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.userData.provider === "cosmos" ? "Azure Cosmos DB" : "Memory"}
+                  </span>
+                  <small>
+                    {health.userData.persistent
+                      ? "تخزين مستخدم دائم ومهيأ للمزامنة"
+                      : "تخزين مؤقت للتطوير فقط"}
+                  </small>
+                </article>
               </div>
 
               <div className="system-footnote">
