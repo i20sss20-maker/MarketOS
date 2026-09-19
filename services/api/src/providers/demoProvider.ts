@@ -2,6 +2,7 @@ import type {
   Candle,
   MarketDataProvider,
   MarketDataStatus,
+  MarketOverviewItem,
   MarketSymbol,
   Quote,
   Timeframe,
@@ -113,6 +114,15 @@ export class DemoMarketDataProvider implements MarketDataProvider {
       timestamp: current.time,
       source: this.id,
     };
+  }
+
+  async getQuotes(symbols: MarketSymbol[]): Promise<MarketOverviewItem[]> {
+    return Promise.all(
+      symbols.slice(0, 25).map(async (symbol) => ({
+        symbol,
+        quote: await this.getQuote(symbol),
+      })),
+    );
   }
 
   getStatus(): MarketDataStatus {
