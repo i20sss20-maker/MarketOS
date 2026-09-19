@@ -79,7 +79,7 @@ export type ChartDrawingContext =
       price: number;
     }
   | {
-      type: "trend";
+      type: "trend" | "zone" | "fibonacci";
       points: [
         { time: number; price: number },
         { time: number; price: number },
