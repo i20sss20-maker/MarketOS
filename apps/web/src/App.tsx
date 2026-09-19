@@ -3052,10 +3052,28 @@ export default function App() {
           void refreshAlertInbox();
         }}
         onOverview={() => setShowInstrumentOverview(true)}
-        onCorrelation={() => setShowCorrelation(true)}
+        onCorrelation={() => {
+          if (
+            requireFeature(
+              "correlationMatrix",
+              "Correlation Matrix",
+            )
+          ) {
+            setShowCorrelation(true);
+          }
+        }}
         onEvents={openEvents}
         onCompanyFeed={openCompanyFeed}
-        onStrategy={() => setShowStrategyTester(true)}
+        onStrategy={() => {
+          if (
+            requireFeature(
+              "strategyTester",
+              "Strategy Tester",
+            )
+          ) {
+            setShowStrategyTester(true);
+          }
+        }}
         onSystem={openSystemPanel}
         accountSlot={
           <button
@@ -3067,6 +3085,7 @@ export default function App() {
               if (authUser) {
                 void refreshCloudState();
                 void refreshPushState();
+                void refreshEntitlement();
               }
             }}
             title={authUser ? "الحساب والمزامنة" : "تسجيل الدخول"}
@@ -3074,7 +3093,11 @@ export default function App() {
             <span className="commercial-account-avatar">
               {(authUser?.userDetails || "M").slice(0, 1).toUpperCase()}
             </span>
-            <span>{authUser ? "الحساب" : "دخول"}</span>
+            <span>
+              {authUser
+                ? entitlement.definition.name
+                : "دخول"}
+            </span>
           </button>
         }
         workspaceSlot={
@@ -3131,6 +3154,9 @@ export default function App() {
         user={authUser}
         checked={authChecked}
         cloud={cloudState}
+        entitlement={entitlement}
+        entitlementLoading={entitlementLoading}
+        entitlementError={entitlementError}
         busy={cloudBusy}
         error={cloudError}
         message={cloudMessage}
@@ -3141,18 +3167,36 @@ export default function App() {
         pushBusy={pushBusy}
         pushError={pushError}
         onClose={() => setShowAccountPanel(false)}
-        onRefresh={() => void refreshCloudState()}
+        onRefresh={() => {
+          void refreshCloudState();
+          void refreshEntitlement();
+        }}
         onUpload={() => void uploadCurrentDeviceToCloud()}
         onRestore={() => void restoreCloudToThisDevice()}
         onDeleteCloud={() => void removeCloudCopy()}
         onEnablePush={() => void enablePushOnThisDevice()}
         onDisablePush={() => void disablePushOnThisDevice()}
         onRefreshPush={() => void refreshPushState()}
+        onShowPlans={() => {
+          setPlanMessage(null);
+          setShowPlansPanel(true);
+        }}
+      />
+
+      <PlansPanel
+        open={showPlansPanel}
+        entitlement={entitlement}
+        message={planMessage}
+        onClose={() => {
+          setShowPlansPanel(false);
+          setPlanMessage(null);
+        }}
       />
 
       <IndicatorLab
         open={showIndicatorLab}
         indicators={customIndicators}
+        maxIndicators={planLimits.customIndicators}
         onChange={updateCustomIndicators}
         onClose={() => setShowIndicatorLab(false)}
       />
@@ -3769,7 +3813,15 @@ export default function App() {
                       className="indicator-lab-launch"
                       onClick={() => {
                         setShowIndicatorMenu(false);
-                        setShowIndicatorLab(true);
+
+                        if (
+                          requireFeature(
+                            "customIndicatorLab",
+                            "معمل المؤشرات",
+                          )
+                        ) {
+                          setShowIndicatorLab(true);
+                        }
                       }}
                     >
                       <span>⚗ معمل المؤشرات</span>
@@ -3807,9 +3859,26 @@ export default function App() {
                 <button
                   className={layoutMode === "quad" ? "selected" : ""}
                   onClick={() => chooseLayoutMode("quad")}
-                  title="أربعة شارتات مستقلة"
+                  aria-disabled={
+                    !canUseFeature(
+                      entitlement,
+                      "quadChart",
+                    )
+                  }
+                  title={
+                    canUseFeature(
+                      entitlement,
+                      "quadChart",
+                    )
+                      ? "أربعة شارتات مستقلة"
+                      : "يتطلب MarketOS Pro"
+                  }
                 >
                   4×
+                  {!canUseFeature(
+                    entitlement,
+                    "quadChart",
+                  ) ? " 🔒" : ""}
                 </button>
               </div>
 
@@ -3983,6 +4052,12 @@ export default function App() {
           prompt={aiPrompt}
           aiLoading={aiLoading}
           multiTimeframeLoading={multiTimeframeLoading}
+          multiTimeframeEnabled={
+            canUseFeature(
+              entitlement,
+              "multiTimeframeAi",
+            )
+          }
           aiResult={aiResult}
           multiTimeframeResult={multiTimeframeResult}
           multiTimeframeError={multiTimeframeError}
