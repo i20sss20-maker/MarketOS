@@ -64,13 +64,9 @@ export async function internalAlertSweep(
       if (result.capped) cappedUsers += 1;
 
       if (result.checkedGroups > 0) {
-        await userStateStore.put(
+        await userStateStore.updateAlerts(
           stored.userId,
-          {
-            ...stored.payload,
-            alerts: result.alerts,
-            updatedAt: Date.now(),
-          },
+          result.alerts,
         );
       }
     }
