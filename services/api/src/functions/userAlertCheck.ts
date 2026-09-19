@@ -2,6 +2,7 @@ import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { json, preflight } from "../http/responses.js";
+import { recordAlertNotifications } from "../notifications/alertNotifications.js";
 import { marketDataProvider } from "../providers/index.js";
 import { userStateStore } from "../storage/index.js";
 
@@ -51,6 +52,12 @@ export async function userAlertCheck(
       });
     }
 
+    const notificationResult =
+      await recordAlertNotifications(
+        user.userId,
+        result.triggered,
+      );
+
     return json(200, {
       ok: true,
       storageMode: userStateStore.mode,
@@ -60,6 +67,10 @@ export async function userAlertCheck(
       triggered: result.triggered,
       failures: result.failures,
       capped: result.capped,
+      notificationsCreated:
+        notificationResult.created,
+      notificationFailures:
+        notificationResult.failures,
     });
   } catch (error) {
     return json(500, {
