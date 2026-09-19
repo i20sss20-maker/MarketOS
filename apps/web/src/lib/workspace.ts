@@ -8,6 +8,10 @@ import {
   normalizePaneVisualState,
   type PaneVisualState,
 } from "./paneVisualState";
+import {
+  normalizePaneLinkSettings,
+  type PaneLinkSettings,
+} from "./paneLinks";
 
 export type WorkspaceChartView = "candles" | "line" | "area";
 export type WorkspaceLayoutMode = "single" | "split" | "quad";
@@ -29,10 +33,11 @@ export type SavedWorkspace = {
   indicators: IndicatorSelection;
   drawings: ChartDrawing[];
 
-  // V2/V3 fields.
-  version?: 2 | 3;
+  // V2/V3/V4 fields.
+  version?: 2 | 3 | 4;
   layoutMode?: WorkspaceLayoutMode;
   chartSyncEnabled?: boolean;
+  paneLinks?: PaneLinkSettings;
   chartSettings?: ChartSettings;
   customIndicators?: CustomIndicatorDefinition[];
   panes?: {
@@ -192,16 +197,30 @@ export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
     indicators: item.indicators,
     drawings: item.drawings,
     version:
-      item.version === 3
-        ? 3
-        : item.version === 2
-          ? 2
-          : undefined,
+      item.version === 4
+        ? 4
+        : item.version === 3
+          ? 3
+          : item.version === 2
+            ? 2
+            : undefined,
     layoutMode,
     chartSyncEnabled:
       typeof item.chartSyncEnabled === "boolean"
         ? item.chartSyncEnabled
         : true,
+    paneLinks:
+      normalizePaneLinkSettings(
+        item.paneLinks,
+        {
+          range:
+            typeof item.chartSyncEnabled === "boolean"
+              ? item.chartSyncEnabled
+              : true,
+          symbol: false,
+          timeframe: false,
+        },
+      ),
     chartSettings: item.chartSettings
       ? normalizeChartSettings(item.chartSettings)
       : undefined,
