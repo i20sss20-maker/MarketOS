@@ -16,6 +16,7 @@ import type {
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
@@ -50,12 +51,19 @@ import {
   redoDrawingHistory,
   undoDrawingHistory,
 } from "./lib/drawingHistory";
-import type { AlertCondition, PriceAlert } from "./lib/alerts";
 import {
-  createPriceAlert,
-  evaluateAlerts,
+  describeAdvancedAlert,
+  evaluateAdvancedAlerts,
+  type AdvancedAlert,
+  type AdvancedAlertCondition,
+  type AlertLogic,
+} from "@marketos/alert-core";
+import {
+  createAdvancedAlert,
   loadAlerts,
+  rearmAlert,
   saveAlerts,
+  toggleAlertEnabled,
 } from "./lib/alerts";
 import type { IndicatorId, IndicatorSelection } from "./lib/indicators";
 import {
@@ -216,10 +224,10 @@ export default function App() {
   const [replayPlaying, setReplayPlaying] = useState(false);
   const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
 
-  const [alerts, setAlerts] = useState<PriceAlert[]>(() => loadAlerts());
+  const [alerts, setAlerts] = useState<AdvancedAlert[]>(() => loadAlerts(timeframe));
   const [showAlertMenu, setShowAlertMenu] = useState(false);
-  const [alertCondition, setAlertCondition] = useState<AlertCondition>("above");
-  const [alertPrice, setAlertPrice] = useState("");
+  const [alertsChecking, setAlertsChecking] = useState(false);
+  const [alertCheckMessage, setAlertCheckMessage] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -375,22 +383,43 @@ export default function App() {
   useEffect(() => {
     if (replayActive) return;
 
-    const price = quote?.price ?? candles[candles.length - 1]?.close;
-    if (!Number.isFinite(price)) return;
+    const hasRelevantAlert = alerts.some(
+      (alert) =>
+        alert.enabled &&
+        !alert.triggeredAt &&
+        alert.symbol.id === active.id &&
+        alert.timeframe === timeframe,
+    );
+    if (!hasRelevantAlert) return;
 
-    const result = evaluateAlerts(alerts, active, price as number);
-    if (result.triggered.length === 0) return;
+    const result = evaluateAdvancedAlerts(alerts, {
+      symbol: active,
+      timeframe,
+      candles,
+      quote,
+    });
 
     setAlerts(result.alerts);
     saveAlerts(result.alerts);
-    const latest = result.triggered[result.triggered.length - 1];
+
+    if (result.triggered.length === 0) return;
+
+    const latest = result.triggered[result.triggered.length - 1].alert;
     setAlertMessage(
-      `تنبيه ${latest.symbol.ticker}: السعر ${latest.condition === "above" ? "وصل أو تجاوز" : "وصل أو نزل تحت"} ${formatPrice(latest.price)}`,
+      `تنبيه ${latest.symbol.ticker} · ${latest.timeframe.toUpperCase()}: ${describeAdvancedAlert(latest)}`,
     );
 
     const timer = window.setTimeout(() => setAlertMessage(null), 7000);
     return () => window.clearTimeout(timer);
-  }, [quote?.price, candles, active, replayActive]);
+  }, [
+    quote?.price,
+    quote?.percentChange,
+    quote?.volume,
+    candles,
+    active,
+    timeframe,
+    replayActive,
+  ]);
 
   useEffect(() => {
     if (!replayActive || !replayPlaying || candles.length === 0) return;
@@ -1000,17 +1029,26 @@ export default function App() {
     });
   };
 
-  const addAlert = () => {
-    const price = Number(alertPrice);
-    if (!Number.isFinite(price) || price <= 0) return;
+  const addAdvancedAlert = (
+    alertTimeframe: Timeframe,
+    logic: AlertLogic,
+    conditions: AdvancedAlertCondition[],
+  ) => {
+    const alert = createAdvancedAlert(
+      active,
+      alertTimeframe,
+      logic,
+      conditions,
+    );
 
-    const alert = createPriceAlert(active, alertCondition, price);
     setAlerts((current) => {
       const next = [alert, ...current].slice(0, 100);
       saveAlerts(next);
       return next;
     });
-    setAlertPrice("");
+    setAlertCheckMessage(
+      `تم إنشاء تنبيه ${active.ticker} على ${alertTimeframe.toUpperCase()}.`,
+    );
   };
 
   const deleteAlert = (id: string) => {
@@ -1019,6 +1057,118 @@ export default function App() {
       saveAlerts(next);
       return next;
     });
+  };
+
+  const rearmAdvancedAlert = (id: string) => {
+    setAlerts((current) => {
+      const next = current.map((alert) =>
+        alert.id === id ? rearmAlert(alert) : alert,
+      );
+      saveAlerts(next);
+      return next;
+    });
+  };
+
+  const toggleAdvancedAlert = (id: string) => {
+    setAlerts((current) => {
+      const next = current.map((alert) =>
+        alert.id === id ? toggleAlertEnabled(alert) : alert,
+      );
+      saveAlerts(next);
+      return next;
+    });
+  };
+
+  const checkAllAdvancedAlerts = async () => {
+    if (alertsChecking) return;
+
+    const pending = alerts.filter(
+      (alert) => alert.enabled && !alert.triggeredAt,
+    );
+    if (pending.length === 0) {
+      setAlertCheckMessage("لا توجد تنبيهات نشطة للفحص.");
+      return;
+    }
+
+    const groups = new Map<string, {
+      symbol: MarketSymbol;
+      timeframe: Timeframe;
+    }>();
+
+    for (const alert of pending) {
+      const key = `${alert.symbol.id}|${alert.timeframe}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          symbol: alert.symbol,
+          timeframe: alert.timeframe,
+        });
+      }
+    }
+
+    const entries = [...groups.values()].slice(0, 20);
+    setAlertsChecking(true);
+    setAlertCheckMessage(null);
+
+    const snapshots = await Promise.allSettled(
+      entries.map(async (entry) => {
+        const [candleResponse, quoteResponse] = await Promise.all([
+          getMarketCandles(entry.symbol, entry.timeframe, 220),
+          getMarketQuote(entry.symbol),
+        ]);
+        return {
+          ...entry,
+          candles: candleResponse.candles,
+          quote: quoteResponse.quote,
+        };
+      }),
+    );
+
+    let nextAlerts = alerts;
+    let triggeredCount = 0;
+    let failedCount = 0;
+
+    for (const snapshot of snapshots) {
+      if (snapshot.status === "rejected") {
+        failedCount += 1;
+        continue;
+      }
+
+      const result = evaluateAdvancedAlerts(nextAlerts, {
+        symbol: snapshot.value.symbol,
+        timeframe: snapshot.value.timeframe,
+        candles: snapshot.value.candles,
+        quote: snapshot.value.quote,
+      });
+      nextAlerts = result.alerts;
+      triggeredCount += result.triggered.length;
+    }
+
+    setAlerts(nextAlerts);
+    saveAlerts(nextAlerts);
+    setAlertsChecking(false);
+
+    const skipped = groups.size > entries.length
+      ? groups.size - entries.length
+      : 0;
+
+    setAlertCheckMessage(
+      [
+        `تم فحص ${entries.length} مجموعة رمز/فريم`,
+        `تفعّل ${triggeredCount}`,
+        failedCount > 0 ? `تعذر ${failedCount}` : "",
+        skipped > 0 ? `مؤجل ${skipped}` : "",
+      ].filter(Boolean).join(" · "),
+    );
+
+    if (triggeredCount > 0) {
+      const latest = nextAlerts.find((alert) => alert.triggeredAt);
+      if (latest) {
+        setAlertMessage(
+          `تنبيه ${latest.symbol.ticker} · ${latest.timeframe.toUpperCase()}: ${describeAdvancedAlert(latest)}`,
+        );
+        window.setTimeout(() => setAlertMessage(null), 7000);
+      }
+    }
   };
 
   const saveCurrentWorkspace = () => {
@@ -1245,7 +1395,9 @@ export default function App() {
     ? filteredOverview.reduce((sum, item) => sum + (item.quote.percentChange ?? 0), 0) / filteredOverview.length
     : 0;
 
-  const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
+  const activeAlerts = alerts.filter(
+    (alert) => alert.enabled && !alert.triggeredAt,
+  );
   const replayDateLabel = replayActive && lastCandle
     ? new Date(lastCandle.time * 1000).toLocaleString("ar-SA", {
         dateStyle: "medium",
@@ -1373,51 +1525,12 @@ export default function App() {
           </button>
 
           <div className="alert-menu-wrap">
-            <button className="ghost-button" onClick={() => setShowAlertMenu((value) => !value)}>
+            <button
+              className={activeAlerts.length > 0 ? "ghost-button alerts-v2-button active" : "ghost-button alerts-v2-button"}
+              onClick={() => setShowAlertMenu(true)}
+            >
               التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
             </button>
-
-            {showAlertMenu ? (
-              <div className="alert-popover" dir="rtl">
-                <div className="alert-title">تنبيه سعر لـ {active.ticker}</div>
-                <div className="alert-condition">
-                  <button
-                    className={alertCondition === "above" ? "selected" : ""}
-                    onClick={() => setAlertCondition("above")}
-                  >
-                    أعلى من
-                  </button>
-                  <button
-                    className={alertCondition === "below" ? "selected" : ""}
-                    onClick={() => setAlertCondition("below")}
-                  >
-                    أقل من
-                  </button>
-                </div>
-                <div className="alert-create">
-                  <input
-                    inputMode="decimal"
-                    value={alertPrice}
-                    onChange={(event) => setAlertPrice(event.target.value)}
-                    placeholder={formatPrice(displayedPrice)}
-                  />
-                  <button onClick={addAlert}>إضافة</button>
-                </div>
-                <div className="alert-note">يتم فحص التنبيه أثناء فتح MarketOS وعند تحديث السعر.</div>
-                <div className="alert-list">
-                  {alerts.slice(0, 12).map((alert) => (
-                    <div className={alert.triggeredAt ? "alert-row triggered" : "alert-row"} key={alert.id}>
-                      <span>
-                        <strong>{alert.symbol.ticker} · {alert.condition === "above" ? "≥" : "≤"} {formatPrice(alert.price)}</strong>
-                        <small>{alert.triggeredAt ? "تم التفعيل" : "نشط"}</small>
-                      </span>
-                      <button onClick={() => deleteAlert(alert.id)} title="حذف">×</button>
-                    </div>
-                  ))}
-                  {alerts.length === 0 ? <div className="workspace-empty">لا توجد تنبيهات</div> : null}
-                </div>
-              </div>
-            ) : null}
           </div>
 
           <div className="workspace-menu-wrap">
@@ -1474,6 +1587,22 @@ export default function App() {
         onRefresh={() => void refreshCompanyFeed()}
         onClose={() => setShowCompanyFeed(false)}
         onSelectSymbol={openCompanyFeedSymbol}
+      />
+
+      <AdvancedAlertsPanel
+        open={showAlertMenu}
+        symbol={active}
+        currentTimeframe={timeframe}
+        currentPrice={displayedPrice}
+        alerts={alerts}
+        checking={alertsChecking}
+        checkMessage={alertCheckMessage}
+        onCreate={addAdvancedAlert}
+        onDelete={deleteAlert}
+        onRearm={rearmAdvancedAlert}
+        onToggleEnabled={toggleAdvancedAlert}
+        onCheckAll={() => void checkAllAdvancedAlerts()}
+        onClose={() => setShowAlertMenu(false)}
       />
 
       <SystemPanel
