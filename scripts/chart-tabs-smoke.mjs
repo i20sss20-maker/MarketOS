@@ -136,6 +136,10 @@ const app = readFileSync(
   "apps/web/src/App.tsx",
   "utf8",
 );
+const cloud = readFileSync(
+  "apps/web/src/lib/cloudState.ts",
+  "utf8",
+);
 
 assert.match(
   app,
@@ -148,6 +152,18 @@ assert.match(
 assert.match(
   app,
   /ChartTabsBar/,
+);
+assert.match(
+  cloud,
+  /marketos:chart-tabs/,
+);
+assert.match(
+  cloud,
+  /marketos:active-chart-tab/,
+);
+assert.match(
+  cloud,
+  /marketos:recent-symbols/,
 );
 
 console.log(
