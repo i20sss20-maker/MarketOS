@@ -228,6 +228,8 @@ export default function App() {
   }, [comparisonSymbol, active.id, timeframe]);
 
   useEffect(() => {
+    if (replayActive) return;
+
     const price = quote?.price ?? candles[candles.length - 1]?.close;
     if (!Number.isFinite(price)) return;
 
@@ -243,7 +245,32 @@ export default function App() {
 
     const timer = window.setTimeout(() => setAlertMessage(null), 7000);
     return () => window.clearTimeout(timer);
-  }, [quote?.price, candles, active]);
+  }, [quote?.price, candles, active, replayActive]);
+
+  useEffect(() => {
+    if (!replayActive || !replayPlaying || candles.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      setReplayIndex((current) => {
+        const index = current ?? Math.max(20, candles.length - 60);
+        if (index >= candles.length - 1) {
+          setReplayPlaying(false);
+          return candles.length - 1;
+        }
+        return index + 1;
+      });
+    }, 650);
+
+    return () => window.clearInterval(timer);
+  }, [replayActive, replayPlaying, candles.length]);
+
+  useEffect(() => {
+    if (!replayActive || candles.length === 0) return;
+    setReplayIndex((current) => {
+      if (current === null) return Math.max(20, candles.length - 60);
+      return Math.min(current, candles.length - 1);
+    });
+  }, [replayActive, candles.length]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -746,7 +773,7 @@ export default function App() {
               <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
                 {formatPercent(displayedPercent)}
               </span>
-              <small>{quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
+              <small>{replayActive ? "REPLAY" : quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
             </div>
           </div>
 
@@ -779,6 +806,8 @@ export default function App() {
                   <button className="comparison-clear" onClick={() => {
                     setComparisonSymbol(null);
                     setComparisonCandles([]);
+                    setLayoutMode("single");
+                    saveSetting("marketos:chart-layout", "single");
                   }}>×</button>
                 ) : null}
 
@@ -977,7 +1006,7 @@ export default function App() {
             <div><span>الرسومات</span><strong>{drawings.length}</strong></div>
             <div><span>المقارنة</span><strong>{comparisonSymbol?.ticker ?? "—"}</strong></div>
             <div><span>التنبيهات</span><strong>{activeAlerts.length}</strong></div>
-            <div><span>الشموع</span><strong>{candles.length}</strong></div>
+            <div><span>الشموع</span><strong>{displayCandles.length}</strong></div>
             <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
           </div>
 
