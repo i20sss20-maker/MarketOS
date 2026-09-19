@@ -44,11 +44,10 @@ export async function userAlertCheck(
     );
 
     if (result.checkedGroups > 0) {
-      await userStateStore.put(user.userId, {
-        ...stored.payload,
-        alerts: result.alerts,
-        updatedAt: Date.now(),
-      });
+      await userStateStore.updateAlerts(
+        user.userId,
+        result.alerts,
+      );
     }
 
     return json(200, {
