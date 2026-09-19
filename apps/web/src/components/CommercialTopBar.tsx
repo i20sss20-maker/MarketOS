@@ -12,6 +12,7 @@ type Props = {
   aiOpen: boolean;
   onToggleWatchlist: () => void;
   onToggleAi: () => void;
+  onCommandPalette: () => void;
   onMarket: () => void;
   onAlerts: () => void;
   onAlertInbox: () => void;
@@ -30,6 +31,7 @@ type IconName =
   | "menu"
   | "watchlist"
   | "sparkles"
+  | "search"
   | "market"
   | "alert"
   | "more"
@@ -62,6 +64,9 @@ function Icon({ name }: { name: IconName }) {
   }
   if (name === "sparkles") {
     return <svg {...common}><path d="m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" /><path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" /></svg>;
+  }
+  if (name === "search") {
+    return <svg {...common}><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></svg>;
   }
   if (name === "market") {
     return <svg {...common}><path d="M4 19V9M10 19V5M16 19v-7M22 19H2" /></svg>;
@@ -105,6 +110,7 @@ export default function CommercialTopBar({
   aiOpen,
   onToggleWatchlist,
   onToggleAi,
+  onCommandPalette,
   onMarket,
   onAlerts,
   onAlertInbox,
@@ -169,6 +175,15 @@ export default function CommercialTopBar({
       </nav>
 
       <div className="commercial-topbar-end">
+        <button
+          className="commercial-command-button"
+          onClick={onCommandPalette}
+          title="البحث والأوامر · Ctrl/Cmd+K"
+        >
+          <Icon name="search" />
+          <span>بحث</span>
+          <kbd>⌘K</kbd>
+        </button>
         {accountSlot}
         {workspaceSlot}
 
