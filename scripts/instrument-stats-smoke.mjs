@@ -94,6 +94,14 @@ assert.equal(insufficient.sma20, null);
 assert.equal(insufficient.sma50, null);
 assert.equal(insufficient.atr14, null);
 assert.equal(insufficient.realizedVolatility20Percent, null);
+assert.equal(
+  insufficient.performance.find((item) => item.bars === 20)?.changePercent,
+  null,
+);
+assert.equal(
+  insufficient.performance.find((item) => item.bars === 50)?.changePercent,
+  null,
+);
 
 console.log(
   `Instrument stats smoke passed: last=${stats.lastPrice}, SMA20=${stats.sma20}, ATR14=${stats.atr14}, volumeRatio=${stats.latestVolumeRatio}`,
