@@ -8634,3 +8634,340 @@ body {
   }
 }
 
+
+
+/* Plans / Entitlements V1 */
+.account-plan-card {
+  margin: 10px 0;
+  padding: 11px;
+  border: 1px solid rgba(124,131,255,.14);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(79,70,229,.09), rgba(8,13,24,.72));
+}
+
+.account-plan-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.account-plan-main span,
+.account-plan-main strong {
+  display: block;
+}
+
+.account-plan-main > div > span {
+  color: #5d6b80;
+  font-size: 7px;
+}
+
+.account-plan-main > div > strong {
+  margin-top: 3px;
+  color: #c7cdfd;
+  font-size: 13px;
+}
+
+.account-plan-status {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.07);
+  color: #78869b;
+  font-size: 7px;
+}
+
+.account-plan-status.active,
+.account-plan-status.trialing {
+  background: rgba(32,201,151,.08);
+  color: #6bd5b5;
+}
+
+.account-plan-status.past_due,
+.account-plan-status.canceled {
+  background: rgba(240,93,111,.08);
+  color: #dc8694;
+}
+
+.account-plan-limits {
+  display: grid;
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  gap: 4px;
+  margin-top: 9px;
+}
+
+.account-plan-limits span {
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(8,13,24,.68);
+  color: #59677c;
+  font-size: 6px;
+  text-align: center;
+}
+
+.account-plan-limits b {
+  display: block;
+  margin-top: 2px;
+  color: #a6b2c4;
+  font-size: 9px;
+}
+
+.account-plan-error {
+  margin-top: 8px;
+  padding: 7px;
+  border-radius: 6px;
+  background: rgba(240,93,111,.06);
+  color: #c47d89;
+  font-size: 7px;
+}
+
+.account-plan-button {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 9px;
+  border: 1px solid rgba(124,131,255,.16);
+  border-radius: 7px;
+  background: rgba(124,131,255,.08);
+  color: #adb4fa;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.plans-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.plans-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2,6,14,.80);
+  backdrop-filter: blur(5px);
+}
+
+.plans-panel {
+  position: relative;
+  z-index: 1;
+  width: min(980px,96vw);
+  max-height: min(850px,94vh);
+  border: 1px solid rgba(148,163,184,.13);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 70% -10%, rgba(79,70,229,.10), transparent 30%),
+    #070c16;
+  box-shadow: 0 34px 110px rgba(0,0,0,.58);
+  overflow-y: auto;
+}
+
+.plans-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 17px 13px;
+  border-bottom: 1px solid rgba(148,163,184,.07);
+}
+
+.plans-eyebrow {
+  color: #818cf8;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.plans-header h2 {
+  margin: 3px 0;
+  color: #e5eaf3;
+  font-size: 18px;
+}
+
+.plans-header p {
+  margin: 0;
+  color: #65748a;
+  font-size: 8px;
+}
+
+.plans-close {
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(148,163,184,.10);
+  border-radius: 7px;
+  background: #0a101c;
+  color: #9ba8ba;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.plans-gate-message {
+  margin: 12px 15px 0;
+  padding: 9px 11px;
+  border: 1px solid rgba(245,158,11,.12);
+  border-radius: 7px;
+  background: rgba(75,50,12,.16);
+  color: #b59454;
+  font-size: 8px;
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 8px;
+  padding: 14px 15px;
+}
+
+.plan-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(148,163,184,.08);
+  border-radius: 10px;
+  background: rgba(8,13,24,.68);
+}
+
+.plan-card.current {
+  border-color: rgba(124,131,255,.25);
+  background: linear-gradient(145deg, rgba(79,70,229,.11), rgba(8,13,24,.76));
+}
+
+.plan-card-head {
+  min-height: 57px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-card-head strong {
+  display: block;
+  color: #d5dce7;
+  font-size: 13px;
+}
+
+.plan-card-head small {
+  display: block;
+  margin-top: 4px;
+  color: #5e6c81;
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.plan-card-head > span {
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(124,131,255,.10);
+  color: #adb3fb;
+  font-size: 6px;
+}
+
+.plan-limits {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 4px;
+  margin-top: 9px;
+}
+
+.plan-limits > div {
+  padding: 7px;
+  border-radius: 6px;
+  background: rgba(5,8,13,.58);
+}
+
+.plan-limits span,
+.plan-limits b {
+  display: block;
+}
+
+.plan-limits span {
+  color: #536176;
+  font-size: 6px;
+}
+
+.plan-limits b {
+  margin-top: 2px;
+  color: #9ca9bb;
+  font-size: 9px;
+}
+
+.plan-features {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.plan-features > div {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  align-items: center;
+  gap: 5px;
+}
+
+.plan-features span {
+  color: #55cda8;
+  font-size: 8px;
+}
+
+.plan-features b {
+  color: #78869b;
+  font-size: 7px;
+  font-weight: 600;
+}
+
+.plans-billing-note {
+  margin: 0 15px 15px;
+  padding: 10px 11px;
+  border: 1px solid rgba(148,163,184,.07);
+  border-radius: 8px;
+  background: rgba(8,13,24,.55);
+}
+
+.plans-billing-note strong,
+.plans-billing-note span {
+  display: block;
+}
+
+.plans-billing-note strong {
+  color: #a8b4c5;
+  font-size: 8px;
+}
+
+.plans-billing-note span {
+  margin-top: 4px;
+  color: #59677c;
+  font-size: 7px;
+  line-height: 1.6;
+}
+
+.multi-timeframe-button.locked {
+  border-style: dashed;
+  opacity: .78;
+}
+
+.layout-toggle button[aria-disabled="true"] {
+  color: #4d596b;
+  border-style: dashed;
+}
+
+@media (max-width: 760px) {
+  .plans-overlay {
+    padding: 8px;
+  }
+
+  .plans-grid {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .plans-billing-note,
+  .plans-gate-message {
+    margin-inline: 10px;
+  }
+
+  .account-plan-limits {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
