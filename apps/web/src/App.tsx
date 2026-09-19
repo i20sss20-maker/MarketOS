@@ -11,10 +11,12 @@ import type {
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import MarketEventsPanel from "./components/MarketEventsPanel";
+import SystemPanel from "./components/SystemPanel";
 import { analyzeChart } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getMarketEvents } from "./lib/eventsApi";
+import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
 import type { ChartDrawing, DrawingTool } from "./lib/drawings";
 import {
   drawingDetail,
@@ -150,6 +152,10 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showScreener, setShowScreener] = useState(false);
+  const [showSystemPanel, setShowSystemPanel] = useState(false);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [systemHealthLoading, setSystemHealthLoading] = useState(false);
+  const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
   const [showEvents, setShowEvents] = useState(false);
   const [marketEvents, setMarketEvents] = useState<MarketEvent[]>([]);
   const [eventsProvider, setEventsProvider] = useState("demo-events");
@@ -557,6 +563,28 @@ export default function App() {
     void refreshEvents(eventsRangeDays);
   };
 
+  const refreshSystemHealth = useCallback(async () => {
+    setSystemHealthLoading(true);
+    setSystemHealthError(null);
+
+    try {
+      const health = await getSystemHealth();
+      setSystemHealth(health);
+    } catch {
+      setSystemHealth(null);
+      setSystemHealthError(
+        "تعذر الوصول إلى MarketOS API. في النسخة المحلية أو قبل نشر Azure قد يكون الـBackend غير متصل.",
+      );
+    } finally {
+      setSystemHealthLoading(false);
+    }
+  }, []);
+
+  const openSystemPanel = () => {
+    setShowSystemPanel(true);
+    void refreshSystemHealth();
+  };
+
   const changeEventsRange = (days: number) => {
     setEventsRangeDays(days);
     void refreshEvents(days);
@@ -937,6 +965,10 @@ export default function App() {
             الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
           </button>
 
+          <button className="ghost-button system-button" onClick={openSystemPanel}>
+            النظام
+          </button>
+
           <div className="alert-menu-wrap">
             <button className="ghost-button" onClick={() => setShowAlertMenu((value) => !value)}>
               التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
@@ -1014,6 +1046,15 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      <SystemPanel
+        open={showSystemPanel}
+        health={systemHealth}
+        loading={systemHealthLoading}
+        error={systemHealthError}
+        onRefresh={() => void refreshSystemHealth()}
+        onClose={() => setShowSystemPanel(false)}
+      />
 
       {showEvents ? (
         <MarketEventsPanel

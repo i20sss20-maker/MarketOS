@@ -1,24 +1,85 @@
-# Azure foundation
+# MarketOS Azure Preview
 
-MarketOS Azure resources must be isolated in MarketOS-only resource groups.
+This folder is for **MarketOS only**. Do not reuse resource groups, deployment tokens, databases, app settings, or credentials from unrelated projects.
 
-Suggested development group:
+## Recommended preview architecture
 
-`rg-marketos-dev`
+MarketOS preview uses:
 
-Potential resources, created only when needed:
+- Azure Static Web Apps Free
+- Managed Azure Functions under the same `/api` origin
+- Node.js 20 API runtime
+- GitHub Actions manual deployment
+- Demo market data/events and the local chart intelligence engine by default
 
-- web hosting
-- Function App
-- Storage Account
-- Key Vault
-- Application Insights
-- database/cache after workload requirements are measured
+This keeps the first Azure footprint small and avoids creating extra paid resources before the product needs them.
 
-## Cost rule
+## One-time bootstrap on Windows
 
-Do not provision paid resources by default. The Azure for Students credit is for development and validation, so cost controls and budgets should be configured before real-time market workloads are enabled.
+Requirements:
 
-## Secret rule
+- Azure CLI
+- Signed in with `az login`
+- Optional: GitHub CLI (`gh`) signed in to the GitHub account that owns `i20sss20-maker/MarketOS`
 
-Never place API keys, Azure connection strings, AI keys, or market-data credentials in GitHub source files.
+From the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-preview.ps1
+```
+
+Defaults:
+
+- resource group: `rg-marketos-dev`
+- Static Web App: `marketos-preview`
+- region: `westeurope`
+- SKU: Free
+
+Custom example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-preview.ps1 -ResourceGroup "rg-marketos-dev" -AppName "marketos-preview-yourname" -Location "westeurope"
+```
+
+The script verifies Azure login, creates/confirms the MarketOS-only resource group, creates a Free Static Web App if missing, sets safe preview app settings, reads the deployment token, and saves it to GitHub when `gh` is available.
+
+## Azure for Students region policy
+
+Azure for Students subscriptions can have a Microsoft-managed allow-list of deployment regions. Static Web Apps has a smaller backend-region set than Azure overall. If your assigned regions do not overlap a supported Static Web Apps backend region, Azure Policy can reject creation. The script stops on that error and does not create a paid fallback automatically.
+
+## GitHub deployment
+
+Workflow: `.github/workflows/azure-preview.yml`
+
+It is intentionally `workflow_dispatch` only. Run **GitHub > Actions > Azure Preview Deploy > Run workflow** after `AZURE_STATIC_WEB_APPS_API_TOKEN` exists.
+
+Before deployment the workflow runs TypeScript validation, the full build, market-data smoke, AI-chart smoke, and market-events smoke.
+
+## Safe preview settings
+
+```text
+MARKET_DATA_PROVIDER=demo
+MARKET_EVENTS_PROVIDER=demo
+AI_PROVIDER=local-chart-engine
+MARKETOS_ENVIRONMENT=azure-preview
+```
+
+To connect Twelve Data later, configure these in Azure Static Web Apps environment variables, never in source:
+
+```text
+MARKET_DATA_PROVIDER=twelvedata
+MARKET_EVENTS_PROVIDER=twelvedata
+TWELVE_DATA_API_KEY=<secret>
+```
+
+Market Events only loads on explicit user action and the provider adapter caches results to reduce provider-credit usage.
+
+## Useful Azure CLI commands
+
+```powershell
+az staticwebapp show -n marketos-preview -g rg-marketos-dev
+az staticwebapp show -n marketos-preview -g rg-marketos-dev --query defaultHostname -o tsv
+az staticwebapp appsettings list -n marketos-preview -g rg-marketos-dev
+```
+
+Do not paste a real provider key into commits, screenshots, issues, or chat logs.
