@@ -1,19 +1,31 @@
-import { useMemo, useState } from "react";
-import type { MarketSymbol, Timeframe } from "@marketos/market-core";
+import { useEffect, useMemo, useState } from "react";
+import type {
+  Candle,
+  MarketDataStatus,
+  MarketSymbol,
+  Quote,
+  Timeframe,
+} from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import { createDemoCandles, createDemoQuote } from "./lib/demoData";
+import {
+  getMarketCandles,
+  getMarketQuote,
+  getMarketStatus,
+  searchMarketSymbols,
+} from "./lib/marketApi";
 
-const symbols: MarketSymbol[] = [
-  { id: "NASDAQ:AAPL", ticker: "AAPL", name: "Apple", exchange: "NASDAQ", assetClass: "stock", currency: "USD" },
-  { id: "NASDAQ:NVDA", ticker: "NVDA", name: "NVIDIA", exchange: "NASDAQ", assetClass: "stock", currency: "USD" },
-  { id: "NASDAQ:TSLA", ticker: "TSLA", name: "Tesla", exchange: "NASDAQ", assetClass: "stock", currency: "USD" },
-  { id: "TADAWUL:2222", ticker: "2222", name: "Saudi Aramco", exchange: "TADAWUL", assetClass: "stock", currency: "SAR" },
-  { id: "TADAWUL:1120", ticker: "1120", name: "Al Rajhi Bank", exchange: "TADAWUL", assetClass: "stock", currency: "SAR" },
-  { id: "FX:EURUSD", ticker: "EURUSD", name: "Euro / U.S. Dollar", exchange: "FX", assetClass: "forex", currency: "USD" },
-  { id: "CRYPTO:BTCUSD", ticker: "BTCUSD", name: "Bitcoin", exchange: "CRYPTO", assetClass: "crypto", currency: "USD" },
+const initialSymbols: MarketSymbol[] = [
+  { id: "NASDAQ:AAPL", ticker: "AAPL", name: "Apple Inc.", exchange: "NASDAQ", micCode: "XNAS", assetClass: "stock", currency: "USD" },
+  { id: "NASDAQ:NVDA", ticker: "NVDA", name: "NVIDIA Corp.", exchange: "NASDAQ", micCode: "XNAS", assetClass: "stock", currency: "USD" },
+  { id: "NASDAQ:TSLA", ticker: "TSLA", name: "Tesla Inc.", exchange: "NASDAQ", micCode: "XNAS", assetClass: "stock", currency: "USD" },
+  { id: "XSAU:2222", ticker: "2222", name: "Saudi Aramco", exchange: "Saudi Exchange", micCode: "XSAU", country: "Saudi Arabia", assetClass: "stock", currency: "SAR" },
+  { id: "XSAU:1120", ticker: "1120", name: "Al Rajhi Bank", exchange: "Saudi Exchange", micCode: "XSAU", country: "Saudi Arabia", assetClass: "stock", currency: "SAR" },
+  { id: "FX:EURUSD", ticker: "EUR/USD", providerSymbol: "EUR/USD", name: "Euro / U.S. Dollar", exchange: "FX", assetClass: "forex", currency: "USD" },
+  { id: "CRYPTO:BTCUSD", ticker: "BTC/USD", providerSymbol: "BTC/USD", name: "Bitcoin / U.S. Dollar", exchange: "Crypto", assetClass: "crypto", currency: "USD" },
   { id: "COMEX:GC", ticker: "GC", name: "Gold Futures", exchange: "COMEX", assetClass: "future", currency: "USD" },
 ];
 
-const changes = [1.24, 2.87, -1.12, -0.42, 0.64, 0.18, 3.31, 0.91];
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 function readSaved<T extends string>(key: string, fallback: T): T {
@@ -22,6 +34,20 @@ function readSaved<T extends string>(key: string, fallback: T): T {
     return (window.localStorage.getItem(key) as T | null) ?? fallback;
   } catch {
     return fallback;
+  }
+}
+
+function readSavedSymbol(): MarketSymbol {
+  if (typeof window === "undefined") return initialSymbols[0];
+  try {
+    const saved = window.localStorage.getItem("marketos:symbol-object");
+    if (!saved) return initialSymbols[0];
+    const parsed = JSON.parse(saved) as MarketSymbol;
+    if (!parsed?.ticker || !parsed?.id) return initialSymbols[0];
+    return parsed;
+  } catch {
+    const legacyId = readSaved("marketos:symbol", initialSymbols[0].id);
+    return initialSymbols.find((symbol) => symbol.id === legacyId) ?? initialSymbols[0];
   }
 }
 
@@ -34,30 +60,153 @@ function saveSetting(key: string, value: string) {
   }
 }
 
+function localSearch(query: string) {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return initialSymbols;
+  return initialSymbols.filter((symbol) =>
+    [symbol.ticker, symbol.name, symbol.exchange, symbol.country ?? ""]
+      .some((value) => value.toLowerCase().includes(needle)),
+  );
+}
+
+function formatPrice(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: value < 10 ? 3 : 2,
+    maximumFractionDigits: value < 10 ? 5 : 2,
+  }).format(value);
+}
+
+function formatPercent(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
+}
+
 export default function App() {
-  const [activeId, setActiveId] = useState(() => readSaved("marketos:symbol", symbols[0].id));
+  const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
   const [chartView, setChartView] = useState<ChartView>(() => readSaved("marketos:chart-view", "candles"));
   const [query, setQuery] = useState("");
   const [showSma, setShowSma] = useState(true);
   const [aiResult, setAiResult] = useState<string | null>(null);
 
-  const active = useMemo(
-    () => symbols.find((symbol) => symbol.id === activeId) ?? symbols[0],
-    [activeId],
-  );
+  const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [providerStatus, setProviderStatus] = useState<MarketDataStatus | null>(null);
+  const [dataState, setDataState] = useState<"loading" | "provider" | "fallback">("fallback");
+  const [dataError, setDataError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  const filteredSymbols = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return symbols;
-    return symbols.filter((symbol) =>
-      [symbol.ticker, symbol.name, symbol.exchange].some((value) => value.toLowerCase().includes(needle)),
-    );
+  useEffect(() => {
+    const controller = new AbortController();
+
+    getMarketStatus(controller.signal)
+      .then((status) => {
+        setProviderStatus(status);
+        if (status.mode === "demo") setDataState((current) => current === "loading" ? "loading" : "fallback");
+      })
+      .catch(() => {
+        setProviderStatus({
+          provider: "web-demo",
+          configured: true,
+          mode: "demo",
+          supportsSearch: true,
+          supportsQuotes: true,
+          supportsCandles: true,
+          message: "API is unavailable; using browser demo fallback.",
+        });
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const fallbackCandles = createDemoCandles(active.id, timeframe);
+    setDataState("loading");
+    setDataError(null);
+
+    Promise.all([
+      getMarketCandles(active, timeframe, 300, controller.signal),
+      getMarketQuote(active, controller.signal),
+    ])
+      .then(([candleResponse, quoteResponse]) => {
+        if (candleResponse.candles.length === 0) {
+          throw new Error("The market data provider returned no candles for this symbol.");
+        }
+
+        setCandles(candleResponse.candles);
+        setQuote(quoteResponse.quote);
+        setDataState(candleResponse.provider === "demo" ? "fallback" : "provider");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setCandles(fallbackCandles);
+        setQuote(createDemoQuote(active.ticker, active.currency, fallbackCandles));
+        setDataState("fallback");
+        setDataError(error instanceof Error ? error.message : "Market data request failed.");
+      });
+
+    return () => controller.abort();
+  }, [active, timeframe]);
+
+  useEffect(() => {
+    const trimmed = query.trim();
+
+    if (!trimmed) {
+      setSearchResults(initialSymbols);
+      setSearchLoading(false);
+      return;
+    }
+
+    if (trimmed.length < 2) {
+      setSearchResults(localSearch(trimmed));
+      setSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearchLoading(true);
+
+    const timer = window.setTimeout(() => {
+      searchMarketSymbols(trimmed, controller.signal)
+        .then((response) => {
+          setSearchResults(response.symbols.length > 0 ? response.symbols : localSearch(trimmed));
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.name === "AbortError") return;
+          setSearchResults(localSearch(trimmed));
+        })
+        .finally(() => setSearchLoading(false));
+    }, 280);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
-  const chooseSymbol = (id: string) => {
-    setActiveId(id);
-    saveSetting("marketos:symbol", id);
+  const visibleSymbols = useMemo(
+    () => query.trim() ? searchResults : initialSymbols,
+    [query, searchResults],
+  );
+
+  const lastCandle = candles[candles.length - 1];
+  const displayedPrice = quote?.price ?? lastCandle?.close;
+  const displayedPercent = quote?.percentChange;
+  const providerLabel =
+    dataState === "loading"
+      ? "Loading data"
+      : dataState === "provider"
+        ? providerStatus?.provider ?? quote?.source ?? "Provider"
+        : "Demo fallback";
+
+  const chooseSymbol = (symbol: MarketSymbol) => {
+    setActive(symbol);
+    saveSetting("marketos:symbol", symbol.id);
+    saveSetting("marketos:symbol-object", JSON.stringify(symbol));
+    setQuery("");
     setAiResult(null);
   };
 
@@ -72,9 +221,23 @@ export default function App() {
     saveSetting("marketos:chart-view", value);
   };
 
-  const runDemoAnalysis = () => {
+  const runChartReading = () => {
+    if (candles.length < 20) {
+      setAiResult("لا توجد شموع كافية لقراءة الشارت حاليًا.");
+      return;
+    }
+
+    const recent = candles.slice(-20);
+    const first = recent[0];
+    const last = recent[recent.length - 1];
+    const high = Math.max(...recent.map((candle) => candle.high));
+    const low = Math.min(...recent.map((candle) => candle.low));
+    const sma20 = recent.reduce((sum, candle) => sum + candle.close, 0) / recent.length;
+    const move = ((last.close - first.open) / first.open) * 100;
+    const relativeToSma = last.close >= sma20 ? "فوق" : "تحت";
+
     setAiResult(
-      `تحليل تجريبي لـ ${active.ticker} على فريم ${timeframe}: الاتجاه الحالي يحتاج تأكيد من حركة السعر والحجم. سيتم استبدال هذا النص بتحليل AI مبني على بيانات السوق الفعلية بعد اختيار مزود البيانات.`,
+      `قراءة وصفية لـ ${active.ticker} على ${timeframe.toUpperCase()}: آخر سعر ${formatPrice(last.close)}، حركة آخر 20 شمعة ${formatPercent(move)}، والنطاق ${formatPrice(low)} – ${formatPrice(high)}. السعر حاليًا ${relativeToSma} متوسط SMA20. طبقة AI الكاملة ستستخدم نفس سياق الشارت مع الأخبار والمؤشرات لاحقًا.`,
     );
   };
 
@@ -86,28 +249,32 @@ export default function App() {
           <div className="tagline">Professional charts, market intelligence, AI-native workflow</div>
         </div>
         <div className="top-actions">
-          <div className="status-pill"><span className="status-dot" /> Demo data</div>
+          <div className="status-pill" title={providerStatus?.message}>
+            <span className={`status-dot ${dataState}`} />
+            {providerLabel}
+          </div>
           <button className="ghost-button">تخطيط جديد</button>
         </div>
       </header>
 
       <section className="market-strip" dir="ltr">
-        <span>S&amp;P 500 <b className="positive">+0.62%</b></span>
-        <span>NASDAQ <b className="positive">+0.91%</b></span>
-        <span>TASI <b className="negative">-0.24%</b></span>
-        <span>GOLD <b className="positive">+0.38%</b></span>
-        <span>BTC <b className="positive">+1.84%</b></span>
+        <span>MARKET DATA <b>{providerStatus?.provider ?? "detecting"}</b></span>
+        <span>US EQUITIES</span>
+        <span>SAUDI EXCHANGE</span>
+        <span>FOREX</span>
+        <span>CRYPTO</span>
+        <span>FUTURES</span>
       </section>
 
       <section className="workspace">
         <aside className="watchlist panel">
           <div className="watchlist-head">
-            <div className="panel-title">قائمة المتابعة</div>
+            <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
             <button title="إضافة رمز">+</button>
           </div>
 
           <div className="search-box">
-            <span>⌕</span>
+            <span>{searchLoading ? "…" : "⌕"}</span>
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -116,24 +283,21 @@ export default function App() {
           </div>
 
           <div className="symbol-list">
-            {filteredSymbols.map((symbol, index) => {
-              const change = changes[index % changes.length];
-              return (
-                <button
-                  className={`symbol-row ${symbol.id === active.id ? "active" : ""}`}
-                  key={symbol.id}
-                  onClick={() => chooseSymbol(symbol.id)}
-                >
-                  <span className="symbol-meta">
-                    <strong>{symbol.ticker}</strong>
-                    <small>{symbol.exchange} · {symbol.currency}</small>
-                  </span>
-                  <span className={change >= 0 ? "positive" : "negative"}>
-                    {change >= 0 ? "+" : ""}{change.toFixed(2)}%
-                  </span>
-                </button>
-              );
-            })}
+            {visibleSymbols.map((symbol) => (
+              <button
+                className={`symbol-row ${symbol.id === active.id ? "active" : ""}`}
+                key={symbol.id}
+                onClick={() => chooseSymbol(symbol)}
+              >
+                <span className="symbol-meta">
+                  <strong>{symbol.ticker}</strong>
+                  <small>{symbol.name}</small>
+                  <small>{symbol.exchange}{symbol.currency ? ` · ${symbol.currency}` : ""}</small>
+                </span>
+                <span className="asset-badge">{symbol.assetClass}</span>
+              </button>
+            ))}
+            {visibleSymbols.length === 0 ? <div className="empty-search">لا توجد نتائج</div> : null}
           </div>
         </aside>
 
@@ -143,13 +307,16 @@ export default function App() {
               <div className="instrument-icon">{active.ticker.slice(0, 1)}</div>
               <div>
                 <strong>{active.name}</strong>
-                <span>{active.exchange}:{active.ticker} · {active.currency}</span>
+                <span>{active.exchange}:{active.ticker}{active.currency ? ` · ${active.currency}` : ""}</span>
               </div>
             </div>
 
             <div className="quote">
-              <strong>{active.exchange === "TADAWUL" ? "28.74" : "214.53"}</strong>
-              <span className="positive">+1.24%</span>
+              <strong>{formatPrice(displayedPrice)}</strong>
+              <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
+                {formatPercent(displayedPercent)}
+              </span>
+              <small>{quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
             </div>
           </div>
 
@@ -167,27 +334,10 @@ export default function App() {
             </div>
 
             <div className="chart-tools">
-              <button
-                className={chartView === "candles" ? "selected" : ""}
-                onClick={() => chooseChartView("candles")}
-              >
-                شموع
-              </button>
-              <button
-                className={chartView === "line" ? "selected" : ""}
-                onClick={() => chooseChartView("line")}
-              >
-                خط
-              </button>
-              <button
-                className={chartView === "area" ? "selected" : ""}
-                onClick={() => chooseChartView("area")}
-              >
-                مساحة
-              </button>
-              <button className={showSma ? "selected" : ""} onClick={() => setShowSma((value) => !value)}>
-                SMA 20
-              </button>
+              <button className={chartView === "candles" ? "selected" : ""} onClick={() => chooseChartView("candles")}>شموع</button>
+              <button className={chartView === "line" ? "selected" : ""} onClick={() => chooseChartView("line")}>خط</button>
+              <button className={chartView === "area" ? "selected" : ""} onClick={() => chooseChartView("area")}>مساحة</button>
+              <button className={showSma ? "selected" : ""} onClick={() => setShowSma((value) => !value)}>SMA 20</button>
             </div>
           </div>
 
@@ -200,12 +350,16 @@ export default function App() {
               <button title="نص">T</button>
               <button title="قياس">↕</button>
             </div>
-            <MarketChart
-              symbol={active}
-              timeframe={timeframe}
-              chartView={chartView}
-              showSma={showSma}
-            />
+            <div className="chart-host">
+              <MarketChart
+                candles={candles}
+                timeframe={timeframe}
+                chartView={chartView}
+                showSma={showSma}
+              />
+              {dataState === "loading" ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
+              {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
+            </div>
           </div>
         </section>
 
@@ -215,19 +369,19 @@ export default function App() {
             <span className="eyebrow">CHART CONTEXT</span>
             <h2>اسأل الشارت</h2>
             <p>
-              يفهم الرمز والفريم والشموع والمؤشرات الظاهرة. لاحقًا يقدر يضيف مناطق وخطوط مباشرة فوق الشارت.
+              سياق الشارت الآن يأتي من طبقة Market Data: الرمز، الفريم، OHLCV، ونوع العرض. المرحلة القادمة تضيف المؤشرات والأخبار للـAI.
             </p>
           </div>
 
           <div className="quick-prompts">
-            <button onClick={runDemoAnalysis}>حلل الاتجاه</button>
-            <button onClick={runDemoAnalysis}>حدد المناطق</button>
-            <button onClick={runDemoAnalysis}>اشرح الحركة</button>
+            <button onClick={runChartReading}>اقرأ الاتجاه</button>
+            <button onClick={runChartReading}>حدد النطاق</button>
+            <button onClick={runChartReading}>اشرح الحركة</button>
           </div>
 
           <div className="prompt-box">
-            <textarea defaultValue={"حلل الحركة الحالية وحدد أهم المناطق على الشارت"} />
-            <button onClick={runDemoAnalysis}>تحليل الشارت <span>↗</span></button>
+            <textarea defaultValue={"اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت"} />
+            <button onClick={runChartReading}>قراءة الشارت <span>↗</span></button>
           </div>
 
           {aiResult ? <div className="ai-result">{aiResult}</div> : null}
@@ -235,12 +389,14 @@ export default function App() {
           <div className="context-grid">
             <div><span>الرمز</span><strong>{active.ticker}</strong></div>
             <div><span>الفريم</span><strong>{timeframe.toUpperCase()}</strong></div>
-            <div><span>الشارت</span><strong>{chartView}</strong></div>
-            <div><span>SMA</span><strong>{showSma ? "ON" : "OFF"}</strong></div>
+            <div><span>الشموع</span><strong>{candles.length}</strong></div>
+            <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
           </div>
 
           <div className="notice">
-            الأسعار الحالية تجريبية فقط. ربط بيانات السوق الحقيقي سيكون بطبقة مستقلة بعد اختيار المزود المرخص.
+            {dataError
+              ? `تعذر الوصول للـAPI وتم تشغيل Demo fallback: ${dataError}`
+              : providerStatus?.message ?? "Market Data V1 active."}
           </div>
         </aside>
       </section>
