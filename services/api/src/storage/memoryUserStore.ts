@@ -2,6 +2,7 @@ import {
   UserStateConflictError,
   type AlertInboxEvent,
   type PushSubscriptionRecord,
+  type PushSubscriptionUpdater,
   type StoredUserState,
   type UserCloudState,
   type UserStatePutOptions,
@@ -82,7 +83,6 @@ export class MemoryUserStateStore implements UserStateStore {
     userId: string,
     alerts: unknown[],
     alertEvents?: AlertInboxEvent[],
-    pushSubscriptions?: PushSubscriptionRecord[],
   ) {
     const existing = this.states.get(userId);
     if (!existing) return null;
@@ -99,10 +99,6 @@ export class MemoryUserStateStore implements UserStateStore {
           alertEvents ??
           existing.payload.alertEvents ??
           [],
-        pushSubscriptions:
-          pushSubscriptions ??
-          existing.payload.pushSubscriptions ??
-          [],
         updatedAt: now,
       },
     };
@@ -113,10 +109,14 @@ export class MemoryUserStateStore implements UserStateStore {
 
   async updatePushSubscriptions(
     userId: string,
-    pushSubscriptions: PushSubscriptionRecord[],
+    updater: PushSubscriptionUpdater,
   ) {
     const existing = this.states.get(userId);
     if (!existing) return null;
+
+    const current =
+      existing.payload.pushSubscriptions ?? [];
+    const pushSubscriptions = updater(current);
 
     const now = Date.now();
     const stored: StoredUserState = {
