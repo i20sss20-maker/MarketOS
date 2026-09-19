@@ -50,6 +50,33 @@ assert.equal(
   "Public push config must never expose the VAPID private key",
 );
 
+await userStateStore.delete(userId);
+
+const initial = await userStateStore.put(
+  userId,
+  {
+    version: 1,
+    updatedAt: Date.now(),
+    watchlist: [],
+    workspaces: [],
+    alerts: [],
+    alertEvents: [],
+    pushSubscriptions: [],
+    chartSettings: null,
+    customIndicators: [],
+    drawings: {},
+    ui: {},
+  },
+  {
+    expectedClientRevision: null,
+    expectedServerRevision: null,
+  },
+);
+
+assert.equal(initial.clientRevision, 1);
+assert.equal(initial.serverRevision, 1);
+const clientUpdatedAt = initial.clientUpdatedAt;
+
 const subscription = {
   endpoint: "https://push.example.test/subscription/device-a",
   expirationTime: null,
@@ -66,6 +93,18 @@ const postResponse = await userPushSubscription({
 });
 assert.equal(postResponse.status, 200);
 assert.equal(postResponse.jsonBody.subscriptionCount, 1);
+assert.equal(postResponse.jsonBody.serverRevision, 2);
+
+const registered = await userStateStore.get(userId);
+assert.ok(registered);
+assert.equal(registered.clientRevision, 1);
+assert.equal(registered.serverRevision, 2);
+assert.equal(registered.clientUpdatedAt, clientUpdatedAt);
+assert.equal(registered.payload.pushSubscriptions?.length, 1);
+assert.equal(
+  registered.payload.pushSubscriptions?.[0].userAgent,
+  "MarketOS Smoke Browser",
+);
 
 const getResponse = await userPushSubscription({
   method: "GET",
@@ -73,14 +112,6 @@ const getResponse = await userPushSubscription({
 });
 assert.equal(getResponse.status, 200);
 assert.equal(getResponse.jsonBody.subscriptionCount, 1);
-
-const stored = await userStateStore.get(userId);
-assert.ok(stored);
-assert.equal(stored.payload.pushSubscriptions?.length, 1);
-assert.equal(
-  stored.payload.pushSubscriptions?.[0].userAgent,
-  "MarketOS Smoke Browser",
-);
 
 const safeStateResponse = await userState({
   method: "GET",
@@ -92,9 +123,11 @@ assert.equal(
   false,
   "Normal cloud-state reads must not expose server-owned push registrations",
 );
+assert.equal(safeStateResponse.jsonBody.clientRevision, 1);
+assert.equal(safeStateResponse.jsonBody.serverRevision, 2);
 
 const duplicate = upsertPushSubscription(
-  stored.payload.pushSubscriptions,
+  registered.payload.pushSubscriptions,
   subscription,
   "Updated Browser",
 );
@@ -104,13 +137,14 @@ assert.equal(sanitizePushSubscriptions(duplicate).length, 1);
 
 const noTriggerDelivery = await sendBackgroundAlertPushes(
   {
-    ...stored.payload,
+    ...registered.payload,
     pushSubscriptions: duplicate,
   },
   [],
 );
 assert.equal(noTriggerDelivery.attempted, 0);
 assert.equal(noTriggerDelivery.sent, 0);
+assert.deepEqual(noTriggerDelivery.staleEndpoints, []);
 
 const deleteResponse = await userPushSubscription({
   method: "DELETE",
@@ -119,8 +153,12 @@ const deleteResponse = await userPushSubscription({
 });
 assert.equal(deleteResponse.status, 200);
 assert.equal(deleteResponse.jsonBody.subscriptionCount, 0);
+assert.equal(deleteResponse.jsonBody.serverRevision, 3);
 
 const afterDelete = await userStateStore.get(userId);
+assert.equal(afterDelete?.clientRevision, 1);
+assert.equal(afterDelete?.serverRevision, 3);
+assert.equal(afterDelete?.clientUpdatedAt, clientUpdatedAt);
 assert.equal(afterDelete?.payload.pushSubscriptions?.length, 0);
 
 const unauthorized = await userPushSubscription({
@@ -132,5 +170,5 @@ assert.equal(unauthorized.status, 401);
 await userStateStore.delete(userId);
 
 console.log(
-  "Web Push smoke passed: VAPID config, auth, register, hidden server state, dedupe, unregister",
+  "Web Push smoke passed: VAPID config, auth, revision-safe register/unregister, hidden server state",
 );
