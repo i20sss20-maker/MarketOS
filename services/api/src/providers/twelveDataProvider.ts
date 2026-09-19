@@ -8,8 +8,13 @@ import type {
   Quote,
   Timeframe,
 } from "@marketos/market-core";
+import { AsyncTtlCache } from "./providerCache.js";
 
 const API_BASE_URL = "https://api.twelvedata.com";
+const REQUEST_TIMEOUT_MS = 12_000;
+const SEARCH_TTL_MS = 5 * 60_000;
+const QUOTE_TTL_MS = 5_000;
+const BATCH_QUOTE_TTL_MS = 5_000;
 
 const intervalByTimeframe: Record<Timeframe, string> = {
   "1m": "1min",
@@ -20,6 +25,17 @@ const intervalByTimeframe: Record<Timeframe, string> = {
   "1d": "1day",
   "1w": "1week",
   "1M": "1month",
+};
+
+const candleTtlByTimeframe: Record<Timeframe, number> = {
+  "1m": 15_000,
+  "5m": 30_000,
+  "15m": 60_000,
+  "1h": 2 * 60_000,
+  "4h": 5 * 60_000,
+  "1d": 10 * 60_000,
+  "1w": 30 * 60_000,
+  "1M": 60 * 60_000,
 };
 
 type ApiError = {
@@ -105,6 +121,14 @@ function requestSymbol(symbol: MarketSymbol) {
   return symbol.providerSymbol ?? symbol.ticker;
 }
 
+function symbolCacheKey(symbol: MarketSymbol) {
+  return [
+    requestSymbol(symbol),
+    symbol.micCode ?? "",
+    symbol.exchange ?? "",
+  ].join("|").toUpperCase();
+}
+
 function quoteFromPayload(payload: QuoteResponse, symbol: MarketSymbol, source: string): Quote {
   const price = numberOrUndefined(payload.close);
   if (price === undefined) {
@@ -136,21 +160,38 @@ function normalizedSymbol(value: string) {
 export class TwelveDataMarketDataProvider implements MarketDataProvider {
   readonly id = "twelvedata";
 
+  private readonly searchCache = new AsyncTtlCache<MarketSymbol[]>(120);
+  private readonly candleCache = new AsyncTtlCache<Candle[]>(300);
+  private readonly quoteCache = new AsyncTtlCache<Quote>(500);
+  private readonly batchQuoteCache = new AsyncTtlCache<MarketOverviewItem[]>(120);
+
   constructor(private readonly apiKey: string) {}
 
-  private async request<T extends ApiError>(path: string, params: Record<string, string | number | undefined>): Promise<T> {
+  private async request<T extends ApiError>(
+    path: string,
+    params: Record<string, string | number | undefined>,
+  ): Promise<T> {
     const url = new URL(path, API_BASE_URL);
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
     }
     url.searchParams.set("apikey", this.apiKey);
 
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "MarketOS/0.1",
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "MarketOS/0.2",
+        },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === "TimeoutError") {
+        throw new Error("Market data provider request timed out.");
+      }
+      throw error;
+    }
 
     let payload: T;
     try {
@@ -160,84 +201,106 @@ export class TwelveDataMarketDataProvider implements MarketDataProvider {
     }
 
     if (!response.ok || payload.status === "error") {
-      throw new Error(payload.message ?? `Market data provider request failed (${response.status}).`);
+      const providerMessage = payload.message?.trim();
+      if (response.status === 429) {
+        throw new Error(providerMessage || "Market data provider rate limit reached.");
+      }
+      throw new Error(providerMessage || `Market data provider request failed (${response.status}).`);
     }
 
     return payload;
   }
 
   async searchSymbols(query: string): Promise<MarketSymbol[]> {
-    const payload = await this.request<SearchResponse>("/symbol_search", {
-      symbol: query,
-      outputsize: 12,
-    });
+    const normalizedQuery = query.trim().toLowerCase();
+    const cacheKey = `search:${normalizedQuery}`;
 
-    return (payload.data ?? [])
-      .filter((item): item is SearchItem & { symbol: string } => Boolean(item.symbol))
-      .map((item) => {
-        const exchange = item.exchange || item.mic_code || "MARKET";
-        return {
-          id: `${item.mic_code || exchange}:${item.symbol}`,
-          ticker: item.symbol,
-          providerSymbol: item.symbol,
-          name: item.instrument_name || item.symbol,
-          exchange,
-          micCode: item.mic_code,
-          country: item.country,
-          assetClass: assetClassFromInstrumentType(item.instrument_type),
-          currency: item.currency || "",
-        };
+    return this.searchCache.getOrLoad(cacheKey, SEARCH_TTL_MS, async () => {
+      const payload = await this.request<SearchResponse>("/symbol_search", {
+        symbol: query,
+        outputsize: 12,
       });
+
+      return (payload.data ?? [])
+        .filter((item): item is SearchItem & { symbol: string } => Boolean(item.symbol))
+        .map((item) => {
+          const exchange = item.exchange || item.mic_code || "MARKET";
+          return {
+            id: `${item.mic_code || exchange}:${item.symbol}`,
+            ticker: item.symbol,
+            providerSymbol: item.symbol,
+            name: item.instrument_name || item.symbol,
+            exchange,
+            micCode: item.mic_code,
+            country: item.country,
+            assetClass: assetClassFromInstrumentType(item.instrument_type),
+            currency: item.currency || "",
+          };
+        });
+    });
   }
 
   async getCandles(symbol: MarketSymbol, timeframe: Timeframe, limit = 260): Promise<Candle[]> {
-    const payload = await this.request<TimeSeriesResponse>("/time_series", {
-      symbol: requestSymbol(symbol),
-      interval: intervalByTimeframe[timeframe],
-      outputsize: Math.min(Math.max(limit, 40), 5000),
-      order: "asc",
-      timezone: "UTC",
-      mic_code: symbol.micCode,
-      exchange: symbol.micCode ? undefined : symbol.exchange,
-    });
+    const boundedLimit = Math.min(Math.max(limit, 40), 5000);
+    const cacheKey = `candles:${symbolCacheKey(symbol)}:${timeframe}:${boundedLimit}`;
 
-    return (payload.values ?? []).flatMap((value) => {
-      const time = timestampFromDateTime(value.datetime);
-      const open = numberOrUndefined(value.open);
-      const high = numberOrUndefined(value.high);
-      const low = numberOrUndefined(value.low);
-      const close = numberOrUndefined(value.close);
+    return this.candleCache.getOrLoad(
+      cacheKey,
+      candleTtlByTimeframe[timeframe],
+      async () => {
+        const payload = await this.request<TimeSeriesResponse>("/time_series", {
+          symbol: requestSymbol(symbol),
+          interval: intervalByTimeframe[timeframe],
+          outputsize: boundedLimit,
+          order: "asc",
+          timezone: "UTC",
+          mic_code: symbol.micCode,
+          exchange: symbol.micCode ? undefined : symbol.exchange,
+        });
 
-      if (
-        time === undefined ||
-        open === undefined ||
-        high === undefined ||
-        low === undefined ||
-        close === undefined
-      ) {
-        return [];
-      }
+        return (payload.values ?? []).flatMap((value) => {
+          const time = timestampFromDateTime(value.datetime);
+          const open = numberOrUndefined(value.open);
+          const high = numberOrUndefined(value.high);
+          const low = numberOrUndefined(value.low);
+          const close = numberOrUndefined(value.close);
 
-      const volume = numberOrUndefined(value.volume);
-      return [{
-        time,
-        open,
-        high,
-        low,
-        close,
-        ...(volume === undefined ? {} : { volume }),
-      }];
-    });
+          if (
+            time === undefined ||
+            open === undefined ||
+            high === undefined ||
+            low === undefined ||
+            close === undefined
+          ) {
+            return [];
+          }
+
+          const volume = numberOrUndefined(value.volume);
+          return [{
+            time,
+            open,
+            high,
+            low,
+            close,
+            ...(volume === undefined ? {} : { volume }),
+          }];
+        });
+      },
+    );
   }
 
   async getQuote(symbol: MarketSymbol): Promise<Quote> {
-    const payload = await this.request<QuoteResponse>("/quote", {
-      symbol: requestSymbol(symbol),
-      mic_code: symbol.micCode,
-      exchange: symbol.micCode ? undefined : symbol.exchange,
-    });
+    const cacheKey = `quote:${symbolCacheKey(symbol)}`;
 
-    return quoteFromPayload(payload, symbol, this.id);
+    return this.quoteCache.getOrLoad(cacheKey, QUOTE_TTL_MS, async () => {
+      const payload = await this.request<QuoteResponse>("/quote", {
+        symbol: requestSymbol(symbol),
+        mic_code: symbol.micCode,
+        exchange: symbol.micCode ? undefined : symbol.exchange,
+      });
+
+      return quoteFromPayload(payload, symbol, this.id);
+    });
   }
 
   async getQuotes(symbols: MarketSymbol[]): Promise<MarketOverviewItem[]> {
@@ -247,41 +310,51 @@ export class TwelveDataMarketDataProvider implements MarketDataProvider {
       return [{ symbol: requested[0], quote: await this.getQuote(requested[0]) }];
     }
 
-    const payload = await this.request<Record<string, QuoteResponse> & ApiError>("/quote", {
-      symbol: requested.map(requestSymbol).join(","),
-    });
+    const cacheKey = `batch:${requested
+      .map(symbolCacheKey)
+      .sort()
+      .join(",")}`;
 
-    const entries = Object.entries(payload)
-      .filter(([key, value]) =>
-        key !== "status" &&
-        key !== "code" &&
-        key !== "message" &&
-        value &&
-        typeof value === "object",
-      ) as Array<[string, QuoteResponse]>;
-
-    const output: MarketOverviewItem[] = [];
-
-    for (const symbol of requested) {
-      const wanted = normalizedSymbol(requestSymbol(symbol));
-      const match = entries.find(([key, value]) => {
-        const responseSymbol = value.symbol ? normalizedSymbol(value.symbol) : "";
-        return normalizedSymbol(key) === wanted || responseSymbol === wanted;
-      });
-
-      if (!match || match[1].status === "error") continue;
-
-      try {
-        output.push({
-          symbol,
-          quote: quoteFromPayload(match[1], symbol, this.id),
+    return this.batchQuoteCache.getOrLoad(
+      cacheKey,
+      BATCH_QUOTE_TTL_MS,
+      async () => {
+        const payload = await this.request<Record<string, QuoteResponse> & ApiError>("/quote", {
+          symbol: requested.map(requestSymbol).join(","),
         });
-      } catch {
-        // Keep partial batch results when one symbol has no accessible quote.
-      }
-    }
 
-    return output;
+        const entries = Object.entries(payload)
+          .filter(([key, value]) =>
+            key !== "status" &&
+            key !== "code" &&
+            key !== "message" &&
+            value &&
+            typeof value === "object",
+          ) as Array<[string, QuoteResponse]>;
+
+        const output: MarketOverviewItem[] = [];
+
+        for (const symbol of requested) {
+          const wanted = normalizedSymbol(requestSymbol(symbol));
+          const match = entries.find(([key, value]) => {
+            const responseSymbol = value.symbol ? normalizedSymbol(value.symbol) : "";
+            return normalizedSymbol(key) === wanted || responseSymbol === wanted;
+          });
+
+          if (!match || match[1].status === "error") continue;
+
+          try {
+            const quote = quoteFromPayload(match[1], symbol, this.id);
+            output.push({ symbol, quote });
+            this.quoteCache.set(`quote:${symbolCacheKey(symbol)}`, quote, QUOTE_TTL_MS);
+          } catch {
+            // Keep partial batch results when one symbol has no accessible quote.
+          }
+        }
+
+        return output;
+      },
+    );
   }
 
   getStatus(): MarketDataStatus {
@@ -292,7 +365,7 @@ export class TwelveDataMarketDataProvider implements MarketDataProvider {
       supportsSearch: true,
       supportsQuotes: true,
       supportsCandles: true,
-      message: "Twelve Data adapter is configured. Data entitlements depend on the connected Twelve Data account.",
+      message: "Twelve Data adapter is configured with server-side caching and request deduplication.",
     };
   }
 }
