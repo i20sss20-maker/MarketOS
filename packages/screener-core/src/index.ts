@@ -45,13 +45,13 @@ function normalizeText(value: string) {
     .toLowerCase()
     .replace(/[٪]/g, "%")
     .replace(/[،]/g, ",")
-    .replace(/s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function parseCompactNumber(raw: string): number | undefined {
   const normalized = raw.trim().toLowerCase().replace(/,/g, "");
-  const match = normalized.match(/^(-?d+(?:.d+)?)s*([kmb])?$/i);
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)\s*([kmb])?$/i);
   if (!match) return undefined;
 
   const value = Number(match[1]);
@@ -209,20 +209,20 @@ function parseVolumeAndPrice(text: string, rule: SmartScreenerRule, recognized: 
 }
 
 function parseSortAndLimit(text: string, rule: SmartScreenerRule, recognized: string[]) {
-  const topMatch = text.match(/(?:أعلى|اعلى|افضل|top|highest)s*(d{1,3})?/i);
+  const topMatch = text.match(/(?:أعلى|اعلى|افضل|top|highest)\s*(\d{1,3})?/i);
   if (topMatch) {
     rule.sortBy = "change";
     rule.sortDirection = "desc";
     if (topMatch[1]) rule.limit = Math.min(100, Math.max(1, Number(topMatch[1])));
-    recognized.push(`sort:change:desc${rule.limit ? `:${rule.limit}` : ""}`);
+    recognized.push(\`sort:change:desc\${rule.limit ? \`:\${rule.limit}\` : ""}\`);
   }
 
-  const bottomMatch = text.match(/(?:أدنى|ادنى|أسوأ|اسوء|bottom|lowest|worst)s*(d{1,3})?/i);
+  const bottomMatch = text.match(/(?:أدنى|ادنى|أسوأ|اسوء|bottom|lowest|worst)\s*(\d{1,3})?/i);
   if (bottomMatch) {
     rule.sortBy = "change";
     rule.sortDirection = "asc";
     if (bottomMatch[1]) rule.limit = Math.min(100, Math.max(1, Number(bottomMatch[1])));
-    recognized.push(`sort:change:asc${rule.limit ? `:${rule.limit}` : ""}`);
+    recognized.push(\`sort:change:asc\${rule.limit ? \`:\${rule.limit}\` : ""}\`);
   }
 
   if (/(أعلى حجم|اعلى حجم|highest volume|most volume)/i.test(text)) {
@@ -237,10 +237,10 @@ function parseSortAndLimit(text: string, rule: SmartScreenerRule, recognized: st
     recognized.push("sort:price:desc");
   }
 
-  const limitMatch = text.match(/(?:أول|اول|اعرض|show|limit)s*(d{1,3})/i);
+  const limitMatch = text.match(/(?:أول|اول|اعرض|show|limit)\s*(\d{1,3})/i);
   if (limitMatch) {
     rule.limit = Math.min(100, Math.max(1, Number(limitMatch[1])));
-    recognized.push(`limit:${rule.limit}`);
+    recognized.push(\`limit:\${rule.limit}\`);
   }
 }
 
