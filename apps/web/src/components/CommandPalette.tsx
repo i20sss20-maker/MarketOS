@@ -17,12 +17,16 @@ export type CommandPaletteItem =
 type Props = {
   open: boolean;
   items: CommandPaletteItem[];
+  loading?: boolean;
+  onQueryChange?: (query: string) => void;
   onClose: () => void;
 };
 
 export default function CommandPalette({
   open,
   items,
+  loading = false,
+  onQueryChange,
   onClose,
 }: Props) {
   const [query, setQuery] = useState("");
@@ -109,8 +113,10 @@ export default function CommandPalette({
             ref={inputRef}
             value={query}
             onChange={(event) => {
-              setQuery(event.target.value);
+              const next = event.target.value;
+              setQuery(next);
               setActiveIndex(0);
+              onQueryChange?.(next);
             }}
             placeholder="ابحث عن رمز، فريم، أداة أو أمر…"
             autoComplete="off"
@@ -158,7 +164,7 @@ export default function CommandPalette({
         </div>
 
         <footer className="command-palette-footer">
-          <span>↑ ↓ للتنقل</span>
+          <span>{loading ? "جاري البحث في السوق…" : "↑ ↓ للتنقل"}</span>
           <span>Enter للتنفيذ</span>
           <span>Ctrl/Cmd + K للفتح</span>
         </footer>
