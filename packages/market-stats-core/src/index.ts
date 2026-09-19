@@ -113,7 +113,7 @@ function performanceWindow(
   candles: Candle[],
   bars: number,
 ): PerformanceWindow {
-  if (candles.length < 2) {
+  if (candles.length <= bars) {
     return {
       bars,
       changePercent: null,
@@ -122,8 +122,7 @@ function performanceWindow(
     };
   }
 
-  const effectiveBars = Math.min(bars, candles.length - 1);
-  const startIndex = candles.length - 1 - effectiveBars;
+  const startIndex = candles.length - 1 - bars;
   const slice = candles.slice(startIndex);
   const first = candles[startIndex];
   const last = candles[candles.length - 1];
