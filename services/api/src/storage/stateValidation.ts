@@ -5,6 +5,8 @@ const MAX_WATCHLIST = 80;
 const MAX_WORKSPACES = 20;
 const MAX_ALERTS = 150;
 const MAX_CUSTOM_INDICATORS = 30;
+const MAX_DRAWING_SYMBOLS = 80;
+const MAX_DRAWINGS_PER_SYMBOL = 150;
 const MAX_UI_KEYS = 50;
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -19,6 +21,31 @@ function boundedArray(value: unknown, maxItems: number) {
   return Array.isArray(value)
     ? value.slice(0, maxItems)
     : [];
+}
+
+function boundedDrawings(
+  value: unknown,
+): Record<string, unknown[]> {
+  if (!isObject(value)) return {};
+
+  const output: Record<string, unknown[]> = {};
+  for (
+    const [symbolId, drawings]
+    of Object.entries(value).slice(0, MAX_DRAWING_SYMBOLS)
+  ) {
+    if (
+      !symbolId ||
+      symbolId.length > 180 ||
+      !Array.isArray(drawings)
+    ) {
+      continue;
+    }
+
+    output[symbolId] =
+      drawings.slice(0, MAX_DRAWINGS_PER_SYMBOL);
+  }
+
+  return output;
 }
 
 function boundedObject(
@@ -59,6 +86,7 @@ export function sanitizeUserCloudState(
       value.customIndicators,
       MAX_CUSTOM_INDICATORS,
     ),
+    drawings: boundedDrawings(value.drawings),
     ui: boundedObject(value.ui, MAX_UI_KEYS),
   };
 
