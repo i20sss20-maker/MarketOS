@@ -288,14 +288,23 @@ export default function App() {
     () => readSavedPaneSymbol("marketos:pane-secondary"),
   );
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [comparisonTimeframe, setComparisonTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-secondary-timeframe", timeframe),
+  );
   const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(
     () => readSavedPaneSymbol("marketos:pane-third"),
   );
   const [thirdChartCandles, setThirdChartCandles] = useState<Candle[]>([]);
+  const [thirdChartTimeframe, setThirdChartTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-third-timeframe", timeframe),
+  );
   const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(
     () => readSavedPaneSymbol("marketos:pane-fourth"),
   );
   const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
+  const [fourthChartTimeframe, setFourthChartTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-fourth-timeframe", timeframe),
+  );
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
   );
@@ -455,15 +464,15 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    getMarketCandles(comparisonSymbol, timeframe, 300, controller.signal)
+    getMarketCandles(comparisonSymbol, comparisonTimeframe, 300, controller.signal)
       .then((response) => setComparisonCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setComparisonCandles(createDemoCandles(comparisonSymbol.id, timeframe, 300));
+        setComparisonCandles(createDemoCandles(comparisonSymbol.id, comparisonTimeframe, 300));
       });
 
     return () => controller.abort();
-  }, [comparisonSymbol, active.id, timeframe]);
+  }, [comparisonSymbol, active.id, comparisonTimeframe]);
 
   useEffect(() => {
     if (layoutMode !== "quad" || !thirdChartSymbol) {
@@ -472,15 +481,15 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    getMarketCandles(thirdChartSymbol, timeframe, 300, controller.signal)
+    getMarketCandles(thirdChartSymbol, thirdChartTimeframe, 300, controller.signal)
       .then((response) => setThirdChartCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, timeframe, 300));
+        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, thirdChartTimeframe, 300));
       });
 
     return () => controller.abort();
-  }, [layoutMode, thirdChartSymbol, timeframe]);
+  }, [layoutMode, thirdChartSymbol, thirdChartTimeframe]);
 
   useEffect(() => {
     if (layoutMode !== "quad" || !fourthChartSymbol) {
@@ -489,15 +498,15 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    getMarketCandles(fourthChartSymbol, timeframe, 300, controller.signal)
+    getMarketCandles(fourthChartSymbol, fourthChartTimeframe, 300, controller.signal)
       .then((response) => setFourthChartCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, timeframe, 300));
+        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, fourthChartTimeframe, 300));
       });
 
     return () => controller.abort();
-  }, [layoutMode, fourthChartSymbol, timeframe]);
+  }, [layoutMode, fourthChartSymbol, fourthChartTimeframe]);
 
   useEffect(() => {
     if (replayActive) return;
