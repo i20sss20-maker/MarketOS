@@ -1,7 +1,9 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { canUseFeature } from "@marketos/entitlements-core";
 import { appendAlertInboxEvents } from "../alerts/alertInbox.js";
 import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
+import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 import { userStateStore } from "../storage/index.js";
@@ -22,6 +24,27 @@ export async function userAlertCheck(
   }
 
   try {
+    const entitlement =
+      await getResolvedUserEntitlement(
+        user.userId,
+      );
+
+    if (
+      !canUseFeature(
+        entitlement,
+        "serverAlerts",
+      )
+    ) {
+      return json(403, {
+        ok: false,
+        code: "PLAN_FEATURE",
+        error:
+          "Server alerts are not included in the current MarketOS plan.",
+        plan: entitlement.plan,
+        feature: "serverAlerts",
+      });
+    }
+
     const stored = await userStateStore.get(user.userId);
     if (!stored) {
       return json(200, {
