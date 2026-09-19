@@ -13,7 +13,8 @@
     "smoke:events": "node scripts/events-smoke.mjs",
     "smoke:azure": "node scripts/azure-preview-smoke.mjs",
     "prepare:azure-api": "node scripts/prepare-azure-api.mjs",
-    "smoke:twelvedata": "node scripts/twelvedata-adapter-smoke.mjs"
+    "smoke:twelvedata": "node scripts/twelvedata-adapter-smoke.mjs",
+    "smoke:provider-live": "node scripts/provider-live-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
