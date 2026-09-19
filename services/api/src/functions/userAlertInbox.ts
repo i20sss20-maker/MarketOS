@@ -99,11 +99,18 @@ export async function userAlertInbox(
       });
     }
 
-    const saved = await userStateStore.put(user.userId, {
-      ...stored.payload,
-      alertEvents: next,
-      updatedAt: Date.now(),
-    });
+    const saved = await userStateStore.updateAlerts(
+      user.userId,
+      stored.payload.alerts,
+      next,
+    );
+
+    if (!saved) {
+      return json(404, {
+        ok: false,
+        error: "Cloud state no longer exists.",
+      });
+    }
     const events = sanitizeAlertInboxEvents(saved.payload.alertEvents);
 
     return json(200, {
