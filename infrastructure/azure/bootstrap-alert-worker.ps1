@@ -39,8 +39,14 @@ $hostname = az staticwebapp show --name $StaticWebApp --resource-group $Resource
 if (-not $hostname) { throw "Could not resolve the MarketOS Static Web App hostname." }
 
 Write-Host "Creating/confirming worker storage account..." -ForegroundColor Cyan
-$storageExists = az storage account check-name --name $StorageName --query "nameAvailable" -o tsv
-if ($storageExists -eq "true") {
+$existingStorage = $null
+try {
+  $existingStorage = az storage account show --name $StorageName --resource-group $ResourceGroup --output json 2>$null | ConvertFrom-Json
+} catch {
+  $existingStorage = $null
+}
+
+if (-not $existingStorage) {
   az storage account create --name $StorageName --resource-group $ResourceGroup --location $Location --sku Standard_LRS --kind StorageV2 --allow-blob-public-access false --tags project=MarketOS environment=dev managedBy=bootstrap-alert-worker --output none
 }
 
