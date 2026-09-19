@@ -77,17 +77,3 @@ export function createDemoQuote(symbol: string, currency: string, candles: Candl
   };
 }
 
-export function createSma(candles: Candle[], period: number) {
-  const output: Array<{ time: number; value: number }> = [];
-
-  for (let index = period - 1; index < candles.length; index += 1) {
-    const window = candles.slice(index - period + 1, index + 1);
-    const average = window.reduce((sum, candle) => sum + candle.close, 0) / period;
-    output.push({
-      time: candles[index].time,
-      value: Number(average.toFixed(4)),
-    });
-  }
-
-  return output;
-}
