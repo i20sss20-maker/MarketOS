@@ -26,6 +26,7 @@ import MarketChart, {
   type ChartView,
 } from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
+import CommandPalette, { type CommandPaletteItem } from "./components/CommandPalette";
 import AccountPanel from "./components/AccountPanel";
 import CommercialAiPanel from "./components/CommercialAiPanel";
 import CommercialWatchlistPanel from "./components/CommercialWatchlistPanel";
@@ -497,6 +498,52 @@ export default function App() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [commandSymbolResults, setCommandSymbolResults] = useState<MarketSymbol[]>([]);
+  const [commandSymbolLoading, setCommandSymbolLoading] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k") return;
+      event.preventDefault();
+      setCommandQuery("");
+      setCommandSymbolResults([]);
+      setShowCommandPalette((current) => !current);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const trimmed = commandQuery.trim();
+    if (!showCommandPalette || trimmed.length < 2) {
+      setCommandSymbolResults([]);
+      setCommandSymbolLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setCommandSymbolLoading(true);
+
+    const timer = window.setTimeout(() => {
+      searchMarketSymbols(trimmed, controller.signal)
+        .then((response) => {
+          setCommandSymbolResults(response.symbols.slice(0, 12));
+        })
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.name === "AbortError") return;
+          setCommandSymbolResults([]);
+        })
+        .finally(() => setCommandSymbolLoading(false));
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [commandQuery, showCommandPalette]);
 
   const refreshEntitlement = useCallback(async () => {
     if (!authUser) {
@@ -2888,6 +2935,318 @@ export default function App() {
     saveSetting("marketos:pane-fourth-timeframe", nextTimeframe);
   };
 
+  const commandSymbolOptions = [
+    ...new Map(
+      [
+        ...commandSymbolResults,
+        ...watchlist,
+        ...initialSymbols,
+      ].map((symbol) => [symbol.id, symbol]),
+    ).values(),
+  ];
+
+  const commandPaletteItems: CommandPaletteItem[] = [
+    ...commandSymbolOptions.map((symbol, index) => ({
+      id: `symbol:${symbol.id}`,
+      group: "رموز",
+      label: symbol.ticker,
+      description: `${symbol.name} · ${symbol.exchange}`,
+      keywords: [
+        symbol.name,
+        symbol.exchange,
+        symbol.country ?? "",
+        symbol.assetClass,
+        symbol.providerSymbol ?? "",
+      ],
+      priority: symbol.id === active.id ? 100 : 88 - Math.min(index, 20),
+      badge: symbol.id === active.id ? "الحالي" : undefined,
+      onSelect: () => chooseSymbol(symbol),
+    })),
+    ...timeframes.map((item) => ({
+      id: `timeframe:${item}`,
+      group: "فريمات",
+      label: item.toUpperCase(),
+      description: "تغيير فريم الشارت الرئيسي",
+      keywords: ["timeframe", "فريم", "زمن"],
+      priority: item === timeframe ? 78 : 62,
+      badge: item === timeframe ? "الحالي" : undefined,
+      onSelect: () => chooseTimeframe(item),
+    })),
+    ...([
+      ["candles", "شموع", "Candles"],
+      ["line", "خط", "Line"],
+      ["area", "مساحة", "Area"],
+    ] as Array<[ChartView, string, string]>).map(([view, label, english]) => ({
+      id: `chart-view:${view}`,
+      group: "الشارت",
+      label,
+      description: `نوع الشارت · ${english}`,
+      keywords: [english, "chart", "عرض"],
+      priority: view === chartView ? 70 : 52,
+      badge: view === chartView ? "الحالي" : undefined,
+      onSelect: () => chooseChartView(view),
+    })),
+    {
+      id: "panel:market",
+      group: "أدوات",
+      label: "خريطة السوق",
+      description: "Screener · Heatmap · Smart Screener",
+      keywords: ["market", "screener", "heatmap", "السوق"],
+      priority: 76,
+      onSelect: openScreener,
+    },
+    {
+      id: "panel:alerts",
+      group: "أدوات",
+      label: "التنبيهات",
+      description: `${activeAlerts.length} تنبيه نشط`,
+      keywords: ["alerts", "تنبيه", "شرط"],
+      priority: 74,
+      onSelect: () => setShowAlertMenu(true),
+    },
+    {
+      id: "panel:alert-inbox",
+      group: "أدوات",
+      label: "سجل التنبيهات",
+      description: authUser ? "التفعيلات السحابية والخلفية" : "يتطلب تسجيل الدخول",
+      keywords: ["inbox", "notifications", "تنبيهات", "اشعارات"],
+      priority: 72,
+      badge: authUser
+        ? (alertInboxEvents.some((event) => !event.readAt)
+            ? `${alertInboxEvents.filter((event) => !event.readAt).length} جديد`
+            : undefined)
+        : "دخول",
+      onSelect: () => {
+        if (!authUser) {
+          setShowAccountPanel(true);
+          return;
+        }
+        setShowAlertInbox(true);
+        void refreshAlertInbox();
+      },
+    },
+    {
+      id: "panel:overview",
+      group: "تحليل",
+      label: "تفاصيل الأصل",
+      description: "الأداء والتذبذب والحجم والنطاق",
+      keywords: ["overview", "stats", "تفاصيل", "احصائيات"],
+      priority: 70,
+      onSelect: () => setShowInstrumentOverview(true),
+    },
+    {
+      id: "panel:ai",
+      group: "AI",
+      label: aiPanelOpen ? "إخفاء MarketOS AI" : "فتح MarketOS AI",
+      description: "قراءة الشارت وData Window",
+      keywords: ["ai", "ذكاء", "assistant", "data window"],
+      priority: 69,
+      onSelect: toggleAiPanel,
+    },
+    {
+      id: "ai:multi-timeframe",
+      group: "AI",
+      label: "تشغيل Multi-Timeframe AI",
+      description: "15m · 1h · 4h · 1d",
+      keywords: ["ai", "multi timeframe", "متعدد الفريمات"],
+      priority: 65,
+      badge: canUseFeature(entitlement, "multiTimeframeAi") ? undefined : "Pro+",
+      onSelect: () => {
+        setAiPanelOpen(true);
+        void runMultiTimeframeReading();
+      },
+    },
+    {
+      id: "panel:export",
+      group: "أدوات",
+      label: "تصدير ومشاركة",
+      description: "PNG · CSV · رابط الشارت",
+      keywords: ["export", "share", "png", "csv", "تصدير", "مشاركة"],
+      priority: 68,
+      onSelect: () => {
+        setExportMessage(null);
+        setExportError(null);
+        setShowExportPanel(true);
+      },
+    },
+    {
+      id: "panel:events",
+      group: "السوق",
+      label: "أحداث السوق",
+      description: "التقويم والأحداث القادمة",
+      keywords: ["events", "calendar", "earnings", "احداث", "تقويم"],
+      priority: 60,
+      onSelect: openEvents,
+    },
+    {
+      id: "panel:company-feed",
+      group: "السوق",
+      label: "إفصاحات الشركات",
+      description: "Company Feed",
+      keywords: ["company", "feed", "press releases", "افصاحات"],
+      priority: 59,
+      onSelect: openCompanyFeed,
+    },
+    {
+      id: "panel:correlation",
+      group: "تحليل",
+      label: "مصفوفة الارتباط",
+      description: "Correlation Matrix",
+      keywords: ["correlation", "ارتباط", "matrix"],
+      priority: 58,
+      badge: canUseFeature(entitlement, "correlationMatrix") ? undefined : "Pro+",
+      onSelect: () => {
+        if (requireFeature("correlationMatrix", "Correlation Matrix")) {
+          setShowCorrelation(true);
+        }
+      },
+    },
+    {
+      id: "panel:strategy",
+      group: "تحليل",
+      label: "Strategy Tester",
+      description: "اختبار الاستراتيجيات تاريخيًا",
+      keywords: ["strategy", "backtest", "استراتيجية", "باك تست"],
+      priority: 57,
+      badge: canUseFeature(entitlement, "strategyTester") ? undefined : "Pro+",
+      onSelect: () => {
+        if (requireFeature("strategyTester", "Strategy Tester")) {
+          setShowStrategyTester(true);
+        }
+      },
+    },
+    {
+      id: "panel:indicator-lab",
+      group: "مؤشرات",
+      label: "معمل المؤشرات",
+      description: "Custom Indicator Lab",
+      keywords: ["indicator", "formula", "مؤشرات", "معادلة"],
+      priority: 56,
+      badge: canUseFeature(entitlement, "customIndicatorLab") ? undefined : "Pro+",
+      onSelect: () => {
+        if (requireFeature("customIndicatorLab", "معمل المؤشرات")) {
+          setShowIndicatorLab(true);
+        }
+      },
+    },
+    {
+      id: "panel:chart-settings",
+      group: "الشارت",
+      label: "إعدادات الشارت",
+      description: "Scale · Grid · Crosshair · Volume",
+      keywords: ["settings", "scale", "grid", "اعدادات"],
+      priority: 55,
+      onSelect: () => setShowChartSettings(true),
+    },
+    {
+      id: "panel:plans",
+      group: "الحساب",
+      label: "الخطط والحدود",
+      description: `خطتك الحالية: ${entitlement.definition.name}`,
+      keywords: ["plans", "free", "pro", "elite", "خطط"],
+      priority: 54,
+      badge: entitlement.definition.name,
+      onSelect: () => {
+        setPlanMessage(null);
+        setShowPlansPanel(true);
+      },
+    },
+    {
+      id: "panel:account",
+      group: "الحساب",
+      label: authUser ? "الحساب والمزامنة" : "تسجيل الدخول",
+      description: authUser
+        ? "Cloud Sync · Push · الخطة"
+        : "Microsoft أو GitHub",
+      keywords: ["account", "login", "sync", "حساب", "دخول"],
+      priority: 53,
+      onSelect: () => setShowAccountPanel(true),
+    },
+    {
+      id: "panel:system",
+      group: "النظام",
+      label: "حالة النظام",
+      description: "API · Providers · Storage · Push",
+      keywords: ["system", "health", "api", "نظام"],
+      priority: 48,
+      onSelect: openSystemPanel,
+    },
+    {
+      id: "toggle:watchlist",
+      group: "الواجهة",
+      label: watchlistOpen ? "إخفاء قائمة المتابعة" : "إظهار قائمة المتابعة",
+      description: "Watchlist",
+      keywords: ["watchlist", "متابعة", "قائمة"],
+      priority: 47,
+      onSelect: toggleWatchlistPanel,
+    },
+    {
+      id: "workspace:save",
+      group: "التخطيطات",
+      label: "حفظ التخطيط الحالي",
+      description: `${savedWorkspaces.length} / ${planLimits.savedWorkspaces} محفوظ`,
+      keywords: ["workspace", "layout", "save", "حفظ", "تخطيط"],
+      priority: 46,
+      onSelect: saveCurrentWorkspace,
+    },
+    ...savedWorkspaces.slice(0, 12).map((workspace, index) => ({
+      id: `workspace:${workspace.id}`,
+      group: "التخطيطات",
+      label: workspace.name,
+      description: `${workspace.symbol.ticker} · ${workspace.timeframe.toUpperCase()} · ${workspace.layoutMode === "quad" ? "4×" : workspace.layoutMode === "split" ? "2×" : "1×"}`,
+      keywords: ["workspace", "layout", workspace.symbol.ticker, "تخطيط"],
+      priority: 45 - index,
+      onSelect: () => restoreWorkspace(workspace),
+    })),
+    ...([
+      ["single", "تخطيط 1×", "شارت واحد"],
+      ["split", "تخطيط 2×", "شارتان"],
+      ["quad", "تخطيط 4×", "أربعة شارتات"],
+    ] as Array<[ChartLayoutMode, string, string]>).map(([mode, label, description]) => ({
+      id: `layout:${mode}`,
+      group: "التخطيطات",
+      label,
+      description,
+      keywords: ["layout", "pane", "تخطيط"],
+      priority: mode === layoutMode ? 44 : 38,
+      badge:
+        mode === "quad" && !canUseFeature(entitlement, "quadChart")
+          ? "Pro+"
+          : mode === layoutMode
+            ? "الحالي"
+            : undefined,
+      onSelect: () => chooseLayoutMode(mode),
+    })),
+    {
+      id: "replay:toggle",
+      group: "الشارت",
+      label: replayActive ? "الخروج من Replay" : "بدء Replay",
+      description: "إعادة تشغيل تاريخية",
+      keywords: ["replay", "historical", "اعادة", "تاريخي"],
+      priority: 43,
+      onSelect: replayActive ? exitReplay : startReplay,
+    },
+    ...([
+      ["cursor", "المؤشر", "V"],
+      ["trend", "خط الاتجاه", "L"],
+      ["horizontal", "خط أفقي", "H"],
+      ["zone", "منطقة سعر", ""],
+      ["fibonacci", "Fibonacci", ""],
+      ["measure", "أداة القياس", "M"],
+      ["text", "ملاحظة نصية", "N"],
+    ] as Array<[DrawingTool, string, string]>).map(([tool, label, shortcut]) => ({
+      id: `drawing:${tool}`,
+      group: "الرسم",
+      label,
+      description: "أداة رسم على الشارت",
+      keywords: ["drawing", "رسم", tool],
+      shortcut: shortcut || undefined,
+      priority: tool === drawingTool ? 42 : 32,
+      badge: tool === drawingTool ? "الحالي" : undefined,
+      onSelect: () => setDrawingTool(tool),
+    })),
+  ];
+
   const renderPaneSymbolSelector = (
     pane: ChartPaneId,
     symbol: MarketSymbol,
@@ -3113,6 +3472,11 @@ export default function App() {
         watchlistOpen={watchlistOpen}
         aiOpen={aiPanelOpen}
         onToggleWatchlist={toggleWatchlistPanel}
+        onCommandPalette={() => {
+          setCommandQuery("");
+          setCommandSymbolResults([]);
+          setShowCommandPalette(true);
+        }}
         onToggleAi={toggleAiPanel}
         onMarket={openScreener}
         onAlerts={() => setShowAlertMenu(true)}
@@ -3225,6 +3589,14 @@ export default function App() {
             ) : null}
           </div>
         }
+      />
+
+      <CommandPalette
+        open={showCommandPalette}
+        items={commandPaletteItems}
+        loading={commandSymbolLoading}
+        onQueryChange={setCommandQuery}
+        onClose={() => setShowCommandPalette(false)}
       />
 
       <AccountPanel
