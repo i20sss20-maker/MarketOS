@@ -108,7 +108,12 @@ function sanitizeDrawing(value: unknown): ChartDrawingContext | null {
   }
 
   if (
-    (input.type === "trend" || input.type === "zone" || input.type === "fibonacci") &&
+    (
+      input.type === "trend" ||
+      input.type === "zone" ||
+      input.type === "fibonacci" ||
+      input.type === "measure"
+    ) &&
     Array.isArray(input.points) &&
     input.points.length === 2
   ) {
@@ -123,6 +128,26 @@ function sanitizeDrawing(value: unknown): ChartDrawingContext | null {
       return {
         type: input.type,
         points: [points[0], points[1]],
+      };
+    }
+  }
+
+  if (
+    input.type === "text" &&
+    input.point &&
+    typeof input.point === "object" &&
+    typeof input.text === "string" &&
+    input.text.trim().length > 0
+  ) {
+    const point = input.point as Record<string, unknown>;
+    if (finiteNumber(point.time) && finiteNumber(point.price)) {
+      return {
+        type: "text",
+        point: {
+          time: Math.floor(point.time),
+          price: point.price,
+        },
+        text: input.text.trim().slice(0, 240),
       };
     }
   }
@@ -257,6 +282,16 @@ export function analyzeChartContext(context: ChartContext): ChartAnalysisRespons
   const fibonacciDrawings = context.userDrawings.filter((drawing) => drawing.type === "fibonacci");
   if (fibonacciDrawings.length > 0) {
     observations.push(`يوجد ${fibonacciDrawings.length} رسم Fibonacci ضمن سياق المستخدم.`);
+  }
+
+  const measurements = context.userDrawings.filter((drawing) => drawing.type === "measure");
+  if (measurements.length > 0) {
+    observations.push(`يوجد ${measurements.length} قياس سعري محفوظ ضمن سياق المستخدم.`);
+  }
+
+  const textNotes = context.userDrawings.filter((drawing) => drawing.type === "text");
+  if (textNotes.length > 0) {
+    observations.push(`يوجد ${textNotes.length} ملاحظة نصية محفوظة على الشارت.`);
   }
 
   if (context.indicators.length > 0) {

@@ -119,11 +119,16 @@ export type ChartDrawingContext =
       price: number;
     }
   | {
-      type: "trend" | "zone" | "fibonacci";
+      type: "trend" | "zone" | "fibonacci" | "measure";
       points: [
         { time: number; price: number },
         { time: number; price: number },
       ];
+    }
+  | {
+      type: "text";
+      point: { time: number; price: number };
+      text: string;
     };
 
 export type ChartContext = {

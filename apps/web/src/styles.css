@@ -3021,3 +3021,145 @@ input:focus-visible {
     min-height: 160px;
   }
 }
+
+
+/* Chart Productivity V1 */
+.drawing-rail-separator {
+  width: 19px;
+  height: 1px;
+  margin: 3px auto;
+  background: rgba(148,163,184,.10);
+}
+
+.drawing-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.drawing-row.hidden {
+  opacity: .52;
+}
+
+.drawing-row.locked {
+  background: rgba(99,102,241,.035);
+}
+
+.drawing-row-info {
+  min-width: 0;
+}
+
+.drawing-row-info small {
+  max-width: 145px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawing-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.drawing-row-actions button {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #69778c;
+  cursor: pointer;
+  font-size: 9px;
+  padding: 0;
+}
+
+.drawing-row-actions button:hover:not(:disabled) {
+  background: rgba(148,163,184,.07);
+  color: #c3cedd;
+}
+
+.drawing-row-actions button:last-child:hover:not(:disabled) {
+  background: rgba(240,93,111,.09);
+  color: #ef8a99;
+}
+
+.drawing-row-actions button:disabled {
+  opacity: .25;
+  cursor: default;
+}
+
+.text-note-composer {
+  position: absolute;
+  left: 50%;
+  bottom: 42px;
+  z-index: 12;
+  width: min(320px, calc(100% - 28px));
+  transform: translateX(-50%);
+  padding: 9px;
+  border: 1px solid rgba(129,140,248,.24);
+  border-radius: 9px;
+  background: rgba(7,12,22,.97);
+  box-shadow: 0 20px 55px rgba(0,0,0,.42);
+  backdrop-filter: blur(10px);
+}
+
+.text-note-title {
+  margin-bottom: 6px;
+  color: #8997ad;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.text-note-composer input {
+  width: 100%;
+  border: 1px solid rgba(148,163,184,.10);
+  border-radius: 6px;
+  padding: 8px 9px;
+  outline: 0;
+  background: #090e19;
+  color: #dce4ef;
+  font-size: 9px;
+}
+
+.text-note-composer input:focus {
+  border-color: rgba(129,140,248,.34);
+}
+
+.text-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.text-note-actions button {
+  border: 1px solid rgba(148,163,184,.09);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: #090e19;
+  color: #77869b;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+.text-note-actions button.primary {
+  border-color: rgba(99,102,241,.22);
+  background: #4338ca;
+  color: #eef0ff;
+}
+
+.text-note-actions button:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
+@media (max-width: 760px) {
+  .drawing-row-info small {
+    max-width: 120px;
+  }
+
+  .text-note-composer {
+    bottom: 30px;
+  }
+}

@@ -18,13 +18,23 @@ import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
-import type { ChartDrawing, DrawingTool } from "./lib/drawings";
+import type { ChartDrawing, DrawingPoint, DrawingTool } from "./lib/drawings";
 import {
+  createDrawingId,
   drawingDetail,
   drawingName,
   loadDrawings,
   saveDrawings,
+  withDrawingMeta,
 } from "./lib/drawings";
+import {
+  canRedoDrawings,
+  canUndoDrawings,
+  commitDrawingHistory,
+  createDrawingHistory,
+  redoDrawingHistory,
+  undoDrawingHistory,
+} from "./lib/drawingHistory";
 import type { AlertCondition, PriceAlert } from "./lib/alerts";
 import {
   createPriceAlert,
@@ -196,7 +206,13 @@ export default function App() {
   const [indicators, setIndicators] = useState<IndicatorSelection>(() => loadIndicatorSelection());
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>("cursor");
-  const [drawings, setDrawings] = useState<ChartDrawing[]>(() => loadDrawings(active.id));
+  const [drawingHistory, setDrawingHistory] = useState(
+    () => createDrawingHistory(loadDrawings(active.id)),
+  );
+  const drawings = drawingHistory.present;
+  const [textAnchor, setTextAnchor] = useState<DrawingPoint | null>(null);
+  const [textDraft, setTextDraft] = useState("");
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
   const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -633,8 +649,11 @@ export default function App() {
     addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
-    setDrawings(loadDrawings(symbol.id));
+    setDrawingHistory(createDrawingHistory(loadDrawings(symbol.id)));
     setDrawingTool("cursor");
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
     setHoverCandle(null);
     setQuery("");
     setAiResult(null);
@@ -664,27 +683,185 @@ export default function App() {
     });
   };
 
+  const commitDrawingChange = useCallback((
+    updater: ChartDrawing[] | ((current: ChartDrawing[]) => ChartDrawing[]),
+  ) => {
+    setDrawingHistory((currentHistory) => {
+      const current = currentHistory.present;
+      const nextDrawings =
+        typeof updater === "function"
+          ? updater(current)
+          : updater;
+      const nextHistory = commitDrawingHistory(currentHistory, nextDrawings);
+      saveDrawings(active.id, nextHistory.present);
+      return nextHistory;
+    });
+  }, [active.id]);
+
   const handleDrawingCreated = useCallback((drawing: ChartDrawing) => {
-    setDrawings((current) => {
-      const next = [...current, drawing];
-      saveDrawings(active.id, next);
+    commitDrawingChange((current) => [
+      ...current,
+      withDrawingMeta(drawing),
+    ]);
+  }, [commitDrawingChange]);
+
+  const deleteDrawing = (id: string) => {
+    commitDrawingChange((current) =>
+      current.filter((drawing) => drawing.id !== id || drawing.locked),
+    );
+  };
+
+  const toggleDrawingHidden = (id: string) => {
+    commitDrawingChange((current) =>
+      current.map((drawing) =>
+        drawing.id === id
+          ? { ...drawing, hidden: !drawing.hidden }
+          : drawing,
+      ),
+    );
+  };
+
+  const toggleDrawingLocked = (id: string) => {
+    commitDrawingChange((current) =>
+      current.map((drawing) =>
+        drawing.id === id
+          ? { ...drawing, locked: !drawing.locked }
+          : drawing,
+      ),
+    );
+  };
+
+  const clearDrawings = () => {
+    commitDrawingChange((current) => current.filter((drawing) => drawing.locked));
+    setDrawingTool("cursor");
+    setTextAnchor(null);
+    setEditingTextId(null);
+  };
+
+  const undoDrawings = useCallback(() => {
+    setDrawingHistory((current) => {
+      const next = undoDrawingHistory(current);
+      saveDrawings(active.id, next.present);
       return next;
     });
   }, [active.id]);
 
-  const deleteDrawing = (id: string) => {
-    setDrawings((current) => {
-      const next = current.filter((drawing) => drawing.id !== id);
-      saveDrawings(active.id, next);
+  const redoDrawings = useCallback(() => {
+    setDrawingHistory((current) => {
+      const next = redoDrawingHistory(current);
+      saveDrawings(active.id, next.present);
       return next;
     });
+  }, [active.id]);
+
+  const requestTextAnchor = useCallback((point: DrawingPoint) => {
+    setTextAnchor(point);
+    setTextDraft("");
+    setEditingTextId(null);
+  }, []);
+
+  const editTextDrawing = (drawing: ChartDrawing) => {
+    if (drawing.type !== "text" || drawing.locked) return;
+    setTextAnchor(drawing.point);
+    setTextDraft(drawing.text);
+    setEditingTextId(drawing.id);
   };
 
-  const clearDrawings = () => {
-    setDrawings([]);
-    saveDrawings(active.id, []);
+  const saveTextDrawing = () => {
+    const text = textDraft.trim();
+    if (!text || !textAnchor) return;
+
+    if (editingTextId) {
+      commitDrawingChange((current) =>
+        current.map((drawing) =>
+          drawing.id === editingTextId && drawing.type === "text" && !drawing.locked
+            ? { ...drawing, text }
+            : drawing,
+        ),
+      );
+    } else {
+      handleDrawingCreated({
+        id: createDrawingId(),
+        type: "text",
+        point: textAnchor,
+        text,
+      });
+    }
+
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
     setDrawingTool("cursor");
   };
+
+  const cancelTextDrawing = () => {
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
+    setDrawingTool("cursor");
+  };
+
+  useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editable =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable;
+
+      if (event.key === "Escape") {
+        setDrawingTool("cursor");
+        setTextAnchor(null);
+        setTextDraft("");
+        setEditingTextId(null);
+        return;
+      }
+
+      if (
+        editable ||
+        showScreener ||
+        showEvents ||
+        showSystemPanel ||
+        showStrategyTester
+      ) {
+        return;
+      }
+
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redoDrawings();
+        else undoDrawings();
+        return;
+      }
+
+      if (modifier && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redoDrawings();
+        return;
+      }
+
+      if (modifier || event.altKey) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "v") setDrawingTool("cursor");
+      if (key === "l") setDrawingTool("trend");
+      if (key === "h") setDrawingTool("horizontal");
+      if (key === "m") setDrawingTool("measure");
+      if (key === "n") setDrawingTool("text");
+    };
+
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, [
+    redoDrawings,
+    undoDrawings,
+    showScreener,
+    showEvents,
+    showSystemPanel,
+    showStrategyTester,
+  ]);
 
   const chooseComparison = (symbol: MarketSymbol) => {
     if (symbol.id === active.id) return;
@@ -764,8 +941,11 @@ export default function App() {
     setTimeframe(workspace.timeframe);
     setChartView(workspace.chartView);
     setIndicators(workspace.indicators);
-    setDrawings(workspace.drawings);
+    setDrawingHistory(createDrawingHistory(workspace.drawings));
     setDrawingTool("cursor");
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
     setHoverCandle(null);
     setAiResult(null);
     addToWatchlist(workspace.symbol);
@@ -810,11 +990,24 @@ export default function App() {
         visibleCandles: displayCandles.slice(-300),
         quote,
         indicators: activeIndicatorItems.map((item) => item.id),
-        userDrawings: drawings.map((drawing) =>
-          drawing.type === "horizontal"
-            ? { type: "horizontal", price: drawing.price }
-            : { type: drawing.type, points: drawing.points },
-        ),
+        userDrawings: drawings
+          .filter((drawing) => !drawing.hidden)
+          .map((drawing) => {
+            if (drawing.type === "horizontal") {
+              return { type: "horizontal" as const, price: drawing.price };
+            }
+            if (drawing.type === "text") {
+              return {
+                type: "text" as const,
+                point: drawing.point,
+                text: drawing.text,
+              };
+            }
+            return {
+              type: drawing.type,
+              points: drawing.points,
+            };
+          }),
         prompt: requestedPrompt,
       });
 
@@ -859,7 +1052,11 @@ export default function App() {
           ? "منطقة السعر: انقر زاويتين للمستطيل"
           : drawingTool === "fibonacci"
             ? "Fibonacci: اختر البداية ثم النهاية"
-            : null;
+            : drawingTool === "measure"
+              ? "القياس: اختر نقطة البداية ثم النهاية"
+              : drawingTool === "text"
+                ? "الملاحظة: انقر مكان النص على الشارت"
+                : null;
 
   const filteredOverview = useMemo(
     () => overview.filter((item) => overviewMatchesFilter(item, screenerFilter)),
@@ -912,6 +1109,7 @@ export default function App() {
         drawings={drawings}
         drawingTool={drawingTool}
         onDrawingCreated={handleDrawingCreated}
+        onTextAnchorRequested={requestTextAnchor}
         onCrosshairCandle={setHoverCandle}
         comparison={
           layoutMode === "single" && comparisonSymbol && displayComparisonCandles.length > 0
@@ -919,6 +1117,30 @@ export default function App() {
             : null
         }
       />
+      {textAnchor ? (
+        <div className="text-note-composer" dir="rtl">
+          <div className="text-note-title">
+            {editingTextId ? "تعديل الملاحظة" : "ملاحظة جديدة"}
+          </div>
+          <input
+            autoFocus
+            value={textDraft}
+            maxLength={120}
+            onChange={(event) => setTextDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") saveTextDrawing();
+              if (event.key === "Escape") cancelTextDrawing();
+            }}
+            placeholder="اكتب ملاحظتك على الشارت"
+          />
+          <div className="text-note-actions">
+            <button onClick={cancelTextDrawing}>إلغاء</button>
+            <button className="primary" onClick={saveTextDrawing} disabled={!textDraft.trim()}>
+              حفظ
+            </button>
+          </div>
+        </div>
+      ) : null}
       {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
       {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
@@ -1405,12 +1627,51 @@ export default function App() {
                   <div className="drawing-popover" dir="rtl">
                     <div className="indicator-popover-title">إدارة الرسومات</div>
                     {drawings.map((drawing) => (
-                      <div className="drawing-row" key={drawing.id}>
-                        <span>
-                          <strong>{drawingName(drawing)}</strong>
+                      <div
+                        className={[
+                          "drawing-row",
+                          drawing.hidden ? "hidden" : "",
+                          drawing.locked ? "locked" : "",
+                        ].filter(Boolean).join(" ")}
+                        key={drawing.id}
+                      >
+                        <span className="drawing-row-info">
+                          <strong>
+                            {drawingName(drawing)}
+                            {drawing.locked ? " · مقفل" : ""}
+                          </strong>
                           <small>{drawingDetail(drawing)}</small>
                         </span>
-                        <button onClick={() => deleteDrawing(drawing.id)} title="حذف">×</button>
+                        <div className="drawing-row-actions">
+                          <button
+                            onClick={() => toggleDrawingHidden(drawing.id)}
+                            title={drawing.hidden ? "إظهار" : "إخفاء"}
+                          >
+                            {drawing.hidden ? "○" : "◉"}
+                          </button>
+                          <button
+                            onClick={() => toggleDrawingLocked(drawing.id)}
+                            title={drawing.locked ? "فتح القفل" : "قفل"}
+                          >
+                            {drawing.locked ? "🔒" : "🔓"}
+                          </button>
+                          {drawing.type === "text" ? (
+                            <button
+                              onClick={() => editTextDrawing(drawing)}
+                              disabled={drawing.locked}
+                              title="تعديل النص"
+                            >
+                              ✎
+                            </button>
+                          ) : null}
+                          <button
+                            onClick={() => deleteDrawing(drawing.id)}
+                            disabled={drawing.locked}
+                            title={drawing.locked ? "افتح القفل أولًا" : "حذف"}
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                     ))}
                     {drawings.length === 0 ? <div className="workspace-empty">لا توجد رسومات</div> : null}
@@ -1514,22 +1775,37 @@ export default function App() {
           <div className="chart-stage">
             <div className="drawing-rail">
               <button
+                title="تراجع · Ctrl/Cmd+Z"
+                onClick={undoDrawings}
+                disabled={!canUndoDrawings(drawingHistory)}
+              >
+                ↶
+              </button>
+              <button
+                title="إعادة · Ctrl/Cmd+Shift+Z"
+                onClick={redoDrawings}
+                disabled={!canRedoDrawings(drawingHistory)}
+              >
+                ↷
+              </button>
+              <span className="drawing-rail-separator" />
+              <button
                 className={drawingTool === "cursor" ? "selected" : ""}
-                title="المؤشر والتحريك"
+                title="المؤشر والتحريك · V"
                 onClick={() => setDrawingTool("cursor")}
               >
                 ↖
               </button>
               <button
                 className={drawingTool === "trend" ? "selected" : ""}
-                title="خط الاتجاه"
+                title="خط الاتجاه · L"
                 onClick={() => setDrawingTool("trend")}
               >
                 ╱
               </button>
               <button
                 className={drawingTool === "horizontal" ? "selected" : ""}
-                title="خط أفقي"
+                title="خط أفقي · H"
                 onClick={() => setDrawingTool("horizontal")}
               >
                 ―
@@ -1548,7 +1824,28 @@ export default function App() {
               >
                 ƒ
               </button>
-              <button title="مسح الرسومات" onClick={clearDrawings} disabled={drawings.length === 0}>⌫</button>
+              <button
+                className={drawingTool === "measure" ? "selected" : ""}
+                title="قياس · M"
+                onClick={() => setDrawingTool("measure")}
+              >
+                ↕
+              </button>
+              <button
+                className={drawingTool === "text" ? "selected" : ""}
+                title="ملاحظة نصية · N"
+                onClick={() => setDrawingTool("text")}
+              >
+                T
+              </button>
+              <span className="drawing-rail-separator" />
+              <button
+                title="مسح الرسومات غير المقفلة"
+                onClick={clearDrawings}
+                disabled={!drawings.some((drawing) => !drawing.locked)}
+              >
+                ⌫
+              </button>
             </div>
 
             {layoutMode === "split" && secondaryChartNode ? (
