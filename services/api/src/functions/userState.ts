@@ -3,7 +3,27 @@ import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { json, preflight } from "../http/responses.js";
 import { sanitizeUserCloudState } from "../storage/stateValidation.js";
 import { userStateStore } from "../storage/index.js";
-import { UserStateConflictError } from "../storage/types.js";
+import {
+  UserStateConflictError,
+  type UserCloudState,
+} from "../storage/types.js";
+
+function publicCloudState(
+  state: UserCloudState,
+) {
+  return {
+    version: state.version,
+    updatedAt: state.updatedAt,
+    watchlist: state.watchlist,
+    workspaces: state.workspaces,
+    alerts: state.alerts,
+    alertEvents: state.alertEvents ?? [],
+    chartSettings: state.chartSettings,
+    customIndicators: state.customIndicators,
+    drawings: state.drawings,
+    ui: state.ui,
+  };
+}
 
 export async function userState(
   request: HttpRequest,
@@ -41,12 +61,7 @@ export async function userState(
         storageMode:
           userStateStore.mode,
         state: stored
-          ? {
-              ...stored.payload,
-              alertEvents:
-                stored.payload
-                  .alertEvents ?? [],
-            }
+          ? publicCloudState(stored.payload)
           : null,
 
         // updatedAt is the last user/device sync,
@@ -126,10 +141,13 @@ export async function userState(
             ...state,
 
             // Browser owns preferences.
-            // Server owns alert delivery history.
+            // Server owns alert delivery history + Push device registrations.
             alertEvents:
               existing?.payload
                 .alertEvents ?? [],
+            pushSubscriptions:
+              existing?.payload
+                .pushSubscriptions ?? [],
           },
           {
             expectedClientRevision,
@@ -149,7 +167,9 @@ export async function userState(
           stored.clientRevision,
         serverRevision:
           stored.serverRevision,
-        state: stored.payload,
+        state: publicCloudState(
+          stored.payload,
+        ),
       });
     }
 
