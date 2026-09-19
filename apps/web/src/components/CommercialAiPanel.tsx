@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type {
   ChartAnalysisResponse,
   MultiTimeframeAnalysisResponse,
@@ -64,18 +65,31 @@ export default function CommercialAiPanel({
   formatPercent,
   formatVolume,
 }: Props) {
+  const [tab, setTab] = useState<"ai" | "data">("ai");
+
   return (
     <aside className={open ? "ai-panel panel commercial-ai-panel" : "ai-panel panel commercial-ai-panel panel-collapsed"}>
       <div className="commercial-panel-head ai-panel-head">
         <div>
-          <div className="panel-title">MarketOS AI</div>
-          <small>Chart-aware assistant</small>
+          <div className="panel-title">MarketOS</div>
+          <small>{tab === "ai" ? "Chart-aware assistant" : "Crosshair data"}</small>
         </div>
-        <button className="commercial-panel-close" title="إغلاق AI" onClick={onClose}>
+        <button className="commercial-panel-close" title="إغلاق اللوحة" onClick={onClose}>
           ×
         </button>
       </div>
 
+      <div className="commercial-panel-tabs">
+        <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}>
+          AI
+        </button>
+        <button className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>
+          Data Window
+        </button>
+      </div>
+
+      {tab === "ai" ? (
+        <>
       <div className="ai-card">
         <span className="eyebrow">CHART CONTEXT</span>
         <h2>اسأل الشارت</h2>
@@ -191,7 +205,11 @@ export default function CommercialAiPanel({
         <div><span>المصدر</span><strong>{source}</strong></div>
       </div>
 
-      {dataWindow ? (
+        </>
+      ) : null}
+
+      {tab === "data" ? (
+        dataWindow ? (
         <section className="data-window">
           <div className="data-window-head">
             <div>
@@ -244,6 +262,13 @@ export default function CommercialAiPanel({
             </div>
           )}
         </section>
+        ) : (
+          <div className="commercial-empty-data">
+            <span>＋</span>
+            <strong>حرّك المؤشر فوق الشارت</strong>
+            <small>تظهر هنا قيم الشمعة والمؤشرات عند نفس النقطة.</small>
+          </div>
+        )
       ) : null}
 
       <div className="notice">
