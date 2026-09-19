@@ -112,6 +112,7 @@ const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 type ChartLayoutMode = "single" | "split" | "quad";
 type MaximizedChartPane = "primary" | "secondary" | "third" | "fourth" | null;
 type AuxiliaryPane = "secondary" | "third" | "fourth";
+type ChartPaneId = "primary" | AuxiliaryPane;
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
@@ -1756,17 +1757,54 @@ export default function App() {
 
   const ignoreDrawingCreated = useCallback((_drawing: ChartDrawing) => undefined, []);
 
+  const changePaneSymbol = (
+    pane: ChartPaneId,
+    symbolId: string,
+  ) => {
+    const symbol = multiChartSymbolOptions.find((item) => item.id === symbolId);
+    if (!symbol) return;
+
+    if (pane === "primary") {
+      chooseSymbol(symbol);
+      return;
+    }
+
+    chooseAuxiliaryPaneSymbol(pane, symbol);
+  };
+
+  const renderPaneSymbolSelector = (
+    pane: ChartPaneId,
+    symbol: MarketSymbol,
+  ) => (
+    <div className="pane-symbol-selector" dir="ltr">
+      <select
+        value={symbol.id}
+        onChange={(event) => changePaneSymbol(pane, event.target.value)}
+        aria-label={`رمز ${pane}`}
+      >
+        {multiChartSymbolOptions.map((option) => (
+          <option value={option.id} key={option.id}>
+            {option.ticker} · {option.exchange}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   const primaryChartNode = (
     <div className="chart-host primary-chart-host">
-      {layoutMode === "split" ? (
-        <div className="chart-pane-actions primary-pane-actions">
+      {layoutMode !== "single" ? (
+        <>
+          {renderPaneSymbolSelector("primary", active)}
+          <div className="chart-pane-actions primary-pane-actions">
           <button
             onClick={() => toggleMaximizedPane("primary")}
             title={maximizedChartPane === "primary" ? "إرجاع الشارتين" : "تكبير الشارت"}
           >
             {maximizedChartPane === "primary" ? "⊞" : "⛶"}
           </button>
-        </div>
+          </div>
+        </>
       ) : null}
       {inspectedCandle ? (
         <div className="ohlc-legend" dir="ltr">
@@ -1835,10 +1873,7 @@ export default function App() {
 
   const secondaryChartNode = comparisonSymbol && displayComparisonCandles.length > 0 ? (
     <div className="chart-host secondary-chart-host">
-      <div className="secondary-chart-label" dir="ltr">
-        <strong>{comparisonSymbol.ticker}</strong>
-        <span>{comparisonSymbol.exchange}</span>
-      </div>
+      {renderPaneSymbolSelector("secondary", comparisonSymbol)}
       <div className="chart-pane-actions">
         <button
           onClick={() => toggleMaximizedPane("secondary")}
