@@ -105,23 +105,6 @@ function PlanCard({
         ))}
       </div>
 
-      <div className="plan-ai-limits">
-        <span>
-          AI / day{" "}
-          <b>
-            {definition.limits.aiQueriesPerDay}
-          </b>
-        </span>
-        <span>
-          Multi‑TF / day{" "}
-          <b>
-            {
-              definition.limits
-                .multiTimeframeQueriesPerDay
-            }
-          </b>
-        </span>
-      </div>
     </article>
   );
 }
