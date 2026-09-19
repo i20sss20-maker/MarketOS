@@ -1118,6 +1118,8 @@ export default function App() {
 
       <section className="market-strip" dir="ltr">
         <span>MARKET DATA <b>{providerStatus?.provider ?? "detecting"}</b></span>
+        <span>SESSION <b className={sessionState === "open" ? "positive" : sessionState === "closed" ? "negative" : ""}>{sessionLabel}</b></span>
+        <span>AUTO <b>{autoRefreshEnabled && !replayActive ? "ON" : "OFF"}</b></span>
         <span>US EQUITIES</span>
         <span>SAUDI EXCHANGE</span>
         <span>FOREX</span>
@@ -1178,12 +1180,34 @@ export default function App() {
               </div>
             </div>
 
-            <div className="quote">
-              <strong>{formatPrice(displayedPrice)}</strong>
-              <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
-                {formatPercent(displayedPercent)}
-              </span>
-              <small>{replayActive ? "REPLAY" : quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
+            <div className="quote-cluster">
+              <div className="instrument-live-controls">
+                <span className={`session-pill ${sessionState}`}>{sessionLabel}</span>
+                <button
+                  className="quote-refresh"
+                  onClick={() => void refreshQuote(true)}
+                  disabled={replayActive || quoteRefreshing}
+                  title="تحديث السعر الآن"
+                >
+                  {quoteRefreshing ? "…" : "↻"}
+                </button>
+                <button
+                  className={autoRefreshEnabled ? "auto-refresh-toggle active" : "auto-refresh-toggle"}
+                  onClick={toggleAutoRefresh}
+                  disabled={replayActive}
+                  title="تحديث تلقائي كل 30 ثانية تقريبًا أثناء فتح الصفحة"
+                >
+                  Auto
+                </button>
+              </div>
+              <div className="quote">
+                <strong>{formatPrice(displayedPrice)}</strong>
+                <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
+                  {formatPercent(displayedPercent)}
+                </span>
+                <small>{replayActive ? "REPLAY" : quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
+                <small>آخر بيانات: {replayActive ? replayDateLabel ?? "—" : quoteTimeLabel}</small>
+              </div>
             </div>
           </div>
 
