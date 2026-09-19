@@ -7421,3 +7421,74 @@ body {
   outline: 2px solid rgba(124,131,255,.60);
   outline-offset: 1px;
 }
+
+
+.commercial-panel-tabs {
+  position: sticky;
+  top: 42px;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 5px 7px;
+  border-bottom: 1px solid rgba(148,163,184,.05);
+  background: rgba(8,12,19,.965);
+  backdrop-filter: blur(12px);
+}
+
+.commercial-panel-tabs button {
+  min-height: 27px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #5e6b80;
+  cursor: pointer;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.commercial-panel-tabs button:hover {
+  background: rgba(148,163,184,.04);
+  color: #9aa6b7;
+}
+
+.commercial-panel-tabs button.active {
+  border-color: rgba(124,131,255,.13);
+  background: rgba(124,131,255,.08);
+  color: #b1b7fa;
+}
+
+.commercial-empty-data {
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  padding: 24px;
+  text-align: center;
+  color: #526075;
+}
+
+.commercial-empty-data > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(148,163,184,.08);
+  border-radius: 8px;
+  background: rgba(148,163,184,.025);
+  color: #66748a;
+  font-size: 15px;
+}
+
+.commercial-empty-data strong {
+  color: #8795a8;
+  font-size: 9px;
+}
+
+.commercial-empty-data small {
+  max-width: 200px;
+  color: #536176;
+  font-size: 7px;
+  line-height: 1.6;
+}
