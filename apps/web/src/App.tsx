@@ -502,6 +502,13 @@ export default function App() {
               ? `تعذر الوصول للـAPI وتم تشغيل Demo fallback: ${dataError}`
               : providerStatus?.message ?? "Market Data V1 active."}
           </div>
+
+          <div className="chart-attribution">
+            Charts powered by{" "}
+            <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">
+              TradingView Lightweight Charts™
+            </a>
+          </div>
         </aside>
       </section>
     </main>
