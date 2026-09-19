@@ -38,6 +38,7 @@ import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
 import ChartTemplatesPanel from "./components/ChartTemplatesPanel";
+import ObjectTreePanel from "./components/ObjectTreePanel";
 import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import ExportPanel from "./components/ExportPanel";
 import IndicatorLab from "./components/IndicatorLab";
@@ -381,6 +382,7 @@ export default function App() {
   const [chartTemplates, setChartTemplates] = useState<SavedChartTemplate[]>(() => loadChartTemplates());
   const [showChartTemplates, setShowChartTemplates] = useState(false);
   const [chartTemplateMessage, setChartTemplateMessage] = useState<string | null>(null);
+  const [showObjectTree, setShowObjectTree] = useState(false);
   const [chartResetKey, setChartResetKey] = useState(0);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -2432,7 +2434,8 @@ export default function App() {
         showSystemPanel ||
         showStrategyTester ||
         showIndicatorLab ||
-        showCompanyFeed
+        showCompanyFeed ||
+        showObjectTree
       ) {
         return;
       }
@@ -2472,7 +2475,24 @@ export default function App() {
     showStrategyTester,
     showIndicatorLab,
     showCompanyFeed,
+    showObjectTree,
   ]);
+
+  const clearComparison = () => {
+    setComparisonSymbol(null);
+    setComparisonCandles([]);
+    setLayoutMode("single");
+    setMaximizedChartPane(null);
+    setSyncedLogicalRange(null);
+    savePaneSymbol(
+      "marketos:pane-secondary",
+      null,
+    );
+    saveSetting(
+      "marketos:chart-layout",
+      "single",
+    );
+  };
 
   const chooseComparison = (symbol: MarketSymbol) => {
     if (symbol.id === active.id) return;
@@ -3586,6 +3606,15 @@ export default function App() {
       },
     },
     {
+      id: "panel:object-tree",
+      group: "الشارت",
+      label: "شجرة العناصر",
+      description: `${drawings.length} رسم · ${activeIndicatorItems.length + activeCustomIndicators.length} مؤشر`,
+      keywords: ["object tree", "objects", "عناصر", "شجرة", "رسومات", "مؤشرات"],
+      priority: 54.25,
+      onSelect: () => setShowObjectTree(true),
+    },
+    {
       id: "panel:plans",
       group: "الحساب",
       label: "الخطط والحدود",
@@ -4254,6 +4283,26 @@ export default function App() {
         onClose={() => setShowExportPanel(false)}
       />
 
+      <ObjectTreePanel
+        open={showObjectTree}
+        symbol={active}
+        indicators={indicators}
+        customIndicators={customIndicators}
+        drawings={drawings}
+        comparisonSymbol={comparisonSymbol}
+        onClose={() => setShowObjectTree(false)}
+        onToggleIndicator={toggleIndicator}
+        onToggleCustom={toggleCustomIndicator}
+        onToggleDrawingHidden={toggleDrawingHidden}
+        onToggleDrawingLocked={toggleDrawingLocked}
+        onDeleteDrawing={deleteDrawing}
+        onEditDrawing={(drawing) => {
+          setShowObjectTree(false);
+          editTextDrawing(drawing);
+        }}
+        onRemoveComparison={clearComparison}
+      />
+
       <ChartTemplatesPanel
         open={showChartTemplates}
         templates={chartTemplates}
@@ -4720,6 +4769,14 @@ export default function App() {
                 ◫ قوالب
               </button>
 
+              <button
+                className="object-tree-launch"
+                onClick={() => setShowObjectTree(true)}
+                title="إدارة عناصر الشارت"
+              >
+                ☷ العناصر
+              </button>
+
               <div className="compare-menu-wrap">
                 <button
                   className={comparisonSymbol ? "selected comparison-button" : "comparison-button"}
@@ -4728,14 +4785,7 @@ export default function App() {
                   {comparisonSymbol ? `مقارنة: ${comparisonSymbol.ticker}` : "مقارنة"}
                 </button>
                 {comparisonSymbol ? (
-                  <button className="comparison-clear" onClick={() => {
-                    setComparisonSymbol(null);
-                    setComparisonCandles([]);
-                    setLayoutMode("single");
-                    setMaximizedChartPane(null);
-                    setSyncedLogicalRange(null);
-                    saveSetting("marketos:chart-layout", "single");
-                  }}>×</button>
+                  <button className="comparison-clear" onClick={clearComparison}>×</button>
                 ) : null}
 
                 {showComparisonMenu ? (
