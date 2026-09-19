@@ -204,3 +204,208 @@ export class FibonacciPrimitive {
     return [this.view];
   }
 }
+
+
+class TextRenderer implements IPrimitivePaneRenderer {
+  constructor(
+    private readonly point: ChartPoint,
+    private readonly text: string,
+  ) {}
+
+  draw(target: Parameters<IPrimitivePaneRenderer["draw"]>[0]) {
+    target.useMediaCoordinateSpace(({ context }) => {
+      if (this.point.x === null || this.point.y === null) return;
+
+      const paddingX = 7;
+      const paddingY = 5;
+
+      context.save();
+      context.font = "10px Inter, Segoe UI, sans-serif";
+      context.textBaseline = "middle";
+      const metrics = context.measureText(this.text);
+      const width = Math.max(34, metrics.width + paddingX * 2);
+      const height = 24;
+      const left = this.point.x + 8;
+      const top = this.point.y - height / 2;
+
+      context.fillStyle = "rgba(10, 15, 28, 0.94)";
+      context.strokeStyle = "rgba(148, 163, 184, 0.32)";
+      context.lineWidth = 1;
+      context.fillRect(left, top, width, height);
+      context.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+
+      context.beginPath();
+      context.fillStyle = "rgba(129, 140, 248, 0.95)";
+      context.arc(this.point.x, this.point.y, 2.5, 0, Math.PI * 2);
+      context.fill();
+
+      context.fillStyle = "rgba(226, 232, 240, 0.92)";
+      context.fillText(this.text, left + paddingX, top + height / 2 + 0.5);
+      context.restore();
+    });
+  }
+}
+
+class TextView implements IPrimitivePaneView {
+  private point: ChartPoint = { x: null, y: null };
+
+  constructor(private readonly source: TextPrimitive) {}
+
+  update() {
+    this.point = {
+      x: this.source.chart.timeScale().timeToCoordinate(this.source.point.time as Time),
+      y: this.source.series.priceToCoordinate(this.source.point.price),
+    };
+  }
+
+  renderer() {
+    return new TextRenderer(this.point, this.source.text);
+  }
+
+  zOrder(): PrimitivePaneViewZOrder {
+    return "top";
+  }
+}
+
+export class TextPrimitive {
+  readonly view: TextView;
+
+  constructor(
+    readonly chart: IChartApi,
+    readonly series: ISeriesApi<SeriesType>,
+    readonly point: DrawingPoint,
+    readonly text: string,
+  ) {
+    this.view = new TextView(this);
+  }
+
+  updateAllViews() {
+    this.view.update();
+  }
+
+  paneViews() {
+    return [this.view];
+  }
+}
+
+class MeasureRenderer implements IPrimitivePaneRenderer {
+  constructor(
+    private readonly first: ChartPoint,
+    private readonly second: ChartPoint,
+    private readonly firstPrice: number,
+    private readonly secondPrice: number,
+    private readonly bars: number,
+  ) {}
+
+  draw(target: Parameters<IPrimitivePaneRenderer["draw"]>[0]) {
+    target.useMediaCoordinateSpace(({ context }) => {
+      if (
+        this.first.x === null ||
+        this.first.y === null ||
+        this.second.x === null ||
+        this.second.y === null
+      ) {
+        return;
+      }
+
+      const left = Math.min(this.first.x, this.second.x);
+      const top = Math.min(this.first.y, this.second.y);
+      const width = Math.max(1, Math.abs(this.second.x - this.first.x));
+      const height = Math.max(1, Math.abs(this.second.y - this.first.y));
+      const delta = this.secondPrice - this.firstPrice;
+      const percent = this.firstPrice === 0 ? 0 : (delta / this.firstPrice) * 100;
+      const label = `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}  ·  ${percent >= 0 ? "+" : ""}${percent.toFixed(2)}%  ·  ${this.bars} bars`;
+
+      context.save();
+      context.fillStyle = delta >= 0
+        ? "rgba(32, 201, 151, 0.10)"
+        : "rgba(240, 93, 111, 0.10)";
+      context.strokeStyle = delta >= 0
+        ? "rgba(32, 201, 151, 0.68)"
+        : "rgba(240, 93, 111, 0.68)";
+      context.lineWidth = 1;
+      context.setLineDash([4, 3]);
+      context.fillRect(left, top, width, height);
+      context.strokeRect(left + 0.5, top + 0.5, width - 1, height - 1);
+
+      context.setLineDash([]);
+      context.beginPath();
+      context.moveTo(this.first.x, this.first.y);
+      context.lineTo(this.second.x, this.second.y);
+      context.stroke();
+
+      context.font = "9px Inter, Segoe UI, sans-serif";
+      const labelWidth = context.measureText(label).width + 12;
+      const labelX = Math.max(4, Math.min(left, rightSafe(left, width)) + 4);
+      const labelY = Math.max(4, top - 24);
+
+      context.fillStyle = "rgba(7, 12, 22, 0.96)";
+      context.strokeStyle = "rgba(148, 163, 184, 0.28)";
+      context.fillRect(labelX, labelY, labelWidth, 20);
+      context.strokeRect(labelX + 0.5, labelY + 0.5, labelWidth - 1, 19);
+      context.fillStyle = "rgba(226, 232, 240, 0.88)";
+      context.textBaseline = "middle";
+      context.fillText(label, labelX + 6, labelY + 10.5);
+      context.restore();
+    });
+  }
+}
+
+function rightSafe(left: number, width: number) {
+  return left + Math.max(0, width - 120);
+}
+
+class MeasureView implements IPrimitivePaneView {
+  private first: ChartPoint = { x: null, y: null };
+  private second: ChartPoint = { x: null, y: null };
+
+  constructor(private readonly source: MeasurePrimitive) {}
+
+  update() {
+    const timeScale = this.source.chart.timeScale();
+    this.first = {
+      x: timeScale.timeToCoordinate(this.source.first.time as Time),
+      y: this.source.series.priceToCoordinate(this.source.first.price),
+    };
+    this.second = {
+      x: timeScale.timeToCoordinate(this.source.second.time as Time),
+      y: this.source.series.priceToCoordinate(this.source.second.price),
+    };
+  }
+
+  renderer() {
+    return new MeasureRenderer(
+      this.first,
+      this.second,
+      this.source.first.price,
+      this.source.second.price,
+      this.source.bars,
+    );
+  }
+
+  zOrder(): PrimitivePaneViewZOrder {
+    return "normal";
+  }
+}
+
+export class MeasurePrimitive {
+  readonly view: MeasureView;
+
+  constructor(
+    readonly chart: IChartApi,
+    readonly series: ISeriesApi<SeriesType>,
+    readonly first: DrawingPoint,
+    readonly second: DrawingPoint,
+    readonly bars: number,
+  ) {
+    this.view = new MeasureView(this);
+  }
+
+  updateAllViews() {
+    this.view.update();
+  }
+
+  paneViews() {
+    return [this.view];
+  }
+}
