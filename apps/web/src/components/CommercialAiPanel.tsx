@@ -3,9 +3,11 @@ import type {
   AnalystForecastResponse,
   ChartAnalysisResponse,
   MultiTimeframeAnalysisResponse,
+  MarketSymbol,
   Timeframe,
 } from "@marketos/market-core";
 import AnalystForecastView from "./AnalystForecastView";
+import AnalystRadarView from "./AnalystRadarView";
 import type { DataWindowSnapshot } from "../lib/dataWindow";
 
 type AiResult = Pick<ChartAnalysisResponse, "summary" | "observations" | "engine">;
@@ -23,6 +25,8 @@ type Props = {
   multiTimeframeResult: MultiTimeframeAnalysisResponse | null;
   multiTimeframeError: string | null;
   ticker: string;
+  activeSymbol: MarketSymbol;
+  radarSymbols: MarketSymbol[];
   timeframe: Timeframe;
   indicatorCount: number;
   drawingCount: number;
@@ -36,6 +40,7 @@ type Props = {
   providerMessage?: string | null;
   onClose: () => void;
   onForecast: () => void;
+  onRadarSelect: (symbol: MarketSymbol) => void;
   onPromptChange: (value: string) => void;
   onRead: (prompt?: string) => void;
   onMultiTimeframe: () => void;
@@ -57,6 +62,8 @@ export default function CommercialAiPanel({
   multiTimeframeResult,
   multiTimeframeError,
   ticker,
+  activeSymbol,
+  radarSymbols,
   timeframe,
   indicatorCount,
   drawingCount,
@@ -70,6 +77,7 @@ export default function CommercialAiPanel({
   providerMessage,
   onClose,
   onForecast,
+  onRadarSelect,
   onPromptChange,
   onRead,
   onMultiTimeframe,
@@ -77,7 +85,7 @@ export default function CommercialAiPanel({
   formatPercent,
   formatVolume,
 }: Props) {
-  const [tab, setTab] = useState<"analyst" | "ask" | "data">("analyst");
+  const [tab, setTab] = useState<"analyst" | "radar" | "ask" | "data">("analyst");
 
   return (
     <aside className={open ? "ai-panel panel commercial-ai-panel" : "ai-panel panel commercial-ai-panel panel-collapsed"}>
@@ -87,9 +95,11 @@ export default function CommercialAiPanel({
           <small>
             {tab === "analyst"
               ? "Probabilistic market analyst"
-              : tab === "ask"
-                ? "Chart-aware assistant"
-                : "Crosshair data"}
+              : tab === "radar"
+                ? "Watchlist opportunity radar"
+                : tab === "ask"
+                  ? "Chart-aware assistant"
+                  : "Crosshair data"}
           </small>
         </div>
         <button className="commercial-panel-close" title="إغلاق اللوحة" onClick={onClose}>
@@ -100,6 +110,9 @@ export default function CommercialAiPanel({
       <div className="commercial-panel-tabs analyst-tabs">
         <button className={tab === "analyst" ? "active" : ""} onClick={() => setTab("analyst")}>
           المحلل
+        </button>
+        <button className={tab === "radar" ? "active" : ""} onClick={() => setTab("radar")}>
+          الرادار
         </button>
         <button className={tab === "ask" ? "active" : ""} onClick={() => setTab("ask")}>
           اسأل
@@ -117,6 +130,14 @@ export default function CommercialAiPanel({
           ticker={ticker}
           onRun={onForecast}
           formatPrice={formatPrice}
+        />
+      ) : null}
+
+      {tab === "radar" ? (
+        <AnalystRadarView
+          activeSymbol={activeSymbol}
+          symbols={radarSymbols}
+          onSelectSymbol={onRadarSelect}
         />
       ) : null}
 
