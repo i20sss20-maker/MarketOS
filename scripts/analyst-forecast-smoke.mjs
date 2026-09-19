@@ -181,6 +181,24 @@ const bullish =
     ],
     dataProvider: "test",
     dataMode: "provider",
+    calibration: {
+      method: "historical-analog",
+      timeframe: "1d",
+      lookaheadBars: 5,
+      sampleSize: 32,
+      comparableSamples: 24,
+      currentSignal: 0.61,
+      outcomeThresholdPercent: 1.4,
+      directionalHitRate: 66,
+      averageForwardReturn: 2.1,
+      medianForwardReturn: 1.8,
+      bullProbability: 68,
+      baseProbability: 20,
+      bearProbability: 12,
+      similarityScore: 82,
+      reliability: "high",
+      blendWeight: 0.42,
+    },
   });
 
 assert.equal(
@@ -217,6 +235,14 @@ assert.ok(
 );
 assert.ok(
   bullish.catalysts.length >= 2,
+);
+assert.equal(
+  bullish.engine,
+  "marketos-forecast-v2",
+);
+assert.equal(
+  bullish.calibration?.sampleSize,
+  32,
 );
 assert.ok(
   bullish.evidence.some(
