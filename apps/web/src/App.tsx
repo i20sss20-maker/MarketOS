@@ -4150,6 +4150,50 @@ export default function App() {
       onSelect: () => chooseLayoutMode(mode),
     })),
     {
+      id: "link:symbol",
+      group: "Panes",
+      label: paneSymbolLinkEnabled ? "إيقاف ربط الرموز" : "ربط الرموز بين Panes",
+      description: "Symbol Link",
+      keywords: ["link", "symbol", "panes", "ربط", "رموز"],
+      priority: 44.8,
+      badge: paneSymbolLinkEnabled ? "ON" : undefined,
+      onSelect: () =>
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          symbol: !paneSymbolLinkEnabled,
+        }),
+    },
+    {
+      id: "link:timeframe",
+      group: "Panes",
+      label: paneTimeframeLinkEnabled ? "إيقاف ربط الفريمات" : "ربط الفريمات بين Panes",
+      description: "Timeframe Link",
+      keywords: ["link", "timeframe", "frame", "panes", "ربط", "فريم"],
+      priority: 44.7,
+      badge: paneTimeframeLinkEnabled ? "ON" : undefined,
+      onSelect: () =>
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          timeframe: !paneTimeframeLinkEnabled,
+        }),
+    },
+    {
+      id: "link:range",
+      group: "Panes",
+      label: chartSyncEnabled ? "إيقاف ربط Zoom/Scroll" : "ربط Zoom/Scroll",
+      description: chartSyncCompatible ? "Range Link" : "يتطلب نفس الفريم",
+      keywords: ["link", "range", "zoom", "scroll", "panes", "ربط"],
+      priority: 44.6,
+      badge: chartSyncEnabled && chartSyncCompatible ? "ON" : undefined,
+      onSelect: () => {
+        if (!chartSyncCompatible) return;
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          range: !chartSyncEnabled,
+        });
+      },
+    },
+    {
       id: "replay:toggle",
       group: "الشارت",
       label: replayActive ? "الخروج من Replay" : "بدء Replay",
