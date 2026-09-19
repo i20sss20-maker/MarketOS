@@ -20,24 +20,42 @@ export class MemoryUserStateStore implements UserStateStore {
     options?: UserStatePutOptions,
   ) {
     const existing = this.states.get(userId) ?? null;
-    const expected = options?.expectedClientRevision;
+    const expectedClient =
+      options?.expectedClientRevision;
+    const expectedServer =
+      options?.expectedServerRevision;
 
-    if (expected !== undefined) {
-      if (expected === null && existing) {
-        throw new UserStateConflictError(
-          existing.clientRevision,
-          "A cloud copy already exists.",
-        );
-      }
+    if (
+      (expectedClient === null || expectedServer === null) &&
+      existing
+    ) {
+      throw new UserStateConflictError(
+        existing.clientRevision,
+        existing.serverRevision,
+        "A cloud copy already exists.",
+      );
+    }
 
-      if (
-        expected !== null &&
-        (!existing || existing.clientRevision !== expected)
-      ) {
-        throw new UserStateConflictError(
-          existing?.clientRevision ?? null,
-        );
-      }
+    if (
+      expectedClient !== undefined &&
+      expectedClient !== null &&
+      (!existing || existing.clientRevision !== expectedClient)
+    ) {
+      throw new UserStateConflictError(
+        existing?.clientRevision ?? null,
+        existing?.serverRevision ?? null,
+      );
+    }
+
+    if (
+      expectedServer !== undefined &&
+      expectedServer !== null &&
+      (!existing || existing.serverRevision !== expectedServer)
+    ) {
+      throw new UserStateConflictError(
+        existing?.clientRevision ?? null,
+        existing?.serverRevision ?? null,
+      );
     }
 
     const now = Date.now();
@@ -47,6 +65,7 @@ export class MemoryUserStateStore implements UserStateStore {
       updatedAt: now,
       clientUpdatedAt: now,
       clientRevision: (existing?.clientRevision ?? 0) + 1,
+      serverRevision: (existing?.serverRevision ?? 0) + 1,
       payload: {
         ...state,
         updatedAt: now,
@@ -65,6 +84,7 @@ export class MemoryUserStateStore implements UserStateStore {
     const stored: StoredUserState = {
       ...existing,
       updatedAt: now,
+      serverRevision: existing.serverRevision + 1,
       payload: {
         ...existing.payload,
         alerts,
