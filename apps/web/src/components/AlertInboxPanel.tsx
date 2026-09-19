@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { MarketSymbol } from "@marketos/market-core";
 import type { AlertInboxEvent } from "../lib/alertInboxApi";
 
@@ -55,6 +56,15 @@ export default function AlertInboxPanel({
   onClearRead,
   onSelectSymbol,
 }: Props) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const unreadCount = events.filter((event) => !event.readAt).length;
