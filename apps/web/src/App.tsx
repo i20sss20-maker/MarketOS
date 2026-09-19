@@ -990,14 +990,25 @@ export default function App() {
   };
 
   const chooseSymbol = (symbol: MarketSymbol) => {
+    const previousActive = active;
     setActive(symbol);
     setReplayActive(false);
     setReplayPlaying(false);
     setReplayIndex(null);
+
     if (comparisonSymbol?.id === symbol.id) {
-      setComparisonSymbol(null);
-      setComparisonCandles([]);
+      setComparisonSymbol(previousActive);
+      savePaneSymbol("marketos:pane-secondary", previousActive);
     }
+    if (thirdChartSymbol?.id === symbol.id) {
+      setThirdChartSymbol(previousActive);
+      savePaneSymbol("marketos:pane-third", previousActive);
+    }
+    if (fourthChartSymbol?.id === symbol.id) {
+      setFourthChartSymbol(previousActive);
+      savePaneSymbol("marketos:pane-fourth", previousActive);
+    }
+
     addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
@@ -1733,6 +1744,15 @@ export default function App() {
         timeStyle: "short",
       })
     : null;
+
+  const multiChartSymbolOptions = useMemo(
+    () => [
+      ...new Map(
+        [...watchlist, ...initialSymbols].map((symbol) => [symbol.id, symbol]),
+      ).values(),
+    ],
+    [watchlist],
+  );
 
   const ignoreDrawingCreated = useCallback((_drawing: ChartDrawing) => undefined, []);
 
