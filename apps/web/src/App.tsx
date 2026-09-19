@@ -288,19 +288,31 @@ export default function App() {
     () => readSavedPaneSymbol("marketos:pane-secondary"),
   );
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [secondaryTimeframe, setSecondaryTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-secondary-timeframe", timeframe),
+  );
   const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(
     () => readSavedPaneSymbol("marketos:pane-third"),
   );
   const [thirdChartCandles, setThirdChartCandles] = useState<Candle[]>([]);
+  const [thirdTimeframe, setThirdTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-third-timeframe", timeframe),
+  );
   const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(
     () => readSavedPaneSymbol("marketos:pane-fourth"),
   );
   const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
+  const [fourthTimeframe, setFourthTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-fourth-timeframe", timeframe),
+  );
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
   );
   const [chartSyncEnabled, setChartSyncEnabled] = useState(
     () => readSaved<"on" | "off">("marketos:chart-sync", "on") === "on",
+  );
+  const [paneTimeframeSyncEnabled, setPaneTimeframeSyncEnabled] = useState(
+    () => readSaved<"on" | "off">("marketos:pane-timeframe-sync", "on") === "on",
   );
   const [syncedLogicalRange, setSyncedLogicalRange] = useState<LogicalRange | null>(null);
   const [maximizedChartPane, setMaximizedChartPane] = useState<MaximizedChartPane>(null);
