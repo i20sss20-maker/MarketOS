@@ -1042,7 +1042,18 @@ export default function App() {
     setReplayActive(false);
     setReplayPlaying(false);
     setReplayIndex(null);
+    setSyncedLogicalRange(null);
     saveSetting("marketos:timeframe", value);
+
+    if (paneTimeframeSyncEnabled) {
+      setSecondaryTimeframe(value);
+      setThirdTimeframe(value);
+      setFourthTimeframe(value);
+      saveSetting("marketos:pane-secondary-timeframe", value);
+      saveSetting("marketos:pane-third-timeframe", value);
+      saveSetting("marketos:pane-fourth-timeframe", value);
+    }
+
     setDrawingTool("cursor");
     setHoverCandle(null);
     setAiResult(null);
@@ -1269,6 +1280,48 @@ export default function App() {
     setSyncedLogicalRange(null);
   };
 
+  const chooseAuxiliaryPaneTimeframe = (
+    pane: AuxiliaryPane,
+    value: Timeframe,
+  ) => {
+    if (pane === "secondary") {
+      setSecondaryTimeframe(value);
+      saveSetting("marketos:pane-secondary-timeframe", value);
+    } else if (pane === "third") {
+      setThirdTimeframe(value);
+      saveSetting("marketos:pane-third-timeframe", value);
+    } else {
+      setFourthTimeframe(value);
+      saveSetting("marketos:pane-fourth-timeframe", value);
+    }
+
+    if (value !== timeframe && paneTimeframeSyncEnabled) {
+      setPaneTimeframeSyncEnabled(false);
+      saveSetting("marketos:pane-timeframe-sync", "off");
+    }
+
+    setSyncedLogicalRange(null);
+  };
+
+  const togglePaneTimeframeSync = () => {
+    setPaneTimeframeSyncEnabled((current) => {
+      const next = !current;
+      saveSetting("marketos:pane-timeframe-sync", next ? "on" : "off");
+
+      if (next) {
+        setSecondaryTimeframe(timeframe);
+        setThirdTimeframe(timeframe);
+        setFourthTimeframe(timeframe);
+        saveSetting("marketos:pane-secondary-timeframe", timeframe);
+        saveSetting("marketos:pane-third-timeframe", timeframe);
+        saveSetting("marketos:pane-fourth-timeframe", timeframe);
+        setSyncedLogicalRange(null);
+      }
+
+      return next;
+    });
+  };
+
   const chooseAuxiliaryPaneSymbol = (
     pane: AuxiliaryPane,
     symbol: MarketSymbol,
@@ -1333,6 +1386,15 @@ export default function App() {
     saveSetting("marketos:chart-layout", mode);
   };
 
+  const chartRangesCanSync = (() => {
+    if (layoutMode === "single") return false;
+    if (secondaryTimeframe !== timeframe) return false;
+    if (layoutMode === "quad") {
+      return thirdTimeframe === timeframe && fourthTimeframe === timeframe;
+    }
+    return true;
+  })();
+
   const toggleChartSync = () => {
     setChartSyncEnabled((current) => {
       const next = !current;
@@ -1343,9 +1405,9 @@ export default function App() {
   };
 
   const handleSynchronizedRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode === "single") return;
+    if (!chartSyncEnabled || !chartRangesCanSync) return;
     setSyncedLogicalRange(range);
-  }, [chartSyncEnabled, layoutMode]);
+  }, [chartSyncEnabled, chartRangesCanSync]);
 
   const toggleMaximizedPane = (pane: Exclude<MaximizedChartPane, null>) => {
     setMaximizedChartPane((current) => current === pane ? null : pane);
