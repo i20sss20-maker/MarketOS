@@ -57,6 +57,9 @@ jobs:
       - name: Company Feed provider security/cache smoke
         run: pnpm smoke:feed-provider
 
+      - name: Web Push runtime/security smoke
+        run: pnpm smoke:web-push
+
       - name: Prepare Azure API bundle
         run: pnpm prepare:azure-api
 
