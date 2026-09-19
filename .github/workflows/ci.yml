@@ -75,8 +75,20 @@ jobs:
       - name: Server alerts end-to-end smoke test
         run: pnpm smoke:server-alerts
 
+      - name: Internal background alert sweep smoke test
+        run: pnpm smoke:background-alerts
+
+      - name: Alert worker pagination/security smoke test
+        run: pnpm smoke:alert-worker
+
       - name: Prepare Azure API bundle
         run: pnpm prepare:azure-api
+
+      - name: Prepare scheduled alert worker bundle
+        run: pnpm prepare:alert-worker
+
+      - name: Scheduled alert worker package smoke test
+        run: pnpm smoke:alert-worker-package
 
       - name: Azure preview packaging smoke test
         run: pnpm smoke:azure
@@ -86,6 +98,7 @@ jobs:
         run: |
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-preview.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-cosmos.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-alert-worker.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4
