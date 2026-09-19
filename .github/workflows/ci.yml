@@ -108,6 +108,9 @@ jobs:
       - name: Object Tree runtime smoke test
         run: pnpm smoke:object-tree
 
+      - name: Pane Linking workspace smoke test
+        run: pnpm smoke:pane-linking
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
