@@ -22,7 +22,7 @@ function publicCloudState(
     alertEvents: state.alertEvents ?? [],
     chartSettings: state.chartSettings,
     customIndicators: state.customIndicators,
-    chartTemplates: state.chartTemplates,
+    chartTemplates: state.chartTemplates ?? [],
     drawings: state.drawings,
     ui: state.ui,
   };
