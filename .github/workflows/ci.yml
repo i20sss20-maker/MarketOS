@@ -120,6 +120,9 @@ jobs:
       - name: Crosshair Linking runtime smoke test
         run: pnpm smoke:crosshair-linking
 
+      - name: Chart Tabs session smoke test
+        run: pnpm smoke:chart-tabs
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 

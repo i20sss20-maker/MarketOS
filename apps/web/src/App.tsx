@@ -27,6 +27,7 @@ import MarketChart, {
 } from "./components/MarketChart";
 import PaneVisualControls from "./components/PaneVisualControls";
 import PaneLinkControls from "./components/PaneLinkControls";
+import ChartTabsBar from "./components/ChartTabsBar";
 import CommercialTopBar from "./components/CommercialTopBar";
 import HomeDashboard from "./components/HomeDashboard";
 import ReplaySetupPanel from "./components/ReplaySetupPanel";
@@ -169,6 +170,21 @@ import {
 import type {
   LinkedCrosshairPoint,
 } from "./lib/crosshairLink";
+import {
+  MAX_CHART_TABS,
+  closeChartTab,
+  createChartTab,
+  loadActiveChartTabId,
+  loadChartTabs,
+  loadRecentSymbols,
+  recordRecentSymbol,
+  saveActiveChartTabId,
+  saveChartTabs,
+  saveRecentSymbols,
+  updateChartTab,
+  type ChartTab,
+  type RecentSymbol,
+} from "./lib/chartTabs";
 import {
   createWorkspace,
   loadWorkspaces,
@@ -418,6 +434,96 @@ export default function App() {
   const [chartView, setChartView] = useState<ChartView>(
     () => readSharedChartState()?.chartView ?? readSaved("marketos:chart-view", "candles"),
   );
+
+  const chartTabsBootstrapRef = useRef<{
+    tabs: ChartTab[];
+    activeId: string | null;
+    recent: RecentSymbol[];
+  } | null>(null);
+
+  if (!chartTabsBootstrapRef.current) {
+    let tabs = loadChartTabs({
+      symbol: active,
+      timeframe,
+      chartView,
+    });
+    let activeId =
+      loadActiveChartTabId(tabs);
+
+    const shared =
+      readSharedChartState();
+
+    if (shared) {
+      const matching =
+        tabs.find(
+          (tab) =>
+            tab.symbol.id ===
+              shared.symbol.id &&
+            tab.timeframe ===
+              shared.timeframe &&
+            tab.chartView ===
+              shared.chartView,
+        );
+
+      if (matching) {
+        activeId = matching.id;
+      } else {
+        const sharedTab =
+          createChartTab(
+            shared.symbol,
+            shared.timeframe,
+            shared.chartView,
+          );
+
+        tabs = [
+          sharedTab,
+          ...tabs,
+        ].slice(0, MAX_CHART_TABS);
+        activeId = sharedTab.id;
+      }
+    } else if (activeId) {
+      tabs = updateChartTab(
+        tabs,
+        activeId,
+        {
+          symbol: active,
+          timeframe,
+          chartView,
+        },
+      );
+    }
+
+    chartTabsBootstrapRef.current = {
+      tabs,
+      activeId,
+      recent:
+        loadRecentSymbols(),
+    };
+  }
+
+  const [chartTabs, setChartTabs] =
+    useState<ChartTab[]>(
+      () =>
+        chartTabsBootstrapRef
+          .current!.tabs,
+    );
+  const [
+    activeChartTabId,
+    setActiveChartTabId,
+  ] = useState<string | null>(
+    () =>
+      chartTabsBootstrapRef
+        .current!.activeId,
+  );
+  const [
+    recentSymbols,
+    setRecentSymbols,
+  ] = useState<RecentSymbol[]>(
+    () =>
+      chartTabsBootstrapRef
+        .current!.recent,
+  );
+
   const [chartSettings, setChartSettings] = useState<ChartSettings>(() => loadChartSettings());
   const [showChartSettings, setShowChartSettings] = useState(false);
   const [chartTemplates, setChartTemplates] = useState<SavedChartTemplate[]>(() => loadChartTemplates());
@@ -631,6 +737,33 @@ export default function App() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandSymbolResults, setCommandSymbolResults] = useState<MarketSymbol[]>([]);
   const [commandSymbolLoading, setCommandSymbolLoading] = useState(false);
+  const [commandNewTabMode, setCommandNewTabMode] = useState(false);
+
+  useEffect(() => {
+    saveChartTabs(chartTabs);
+  }, [chartTabs]);
+
+  useEffect(() => {
+    saveActiveChartTabId(
+      activeChartTabId,
+    );
+  }, [activeChartTabId]);
+
+  useEffect(() => {
+    saveRecentSymbols(
+      recentSymbols,
+    );
+  }, [recentSymbols]);
+
+  useEffect(() => {
+    setRecentSymbols(
+      (current) =>
+        recordRecentSymbol(
+          current,
+          active,
+        ),
+    );
+  }, [active.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -638,6 +771,7 @@ export default function App() {
       event.preventDefault();
       setCommandQuery("");
       setCommandSymbolResults([]);
+      setCommandNewTabMode(false);
       setShowCommandPalette((current) => !current);
     };
 
@@ -2222,6 +2356,257 @@ export default function App() {
     ]);
   };
 
+  const updateActiveChartTabSession = (
+    patch: Partial<
+      Pick<
+        ChartTab,
+        "symbol" | "timeframe" | "chartView"
+      >
+    >,
+  ) => {
+    if (!activeChartTabId) return;
+
+    setChartTabs(
+      (current) =>
+        updateChartTab(
+          current,
+          activeChartTabId,
+          patch,
+        ),
+    );
+  };
+
+  const applyChartTabSession = (
+    tab: ChartTab,
+  ) => {
+    const previousActive = active;
+
+    setActiveChartTabId(tab.id);
+    setActive(tab.symbol);
+    setTimeframe(tab.timeframe);
+    setChartView(
+      tab.chartView as ChartView,
+    );
+
+    saveSetting(
+      "marketos:symbol",
+      tab.symbol.id,
+    );
+    saveSetting(
+      "marketos:symbol-object",
+      JSON.stringify(tab.symbol),
+    );
+    saveSetting(
+      "marketos:timeframe",
+      tab.timeframe,
+    );
+    saveSetting(
+      "marketos:chart-view",
+      tab.chartView,
+    );
+
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
+    setReplayStartIndex(null);
+    setShowReplaySetup(false);
+    setLinkedCrosshair(null);
+    setSyncedLogicalRange(null);
+
+    if (
+      paneSymbolLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      setComparisonSymbol(tab.symbol);
+      savePaneSymbol(
+        "marketos:pane-secondary",
+        tab.symbol,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartSymbol(
+          tab.symbol,
+        );
+        savePaneSymbol(
+          "marketos:pane-third",
+          tab.symbol,
+        );
+        setFourthChartSymbol(
+          tab.symbol,
+        );
+        savePaneSymbol(
+          "marketos:pane-fourth",
+          tab.symbol,
+        );
+      }
+    } else {
+      if (
+        comparisonSymbol?.id ===
+        tab.symbol.id
+      ) {
+        setComparisonSymbol(
+          previousActive,
+        );
+        savePaneSymbol(
+          "marketos:pane-secondary",
+          previousActive,
+        );
+      }
+
+      if (
+        thirdChartSymbol?.id ===
+        tab.symbol.id
+      ) {
+        setThirdChartSymbol(
+          previousActive,
+        );
+        savePaneSymbol(
+          "marketos:pane-third",
+          previousActive,
+        );
+      }
+
+      if (
+        fourthChartSymbol?.id ===
+        tab.symbol.id
+      ) {
+        setFourthChartSymbol(
+          previousActive,
+        );
+        savePaneSymbol(
+          "marketos:pane-fourth",
+          previousActive,
+        );
+      }
+    }
+
+    if (
+      paneTimeframeLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      setComparisonTimeframe(
+        tab.timeframe,
+      );
+      saveSetting(
+        "marketos:pane-secondary-timeframe",
+        tab.timeframe,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartTimeframe(
+          tab.timeframe,
+        );
+        saveSetting(
+          "marketos:pane-third-timeframe",
+          tab.timeframe,
+        );
+        setFourthChartTimeframe(
+          tab.timeframe,
+        );
+        saveSetting(
+          "marketos:pane-fourth-timeframe",
+          tab.timeframe,
+        );
+      }
+    }
+
+    setDrawingHistory(
+      createDrawingHistory(
+        loadDrawings(
+          tab.symbol.id,
+        ),
+      ),
+    );
+    setDrawingTool("cursor");
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
+    setHoverCandle(null);
+    setQuery("");
+    setAiResult(null);
+    setMultiTimeframeResult(null);
+    setMultiTimeframeError(null);
+  };
+
+  const switchChartTab = (
+    id: string,
+  ) => {
+    const tab =
+      chartTabs.find(
+        (item) => item.id === id,
+      );
+
+    if (!tab) return;
+
+    applyChartTabSession(tab);
+  };
+
+  const openChartTabForSymbol = (
+    symbol: MarketSymbol,
+  ) => {
+    if (
+      chartTabs.length >=
+      MAX_CHART_TABS
+    ) {
+      return;
+    }
+
+    const tab =
+      createChartTab(
+        symbol,
+        timeframe,
+        chartView,
+      );
+
+    setChartTabs(
+      (current) => [
+        ...current,
+        tab,
+      ].slice(
+        0,
+        MAX_CHART_TABS,
+      ),
+    );
+
+    applyChartTabSession(tab);
+  };
+
+  const closeChartTabSession = (
+    id: string,
+  ) => {
+    if (chartTabs.length <= 1) {
+      return;
+    }
+
+    const result =
+      closeChartTab(
+        chartTabs,
+        id,
+      );
+
+    setChartTabs(result.tabs);
+
+    if (
+      id !== activeChartTabId
+    ) {
+      return;
+    }
+
+    const nextTab =
+      result.tabs.find(
+        (tab) =>
+          tab.id ===
+          result.nextActiveId,
+      ) ??
+      result.tabs[0];
+
+    if (nextTab) {
+      applyChartTabSession(
+        nextTab,
+      );
+    }
+  };
+
   const chooseSymbol = (symbol: MarketSymbol) => {
     const previousActive = active;
     setActive(symbol);
@@ -2267,6 +2652,10 @@ export default function App() {
       }
     }
 
+    updateActiveChartTabSession({
+      symbol,
+    });
+
     addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
@@ -2286,6 +2675,9 @@ export default function App() {
     setReplayPlaying(false);
     setReplayIndex(null);
     saveSetting("marketos:timeframe", value);
+    updateActiveChartTabSession({
+      timeframe: value,
+    });
     setLinkedCrosshair(null);
 
     if (
@@ -2321,6 +2713,9 @@ export default function App() {
   const chooseChartView = (value: ChartView) => {
     setChartView(value);
     saveSetting("marketos:chart-view", value);
+    updateActiveChartTabSession({
+      chartView: value,
+    });
   };
 
   const updateChartSettings = useCallback((next: ChartSettings) => {
@@ -2402,6 +2797,10 @@ export default function App() {
       "marketos:chart-view",
       template.chartView,
     );
+    updateActiveChartTabSession({
+      chartView:
+        template.chartView,
+    });
 
     setChartSettings(
       template.chartSettings,
@@ -3524,6 +3923,13 @@ export default function App() {
       ...merged.values(),
     ]);
 
+    updateActiveChartTabSession({
+      symbol: primaryPane.symbol,
+      timeframe: primaryPane.timeframe,
+      chartView:
+        restoredPrimaryVisual.chartView,
+    });
+
     saveSetting("marketos:symbol", primaryPane.symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
     saveSetting("marketos:timeframe", primaryPane.timeframe);
@@ -3896,6 +4302,9 @@ export default function App() {
         "marketos:chart-view",
         next.chartView,
       );
+      updateActiveChartTabSession({
+        chartView: next.chartView,
+      });
       setIndicators(next.indicators);
       saveIndicatorSelection(
         next.indicators,
@@ -4034,6 +4443,34 @@ export default function App() {
       priority: 110,
       onSelect: openHomeDashboard,
     },
+    ...chartTabs.map(
+      (tab, index) => ({
+        id: `chart-tab:${tab.id}`,
+        group: "Chart Tabs",
+        label: tab.symbol.ticker,
+        description:
+          `${tab.timeframe.toUpperCase()} · ${tab.chartView} · ${tab.symbol.exchange}`,
+        keywords: [
+          "tab",
+          "chart tab",
+          "session",
+          "تبويب",
+          "جلسة",
+          tab.symbol.ticker,
+          tab.symbol.name,
+        ],
+        priority:
+          tab.id === activeChartTabId
+            ? 98
+            : 80 - index,
+        badge:
+          tab.id === activeChartTabId
+            ? "الحالي"
+            : undefined,
+        onSelect: () =>
+          switchChartTab(tab.id),
+      }),
+    ),
     ...watchlistCollections.map(
       (collection, index) => ({
         id: `watchlist:${collection.id}`,
@@ -4076,7 +4513,17 @@ export default function App() {
       ],
       priority: symbol.id === active.id ? 100 : 88 - Math.min(index, 20),
       badge: symbol.id === active.id ? "الحالي" : undefined,
-      onSelect: () => chooseSymbol(symbol),
+      onSelect: () => {
+        if (commandNewTabMode) {
+          openChartTabForSymbol(
+            symbol,
+          );
+          setCommandNewTabMode(false);
+          return;
+        }
+
+        chooseSymbol(symbol);
+      },
     })),
     ...timeframes.map((item) => ({
       id: `timeframe:${item}`,
@@ -4731,6 +5178,7 @@ export default function App() {
         onCommandPalette={() => {
           setCommandQuery("");
           setCommandSymbolResults([]);
+          setCommandNewTabMode(false);
           setShowCommandPalette(true);
         }}
         onToggleAi={toggleAiPanel}
@@ -4903,6 +5351,7 @@ export default function App() {
           setShowHomeDashboard(false);
           setCommandQuery("");
           setCommandSymbolResults([]);
+          setCommandNewTabMode(false);
           setShowCommandPalette(true);
         }}
       />
@@ -4912,7 +5361,10 @@ export default function App() {
         items={commandPaletteItems}
         loading={commandSymbolLoading}
         onQueryChange={setCommandQuery}
-        onClose={() => setShowCommandPalette(false)}
+        onClose={() => {
+          setShowCommandPalette(false);
+          setCommandNewTabMode(false);
+        }}
       />
 
       <AccountPanel
@@ -5531,6 +5983,22 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <ChartTabsBar
+            tabs={chartTabs}
+            activeTabId={activeChartTabId}
+            recentSymbols={recentSymbols}
+            maxTabs={MAX_CHART_TABS}
+            onSelect={switchChartTab}
+            onCloseTab={closeChartTabSession}
+            onAddSymbol={openChartTabForSymbol}
+            onOpenSearch={() => {
+              setCommandQuery("");
+              setCommandSymbolResults([]);
+              setCommandNewTabMode(true);
+              setShowCommandPalette(true);
+            }}
+          />
 
           <div className="chart-toolbar">
             <div className="timeframes">
