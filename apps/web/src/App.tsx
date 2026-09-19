@@ -1940,7 +1940,7 @@ export default function App() {
       </div>
       <MarketChart
         candles={displayComparisonCandles}
-        timeframe={timeframe}
+        timeframe={comparisonTimeframe}
         chartView={chartView}
         indicators={indicators}
         customIndicators={customIndicators}
@@ -1973,7 +1973,7 @@ export default function App() {
       </div>
       <MarketChart
         candles={displayThirdChartCandles}
-        timeframe={timeframe}
+        timeframe={thirdChartTimeframe}
         chartView={chartView}
         indicators={indicators}
         customIndicators={customIndicators}
@@ -2006,7 +2006,7 @@ export default function App() {
       </div>
       <MarketChart
         candles={displayFourthChartCandles}
-        timeframe={timeframe}
+        timeframe={fourthChartTimeframe}
         chartView={chartView}
         indicators={indicators}
         customIndicators={customIndicators}
