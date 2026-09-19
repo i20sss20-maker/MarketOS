@@ -5,6 +5,7 @@ type Props = {
   connected: boolean;
   sessionLabel: string;
   alertCount: number;
+  notificationCount: number;
   eventCount: number;
   companyCount: number;
   watchlistOpen: boolean;
@@ -13,6 +14,7 @@ type Props = {
   onToggleAi: () => void;
   onMarket: () => void;
   onAlerts: () => void;
+  onNotifications: () => void;
   onCorrelation: () => void;
   onEvents: () => void;
   onCompanyFeed: () => void;
@@ -28,6 +30,7 @@ type IconName =
   | "sparkles"
   | "market"
   | "alert"
+  | "rules"
   | "more"
   | "calendar"
   | "company"
@@ -63,6 +66,9 @@ function Icon({ name }: { name: IconName }) {
   if (name === "alert") {
     return <svg {...common}><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg>;
   }
+  if (name === "rules") {
+    return <svg {...common}><path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h7M15 17h5" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="13" cy="17" r="2" /></svg>;
+  }
   if (name === "calendar") {
     return <svg {...common}><path d="M5 4h14v16H5z" /><path d="M8 2v4M16 2v4M5 9h14" /></svg>;
   }
@@ -86,6 +92,7 @@ export default function CommercialTopBar({
   connected,
   sessionLabel,
   alertCount,
+  notificationCount,
   eventCount,
   companyCount,
   watchlistOpen,
@@ -94,6 +101,7 @@ export default function CommercialTopBar({
   onToggleAi,
   onMarket,
   onAlerts,
+  onNotifications,
   onCorrelation,
   onEvents,
   onCompanyFeed,
@@ -135,11 +143,21 @@ export default function CommercialTopBar({
         <button
           className={alertCount > 0 ? "commercial-icon-button active has-badge" : "commercial-icon-button"}
           onClick={onAlerts}
-          title="التنبيهات"
+          title="قواعد التنبيه"
         >
-          <Icon name="alert" />
+          <Icon name="rules" />
           <span>التنبيهات</span>
           {alertCount > 0 ? <b>{alertCount}</b> : null}
+        </button>
+
+        <button
+          className={notificationCount > 0 ? "commercial-icon-button has-badge notification-button active" : "commercial-icon-button notification-button"}
+          onClick={onNotifications}
+          title="الإشعارات"
+        >
+          <Icon name="alert" />
+          <span>الإشعارات</span>
+          {notificationCount > 0 ? <b>{notificationCount}</b> : null}
         </button>
 
         <button
