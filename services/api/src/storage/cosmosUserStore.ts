@@ -20,6 +20,11 @@ function normalizeStored(
 ): StoredUserState {
   return {
     ...value,
+    clientUpdatedAt:
+      typeof value.clientUpdatedAt === "number" &&
+      Number.isFinite(value.clientUpdatedAt)
+        ? Math.floor(value.clientUpdatedAt)
+        : value.updatedAt,
     clientRevision:
       typeof value.clientRevision === "number" &&
       Number.isFinite(value.clientRevision) &&
@@ -114,6 +119,7 @@ export class CosmosUserStateStore implements UserStateStore {
       id: "state",
       userId,
       updatedAt: now,
+      clientUpdatedAt: now,
       clientRevision: (existing?.clientRevision ?? 0) + 1,
       payload: {
         ...state,
@@ -189,6 +195,7 @@ export class CosmosUserStateStore implements UserStateStore {
         id: existing.id,
         userId: existing.userId,
         updatedAt: now,
+        clientUpdatedAt: existing.clientUpdatedAt,
         clientRevision: existing.clientRevision,
         payload: {
           ...existing.payload,
