@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   Candle,
+  ChartAnalysisResponse,
   MarketDataStatus,
   MarketSymbol,
   Quote,
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import { analyzeChart } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import type { ChartDrawing, DrawingTool } from "./lib/drawings";
 import { loadDrawings, saveDrawings } from "./lib/drawings";
@@ -95,7 +97,9 @@ export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
   const [chartView, setChartView] = useState<ChartView>(() => readSaved("marketos:chart-view", "candles"));
   const [query, setQuery] = useState("");
-  const [aiResult, setAiResult] = useState<string | null>(null);
+  const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت");
 
   const [indicators, setIndicators] = useState<IndicatorSelection>(() => loadIndicatorSelection());
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
@@ -263,27 +267,67 @@ export default function App() {
     setDrawingTool("cursor");
   };
 
-  const runChartReading = () => {
-    if (candles.length < 20) {
-      setAiResult("لا توجد شموع كافية لقراءة الشارت حاليًا.");
+  const runChartReading = async (promptOverride?: string) => {
+    if (candles.length < 20 || aiLoading) {
+      if (candles.length < 20) {
+        setAiResult({
+          engine: "browser-fallback",
+          summary: "لا توجد شموع كافية لقراءة الشارت حاليًا.",
+          observations: [],
+        });
+      }
       return;
     }
 
-    const recent = candles.slice(-20);
-    const first = recent[0];
-    const last = recent[recent.length - 1];
-    const high = Math.max(...recent.map((candle) => candle.high));
-    const low = Math.min(...recent.map((candle) => candle.low));
-    const sma20 = recent.reduce((sum, candle) => sum + candle.close, 0) / recent.length;
-    const move = ((last.close - first.open) / first.open) * 100;
-    const relativeToSma = last.close >= sma20 ? "فوق" : "تحت";
-    const indicatorText = activeIndicatorItems.length
-      ? activeIndicatorItems.map((item) => item.name).join("، ")
-      : "بدون مؤشرات إضافية";
+    const requestedPrompt = promptOverride ?? aiPrompt;
+    setAiLoading(true);
+    setAiResult(null);
 
-    setAiResult(
-      `قراءة وصفية لـ ${active.ticker} على ${timeframe.toUpperCase()}: آخر سعر ${formatPrice(last.close)}، حركة آخر 20 شمعة ${formatPercent(move)}، والنطاق ${formatPrice(low)} – ${formatPrice(high)}. السعر حاليًا ${relativeToSma} متوسط 20 شمعة. المؤشرات النشطة: ${indicatorText}. الرسومات المحفوظة: ${drawings.length}.`,
-    );
+    try {
+      const analysis = await analyzeChart({
+        symbol: active,
+        timeframe,
+        visibleCandles: candles.slice(-300),
+        quote,
+        indicators: activeIndicatorItems.map((item) => item.id),
+        userDrawings: drawings.map((drawing) =>
+          drawing.type === "horizontal"
+            ? { type: "horizontal", price: drawing.price }
+            : { type: "trend", points: drawing.points },
+        ),
+        prompt: requestedPrompt,
+      });
+
+      setAiResult({
+        engine: analysis.engine,
+        summary: analysis.summary,
+        observations: analysis.observations,
+      });
+    } catch {
+      const recent = candles.slice(-20);
+      const first = recent[0];
+      const last = recent[recent.length - 1];
+      const high = Math.max(...recent.map((candle) => candle.high));
+      const low = Math.min(...recent.map((candle) => candle.low));
+      const sma20 = recent.reduce((sum, candle) => sum + candle.close, 0) / recent.length;
+      const move = ((last.close - first.open) / first.open) * 100;
+      const relativeToSma = last.close >= sma20 ? "فوق" : "تحت";
+      const indicatorText = activeIndicatorItems.length
+        ? activeIndicatorItems.map((item) => item.name).join("، ")
+        : "بدون مؤشرات إضافية";
+
+      setAiResult({
+        engine: "browser-fallback",
+        summary: `${active.ticker} على ${timeframe.toUpperCase()}: قراءة محلية لأن API غير متاح حاليًا.`,
+        observations: [
+          `آخر سعر ${formatPrice(last.close)}، وحركة آخر 20 شمعة ${formatPercent(move)}.`,
+          `النطاق الأخير ${formatPrice(low)} – ${formatPrice(high)}، والسعر ${relativeToSma} متوسط 20 شمعة.`,
+          `المؤشرات النشطة: ${indicatorText}. الرسومات المحفوظة: ${drawings.length}.`,
+        ],
+      });
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   const drawingHint =
@@ -476,17 +520,35 @@ export default function App() {
           </div>
 
           <div className="quick-prompts">
-            <button onClick={runChartReading}>اقرأ الاتجاه</button>
-            <button onClick={runChartReading}>حدد النطاق</button>
-            <button onClick={runChartReading}>اشرح الحركة</button>
+            <button onClick={() => runChartReading("اقرأ الاتجاه الحالي بشكل وصفي")}>اقرأ الاتجاه</button>
+            <button onClick={() => runChartReading("حدد نطاق آخر 20 شمعة والمستويات المرسومة")}>حدد النطاق</button>
+            <button onClick={() => runChartReading("اشرح الحركة والحجم والمؤشرات النشطة")}>اشرح الحركة</button>
           </div>
 
           <div className="prompt-box">
-            <textarea defaultValue={"اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت"} />
-            <button onClick={runChartReading}>قراءة الشارت <span>↗</span></button>
+            <textarea
+              value={aiPrompt}
+              onChange={(event) => setAiPrompt(event.target.value)}
+              maxLength={1200}
+            />
+            <button onClick={() => runChartReading()} disabled={aiLoading}>
+              {aiLoading ? "جاري قراءة السياق…" : "قراءة الشارت"} <span>↗</span>
+            </button>
           </div>
 
-          {aiResult ? <div className="ai-result">{aiResult}</div> : null}
+          {aiResult ? (
+            <div className="ai-result">
+              <strong>{aiResult.summary}</strong>
+              {aiResult.observations.length > 0 ? (
+                <ul>
+                  {aiResult.observations.map((observation, index) => (
+                    <li key={`${index}-${observation.slice(0, 12)}`}>{observation}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <small>Engine: {aiResult.engine}</small>
+            </div>
+          ) : null}
 
           <div className="context-grid">
             <div><span>الرمز</span><strong>{active.ticker}</strong></div>

@@ -73,10 +73,49 @@ export interface MarketDataProvider {
   getStatus(): MarketDataStatus;
 }
 
+export type ChartDrawingContext =
+  | {
+      type: "horizontal";
+      price: number;
+    }
+  | {
+      type: "trend";
+      points: [
+        { time: number; price: number },
+        { time: number; price: number },
+      ];
+    };
+
 export type ChartContext = {
   symbol: MarketSymbol;
   timeframe: Timeframe;
   visibleCandles: Candle[];
+  quote?: Quote | null;
   indicators: string[];
-  userDrawings: unknown[];
+  userDrawings: ChartDrawingContext[];
+  prompt?: string;
+};
+
+export type ChartAnalysisMetrics = {
+  lastPrice: number;
+  change20: number;
+  rangeLow20: number;
+  rangeHigh20: number;
+  sma20: number;
+  distanceFromSma20: number;
+  averageVolume20?: number;
+  latestVolumeRatio?: number;
+  realizedRangePercent20: number;
+};
+
+export type ChartAnalysisResponse = {
+  engine: string;
+  generatedAt: number;
+  symbol: string;
+  timeframe: Timeframe;
+  summary: string;
+  observations: string[];
+  metrics: ChartAnalysisMetrics;
+  activeIndicators: string[];
+  drawingCount: number;
 };

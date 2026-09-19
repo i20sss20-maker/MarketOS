@@ -843,3 +843,35 @@ input:focus-visible {
   color: #a7b3c8;
   text-decoration: underline;
 }
+
+
+.ai-result strong {
+  display: block;
+  color: #b8c5d7;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.ai-result ul {
+  margin: 8px 0 0;
+  padding: 0 14px 0 0;
+}
+
+.ai-result li {
+  margin: 4px 0;
+  color: #8393a8;
+}
+
+.ai-result small {
+  display: block;
+  margin-top: 9px;
+  color: #526177;
+  direction: ltr;
+  text-align: left;
+  font-size: 7px;
+}
+
+.prompt-box button:disabled {
+  cursor: progress;
+  opacity: .65;
+}
