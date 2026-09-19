@@ -25,7 +25,8 @@
     "smoke:correlation": "node scripts/correlation-smoke.mjs",
     "smoke:cloud-state": "node scripts/cloud-state-smoke.mjs",
     "smoke:server-alerts": "node scripts/server-alerts-smoke.mjs",
-    "dev:worker": "pnpm --filter @marketos/alert-worker start"
+    "dev:worker": "pnpm --filter @marketos/alert-worker start",
+    "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
