@@ -63,7 +63,13 @@ function PlanCard({
 
       <div className="plan-limits">
         <div>
-          <span>Watchlist</span>
+          <span>Lists</span>
+          <b>
+            {definition.limits.watchlists}
+          </b>
+        </div>
+        <div>
+          <span>Symbols</span>
           <b>
             {definition.limits.watchlistItems}
           </b>
