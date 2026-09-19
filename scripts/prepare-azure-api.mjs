@@ -19,6 +19,7 @@ const packageJson = {
   },
   dependencies: {
     "@azure/functions": "^4.0.0",
+    "@azure/cosmos": "^4.4.1",
   },
 };
 
