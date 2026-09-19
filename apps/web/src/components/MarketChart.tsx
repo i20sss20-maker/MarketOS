@@ -3,6 +3,7 @@ import {
   AreaSeries,
   CandlestickSeries,
   ColorType,
+  CrosshairMode,
   HistogramSeries,
   LineSeries,
   LineStyle,
@@ -21,6 +22,7 @@ import {
   ZonePrimitive,
 } from "../lib/drawingPrimitives";
 import type { CustomIndicatorDefinition } from "../lib/customIndicators";
+import type { ChartSettings } from "../lib/chartSettings";
 import type { IndicatorSelection } from "../lib/indicators";
 import {
   calculateAtr,
@@ -51,6 +53,8 @@ type Props = {
   onTextAnchorRequested?: (point: DrawingPoint) => void;
   onCrosshairCandle?: (candle: Candle | null) => void;
   comparison?: ComparisonData | null;
+  settings: ChartSettings;
+  resetViewKey?: number;
 };
 
 function lineData(points: Array<{ time: number; value: number }>) {
@@ -58,6 +62,23 @@ function lineData(points: Array<{ time: number; value: number }>) {
     time: point.time as UTCTimestamp,
     value: point.value,
   }));
+}
+
+function priceScaleMode(
+  setting: ChartSettings["priceScaleMode"],
+) {
+  if (setting === "logarithmic") return PriceScaleMode.Logarithmic;
+  if (setting === "percentage") return PriceScaleMode.Percentage;
+  if (setting === "indexed") return PriceScaleMode.IndexedTo100;
+  return PriceScaleMode.Normal;
+}
+
+function crosshairMode(
+  setting: ChartSettings["crosshairMode"],
+) {
+  if (setting === "normal") return CrosshairMode.Normal;
+  if (setting === "hidden") return CrosshairMode.Hidden;
+  return CrosshairMode.Magnet;
 }
 
 export default function MarketChart({
@@ -72,6 +93,8 @@ export default function MarketChart({
   onTextAnchorRequested,
   onCrosshairCandle,
   comparison,
+  settings,
+  resetViewKey = 0,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -88,10 +111,19 @@ export default function MarketChart({
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "rgba(148,163,184,0.055)" },
-        horzLines: { color: "rgba(148,163,184,0.055)" },
+        vertLines: {
+          color: "rgba(148,163,184,0.055)",
+          visible: settings.showGrid,
+        },
+        horzLines: {
+          color: "rgba(148,163,184,0.055)",
+          visible: settings.showGrid,
+        },
       },
       rightPriceScale: {
+        visible: settings.showPriceScale,
+        mode: priceScaleMode(settings.priceScaleMode),
+        invertScale: settings.invertScale,
         borderColor: "rgba(148,163,184,0.14)",
         scaleMargins: {
           top: 0.06,
@@ -111,10 +143,11 @@ export default function MarketChart({
         borderColor: "rgba(148,163,184,0.14)",
         timeVisible: timeframe !== "1d" && timeframe !== "1w" && timeframe !== "1M",
         secondsVisible: false,
-        rightOffset: 5,
-        barSpacing: 7,
+        rightOffset: settings.rightOffset,
+        barSpacing: settings.barSpacing,
       },
       crosshair: {
+        mode: crosshairMode(settings.crosshairMode),
         vertLine: {
           color: "rgba(165,180,252,.35)",
           labelBackgroundColor: "#312e81",
@@ -318,7 +351,7 @@ export default function MarketChart({
 
     let nextPaneIndex = 1;
 
-    if (volumeData.length > 0) {
+    if (settings.showVolume && volumeData.length > 0) {
       const volumePaneIndex = nextPaneIndex++;
       const volumeSeries = chart.addSeries(
         HistogramSeries,
@@ -656,6 +689,8 @@ export default function MarketChart({
     onTextAnchorRequested,
     onCrosshairCandle,
     comparison,
+    settings,
+    resetViewKey,
   ]);
 
   return (
