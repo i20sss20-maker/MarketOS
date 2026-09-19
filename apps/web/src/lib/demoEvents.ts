@@ -36,7 +36,7 @@ export function createBrowserDemoEvents(
       epsEstimate: estimate,
       importance: index < 3 ? "high" : "medium",
       source: "browser-demo-events",
-    };
+    } satisfies MarketEvent;
   }).sort((a, b) => a.date.localeCompare(b.date));
 }
 
