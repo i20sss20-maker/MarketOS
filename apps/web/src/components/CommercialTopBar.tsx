@@ -13,6 +13,7 @@ type Props = {
   onToggleAi: () => void;
   onMarket: () => void;
   onAlerts: () => void;
+  onOverview: () => void;
   onCorrelation: () => void;
   onEvents: () => void;
   onCompanyFeed: () => void;
@@ -31,6 +32,7 @@ type IconName =
   | "more"
   | "calendar"
   | "company"
+  | "overview"
   | "correlation"
   | "strategy"
   | "system";
@@ -69,6 +71,9 @@ function Icon({ name }: { name: IconName }) {
   if (name === "company") {
     return <svg {...common}><path d="M4 21V7l8-4 8 4v14" /><path d="M8 10h2M14 10h2M8 14h2M14 14h2M10 21v-3h4v3" /></svg>;
   }
+  if (name === "overview") {
+    return <svg {...common}><path d="M4 19V5h16v14H4Z" /><path d="M8 15v-3M12 15V8M16 15v-5" /></svg>;
+  }
   if (name === "correlation") {
     return <svg {...common}><path d="M4 17 9 12l4 4 7-9" /><path d="M16 7h4v4" /></svg>;
   }
@@ -94,6 +99,7 @@ export default function CommercialTopBar({
   onToggleAi,
   onMarket,
   onAlerts,
+  onOverview,
   onCorrelation,
   onEvents,
   onCompanyFeed,
@@ -167,6 +173,10 @@ export default function CommercialTopBar({
 
           {moreOpen ? (
             <div className="commercial-more-menu">
+              <button onClick={() => { onOverview(); setMoreOpen(false); }}>
+                <Icon name="overview" />
+                <span>تفاصيل الأصل</span>
+              </button>
               <button onClick={() => { onCorrelation(); setMoreOpen(false); }}>
                 <Icon name="correlation" />
                 <span>مصفوفة الارتباط</span>

@@ -17,7 +17,8 @@
     "@marketos/formula-core": "workspace:*",
     "@marketos/screener-core": "workspace:*",
     "@marketos/alert-core": "workspace:*",
-    "@marketos/correlation-core": "workspace:*"
+    "@marketos/correlation-core": "workspace:*",
+    "@marketos/market-stats-core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",
