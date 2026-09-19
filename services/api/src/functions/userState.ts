@@ -34,6 +34,7 @@ export async function userState(
         updatedAt: stored?.clientUpdatedAt ?? null,
         serverUpdatedAt: stored?.updatedAt ?? null,
         clientRevision: stored?.clientRevision ?? null,
+        serverRevision: stored?.serverRevision ?? null,
       });
     }
 
@@ -41,6 +42,7 @@ export async function userState(
       const payload = await request.json() as {
         state?: unknown;
         expectedClientRevision?: unknown;
+        expectedServerRevision?: unknown;
       };
 
       const state = sanitizeUserCloudState(
@@ -55,11 +57,20 @@ export async function userState(
             ? Math.floor(payload.expectedClientRevision)
             : undefined;
 
+      const expectedServerRevision =
+        payload?.expectedServerRevision === null
+          ? null
+          : typeof payload?.expectedServerRevision === "number" &&
+              Number.isFinite(payload.expectedServerRevision)
+            ? Math.floor(payload.expectedServerRevision)
+            : undefined;
+
       const stored = await userStateStore.put(
         user.userId,
         state,
         {
           expectedClientRevision,
+          expectedServerRevision,
         },
       );
 
@@ -69,6 +80,7 @@ export async function userState(
         updatedAt: stored.clientUpdatedAt,
         serverUpdatedAt: stored.updatedAt,
         clientRevision: stored.clientRevision,
+        serverRevision: stored.serverRevision,
         state: stored.payload,
       });
     }
@@ -95,6 +107,8 @@ export async function userState(
         conflict: true,
         currentClientRevision:
           error.currentClientRevision,
+        currentServerRevision:
+          error.currentServerRevision,
       });
     }
 
