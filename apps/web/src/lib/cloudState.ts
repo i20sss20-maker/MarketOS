@@ -23,6 +23,7 @@ export type CloudStateResponse = {
   state: CloudStatePayload | null;
   updatedAt: number | null;
   clientRevision: number | null;
+  serverRevision: number | null;
   user?: {
     userId: string;
     identityProvider: string;
@@ -232,10 +233,12 @@ export function getCloudState() {
 export function putCloudState(
   state: CloudStatePayload,
   expectedClientRevision: number | null,
+  expectedServerRevision: number | null,
 ) {
   return cloudRequest<CloudStateResponse>("PUT", {
     state,
     expectedClientRevision,
+    expectedServerRevision,
   });
 }
 
