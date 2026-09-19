@@ -500,7 +500,13 @@ function resolveAgainst(
     record.symbolId !==
       result.symbol.id ||
     record.dueAt >
-      result.generatedAt
+      result.generatedAt ||
+    (
+      record.dataMode ===
+        "provider" &&
+      result.dataMode !==
+        "provider"
+    )
   ) {
     return record;
   }
