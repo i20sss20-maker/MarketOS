@@ -25,6 +25,7 @@ import MarketChart, {
   type ChartSnapshotCapture,
   type ChartView,
 } from "./components/MarketChart";
+import PaneVisualControls from "./components/PaneVisualControls";
 import CommercialTopBar from "./components/CommercialTopBar";
 import HomeDashboard from "./components/HomeDashboard";
 import CommandPalette, { type CommandPaletteItem } from "./components/CommandPalette";
@@ -143,6 +144,11 @@ import {
   saveIndicatorSelection,
 } from "./lib/indicators";
 import {
+  loadPaneVisualState,
+  savePaneVisualState,
+  type PaneVisualState,
+} from "./lib/paneVisualState";
+import {
   createWorkspace,
   loadWorkspaces,
   saveWatchlist,
@@ -219,6 +225,21 @@ function shouldAutoOpenHome() {
     "marketos:home-auto",
     "on",
   ) === "on";
+}
+
+function initialPaneVisualFallback(): PaneVisualState {
+  return {
+    chartView:
+      readSharedChartState()?.chartView ??
+      readSaved<ChartView>(
+        "marketos:chart-view",
+        "candles",
+      ),
+    indicators:
+      loadIndicatorSelection(),
+    chartSettings:
+      loadChartSettings(),
+  };
 }
 
 function downloadBrowserBlob(
@@ -501,6 +522,15 @@ export default function App() {
   const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
   const [fourthChartTimeframe, setFourthChartTimeframe] = useState<Timeframe>(
     () => readSaved<Timeframe>("marketos:pane-fourth-timeframe", timeframe),
+  );
+  const [secondaryVisual, setSecondaryVisual] = useState<PaneVisualState>(
+    () => loadPaneVisualState("secondary", initialPaneVisualFallback()),
+  );
+  const [thirdVisual, setThirdVisual] = useState<PaneVisualState>(
+    () => loadPaneVisualState("third", initialPaneVisualFallback()),
+  );
+  const [fourthVisual, setFourthVisual] = useState<PaneVisualState>(
+    () => loadPaneVisualState("fourth", initialPaneVisualFallback()),
   );
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
@@ -2865,7 +2895,7 @@ export default function App() {
       chartView,
       indicators,
       drawings,
-      version: 2,
+      version: 3,
       layoutMode,
       chartSyncEnabled,
       chartSettings,
@@ -2874,23 +2904,27 @@ export default function App() {
         primary: {
           symbol: active,
           timeframe,
+          visual: primaryPaneVisual,
         },
         secondary: comparisonSymbol
           ? {
               symbol: comparisonSymbol,
               timeframe: comparisonTimeframe,
+              visual: secondaryVisual,
             }
           : null,
         third: thirdChartSymbol
           ? {
               symbol: thirdChartSymbol,
               timeframe: thirdChartTimeframe,
+              visual: thirdVisual,
             }
           : null,
         fourth: fourthChartSymbol
           ? {
               symbol: fourthChartSymbol,
               timeframe: fourthChartTimeframe,
+              visual: fourthVisual,
             }
           : null,
       },
@@ -2912,6 +2946,24 @@ export default function App() {
     const secondaryPane = workspace.panes?.secondary ?? null;
     const thirdPane = workspace.panes?.third ?? null;
     const fourthPane = workspace.panes?.fourth ?? null;
+
+    const restoredPrimaryVisual =
+      primaryPane.visual ?? {
+        chartView: workspace.chartView,
+        indicators: workspace.indicators,
+        chartSettings:
+          workspace.chartSettings ??
+          chartSettings,
+      };
+    const restoredSecondaryVisual =
+      secondaryPane?.visual ??
+      restoredPrimaryVisual;
+    const restoredThirdVisual =
+      thirdPane?.visual ??
+      restoredPrimaryVisual;
+    const restoredFourthVisual =
+      fourthPane?.visual ??
+      restoredPrimaryVisual;
 
     const requestedLayout = workspace.layoutMode ?? "single";
     const requestedRestoredLayout: ChartLayoutMode =
@@ -2954,14 +3006,44 @@ export default function App() {
     setSyncedLogicalRange(null);
     setMaximizedChartPane(null);
 
-    setChartView(workspace.chartView);
-    setIndicators(workspace.indicators);
+    setChartView(
+      restoredPrimaryVisual.chartView,
+    );
+    setIndicators(
+      restoredPrimaryVisual.indicators,
+    );
+    setChartSettings(
+      restoredPrimaryVisual.chartSettings,
+    );
+    setSecondaryVisual(
+      restoredSecondaryVisual,
+    );
+    setThirdVisual(
+      restoredThirdVisual,
+    );
+    setFourthVisual(
+      restoredFourthVisual,
+    );
+    setChartResetKey(
+      (current) => current + 1,
+    );
     setDrawingHistory(createDrawingHistory(workspace.drawings));
 
-    if (workspace.chartSettings) {
-      setChartSettings(workspace.chartSettings);
-      saveChartSettings(workspace.chartSettings);
-    }
+    saveChartSettings(
+      restoredPrimaryVisual.chartSettings,
+    );
+    savePaneVisualState(
+      "secondary",
+      restoredSecondaryVisual,
+    );
+    savePaneVisualState(
+      "third",
+      restoredThirdVisual,
+    );
+    savePaneVisualState(
+      "fourth",
+      restoredFourthVisual,
+    );
 
     if (workspace.customIndicators) {
       setCustomIndicators(workspace.customIndicators);
@@ -3025,7 +3107,10 @@ export default function App() {
     saveSetting("marketos:symbol", primaryPane.symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
     saveSetting("marketos:timeframe", primaryPane.timeframe);
-    saveSetting("marketos:chart-view", workspace.chartView);
+    saveSetting(
+      "marketos:chart-view",
+      restoredPrimaryVisual.chartView,
+    );
     saveSetting("marketos:chart-layout", restoredLayout);
     saveSetting("marketos:chart-sync", (workspace.chartSyncEnabled ?? true) ? "on" : "off");
 
@@ -3046,7 +3131,9 @@ export default function App() {
       fourthPane?.timeframe ?? primaryPane.timeframe,
     );
 
-    saveIndicatorSelection(workspace.indicators);
+    saveIndicatorSelection(
+      restoredPrimaryVisual.indicators,
+    );
     saveDrawings(primaryPane.symbol.id, workspace.drawings);
     setShowWorkspaceMenu(false);
   };
@@ -3328,6 +3415,78 @@ export default function App() {
 
     setFourthChartTimeframe(nextTimeframe);
     saveSetting("marketos:pane-fourth-timeframe", nextTimeframe);
+  };
+
+  const primaryPaneVisual: PaneVisualState = {
+    chartView,
+    indicators,
+    chartSettings,
+  };
+
+  const paneVisual = (
+    pane: ChartPaneId,
+  ): PaneVisualState => {
+    if (pane === "primary") {
+      return primaryPaneVisual;
+    }
+    if (pane === "secondary") {
+      return secondaryVisual;
+    }
+    if (pane === "third") {
+      return thirdVisual;
+    }
+    return fourthVisual;
+  };
+
+  const changePaneVisual = (
+    pane: ChartPaneId,
+    next: PaneVisualState,
+  ) => {
+    if (pane === "primary") {
+      setChartView(next.chartView);
+      saveSetting(
+        "marketos:chart-view",
+        next.chartView,
+      );
+      setIndicators(next.indicators);
+      saveIndicatorSelection(
+        next.indicators,
+      );
+      setChartSettings(
+        next.chartSettings,
+      );
+      saveChartSettings(
+        next.chartSettings,
+      );
+      setChartResetKey(
+        (current) => current + 1,
+      );
+      return;
+    }
+
+    if (pane === "secondary") {
+      setSecondaryVisual(next);
+      savePaneVisualState(
+        "secondary",
+        next,
+      );
+      return;
+    }
+
+    if (pane === "third") {
+      setThirdVisual(next);
+      savePaneVisualState(
+        "third",
+        next,
+      );
+      return;
+    }
+
+    setFourthVisual(next);
+    savePaneVisualState(
+      "fourth",
+      next,
+    );
   };
 
   const commandSymbolOptions = [
@@ -3723,6 +3882,34 @@ export default function App() {
           </option>
         ))}
       </select>
+
+      <PaneVisualControls
+        paneLabel={
+          pane === "primary"
+            ? "Pane 1"
+            : pane === "secondary"
+              ? "Pane 2"
+              : pane === "third"
+                ? "Pane 3"
+                : "Pane 4"
+        }
+        state={paneVisual(pane)}
+        onChange={(next) =>
+          changePaneVisual(
+            pane,
+            next,
+          )
+        }
+        onCopyPrimary={
+          pane === "primary"
+            ? undefined
+            : () =>
+                changePaneVisual(
+                  pane,
+                  primaryPaneVisual,
+                )
+        }
+      />
     </div>
   );
 
@@ -3821,14 +4008,14 @@ export default function App() {
       <MarketChart
         candles={displayComparisonCandles}
         timeframe={comparisonTimeframe}
-        chartView={chartView}
-        indicators={indicators}
+        chartView={secondaryVisual.chartView}
+        indicators={secondaryVisual.indicators}
         customIndicators={customIndicators}
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
         comparison={null}
-        settings={chartSettings}
+        settings={secondaryVisual.chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
@@ -3854,14 +4041,14 @@ export default function App() {
       <MarketChart
         candles={displayThirdChartCandles}
         timeframe={thirdChartTimeframe}
-        chartView={chartView}
-        indicators={indicators}
+        chartView={thirdVisual.chartView}
+        indicators={thirdVisual.indicators}
         customIndicators={customIndicators}
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
         comparison={null}
-        settings={chartSettings}
+        settings={thirdVisual.chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
@@ -3887,14 +4074,14 @@ export default function App() {
       <MarketChart
         candles={displayFourthChartCandles}
         timeframe={fourthChartTimeframe}
-        chartView={chartView}
-        indicators={indicators}
+        chartView={fourthVisual.chartView}
+        indicators={fourthVisual.indicators}
         customIndicators={customIndicators}
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
         comparison={null}
-        settings={chartSettings}
+        settings={fourthVisual.chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}

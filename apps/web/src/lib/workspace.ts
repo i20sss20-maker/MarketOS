@@ -4,6 +4,10 @@ import { normalizeChartSettings } from "./chartSettings";
 import type { CustomIndicatorDefinition } from "./customIndicators";
 import type { ChartDrawing } from "./drawings";
 import type { IndicatorSelection } from "./indicators";
+import {
+  normalizePaneVisualState,
+  type PaneVisualState,
+} from "./paneVisualState";
 
 export type WorkspaceChartView = "candles" | "line" | "area";
 export type WorkspaceLayoutMode = "single" | "split" | "quad";
@@ -11,6 +15,7 @@ export type WorkspaceLayoutMode = "single" | "split" | "quad";
 export type WorkspacePaneState = {
   symbol: MarketSymbol;
   timeframe: Timeframe;
+  visual?: PaneVisualState;
 };
 
 export type SavedWorkspace = {
@@ -24,8 +29,8 @@ export type SavedWorkspace = {
   indicators: IndicatorSelection;
   drawings: ChartDrawing[];
 
-  // V2 fields.
-  version?: 2;
+  // V2/V3 fields.
+  version?: 2 | 3;
   layoutMode?: WorkspaceLayoutMode;
   chartSyncEnabled?: boolean;
   chartSettings?: ChartSettings;
@@ -88,6 +93,7 @@ function validLayoutMode(value: unknown): value is WorkspaceLayoutMode {
 function normalizePane(
   value: unknown,
   fallback: WorkspacePaneState | null,
+  visualFallback: PaneVisualState,
 ): WorkspacePaneState | null {
   if (!value || typeof value !== "object") return fallback;
   const pane = value as Partial<WorkspacePaneState>;
@@ -95,6 +101,10 @@ function normalizePane(
   return {
     symbol: pane.symbol,
     timeframe: pane.timeframe,
+    visual: normalizePaneVisualState(
+      pane.visual,
+      visualFallback,
+    ),
   };
 }
 
@@ -116,9 +126,25 @@ export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
     return null;
   }
 
+  const legacyVisual = normalizePaneVisualState(
+    {
+      chartView: item.chartView,
+      indicators: item.indicators,
+      chartSettings: item.chartSettings,
+    },
+    {
+      chartView: item.chartView,
+      indicators: item.indicators,
+      chartSettings: normalizeChartSettings(
+        item.chartSettings,
+      ),
+    },
+  );
+
   const primaryFallback: WorkspacePaneState = {
     symbol: item.symbol,
     timeframe: item.timeframe,
+    visual: legacyVisual,
   };
 
   const rawPanes =
@@ -126,10 +152,30 @@ export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
       ? item.panes
       : undefined;
 
-  const primary = normalizePane(rawPanes?.primary, primaryFallback) ?? primaryFallback;
-  const secondary = normalizePane(rawPanes?.secondary, null);
-  const third = normalizePane(rawPanes?.third, null);
-  const fourth = normalizePane(rawPanes?.fourth, null);
+  const primary =
+    normalizePane(
+      rawPanes?.primary,
+      primaryFallback,
+      legacyVisual,
+    ) ?? primaryFallback;
+  const secondary =
+    normalizePane(
+      rawPanes?.secondary,
+      null,
+      legacyVisual,
+    );
+  const third =
+    normalizePane(
+      rawPanes?.third,
+      null,
+      legacyVisual,
+    );
+  const fourth =
+    normalizePane(
+      rawPanes?.fourth,
+      null,
+      legacyVisual,
+    );
 
   const layoutMode = validLayoutMode(item.layoutMode)
     ? item.layoutMode
@@ -145,7 +191,12 @@ export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
     chartView: item.chartView,
     indicators: item.indicators,
     drawings: item.drawings,
-    version: item.version === 2 ? 2 : undefined,
+    version:
+      item.version === 3
+        ? 3
+        : item.version === 2
+          ? 2
+          : undefined,
     layoutMode,
     chartSyncEnabled:
       typeof item.chartSyncEnabled === "boolean"
