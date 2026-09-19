@@ -1,4 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { appendAlertInboxEvents } from "../alerts/alertInbox.js";
 import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { json, preflight } from "../http/responses.js";
@@ -47,6 +48,11 @@ export async function userAlertCheck(
       await userStateStore.put(user.userId, {
         ...stored.payload,
         alerts: result.alerts,
+        alertEvents: appendAlertInboxEvents(
+          stored.payload.alertEvents,
+          result.triggered,
+          "manual-cloud",
+        ),
         updatedAt: Date.now(),
       });
     }
