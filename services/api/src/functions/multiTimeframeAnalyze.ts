@@ -1,6 +1,9 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { canUseFeature } from "@marketos/entitlements-core";
 import type { AssetClass, MarketSymbol, Timeframe } from "@marketos/market-core";
 import { analyzeChartContext, sanitizeChartContext } from "../ai/localChartEngine.js";
+import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
+import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { buildMultiTimeframeAnalysis } from "../ai/multiTimeframeEngine.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
@@ -83,6 +86,36 @@ function sanitizeIndicators(value: unknown) {
 
 export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpResponseInit> {
   if (request.method === "OPTIONS") return preflight();
+
+  const user = getAuthenticatedUser(request);
+  if (!user) {
+    return json(401, {
+      ok: false,
+      code: "AUTH_REQUIRED",
+      error: "Authentication required for Multi-Timeframe AI.",
+    });
+  }
+
+  const entitlement =
+    await getResolvedUserEntitlement(
+      user.userId,
+    );
+
+  if (
+    !canUseFeature(
+      entitlement,
+      "multiTimeframeAi",
+    )
+  ) {
+    return json(403, {
+      ok: false,
+      code: "PLAN_FEATURE",
+      error:
+        "Multi-Timeframe AI is not included in the current MarketOS plan.",
+      plan: entitlement.plan,
+      feature: "multiTimeframeAi",
+    });
+  }
 
   try {
     const body = await request.json() as Record<string, unknown>;
