@@ -27,6 +27,7 @@ import MarketChart, {
 } from "./components/MarketChart";
 import PaneVisualControls from "./components/PaneVisualControls";
 import PaneLinkControls from "./components/PaneLinkControls";
+import ChartTabsBar from "./components/ChartTabsBar";
 import CommercialTopBar from "./components/CommercialTopBar";
 import HomeDashboard from "./components/HomeDashboard";
 import ReplaySetupPanel from "./components/ReplaySetupPanel";
@@ -169,6 +170,21 @@ import {
 import type {
   LinkedCrosshairPoint,
 } from "./lib/crosshairLink";
+import {
+  MAX_CHART_TABS,
+  closeChartTab,
+  createChartTab,
+  loadActiveChartTabId,
+  loadChartTabs,
+  loadRecentSymbols,
+  recordRecentSymbol,
+  saveActiveChartTabId,
+  saveChartTabs,
+  saveRecentSymbols,
+  updateChartTab,
+  type ChartTab,
+  type RecentSymbol,
+} from "./lib/chartTabs";
 import {
   createWorkspace,
   loadWorkspaces,
@@ -418,6 +434,96 @@ export default function App() {
   const [chartView, setChartView] = useState<ChartView>(
     () => readSharedChartState()?.chartView ?? readSaved("marketos:chart-view", "candles"),
   );
+
+  const chartTabsBootstrapRef = useRef<{
+    tabs: ChartTab[];
+    activeId: string | null;
+    recent: RecentSymbol[];
+  } | null>(null);
+
+  if (!chartTabsBootstrapRef.current) {
+    let tabs = loadChartTabs({
+      symbol: active,
+      timeframe,
+      chartView,
+    });
+    let activeId =
+      loadActiveChartTabId(tabs);
+
+    const shared =
+      readSharedChartState();
+
+    if (shared) {
+      const matching =
+        tabs.find(
+          (tab) =>
+            tab.symbol.id ===
+              shared.symbol.id &&
+            tab.timeframe ===
+              shared.timeframe &&
+            tab.chartView ===
+              shared.chartView,
+        );
+
+      if (matching) {
+        activeId = matching.id;
+      } else {
+        const sharedTab =
+          createChartTab(
+            shared.symbol,
+            shared.timeframe,
+            shared.chartView,
+          );
+
+        tabs = [
+          sharedTab,
+          ...tabs,
+        ].slice(0, MAX_CHART_TABS);
+        activeId = sharedTab.id;
+      }
+    } else if (activeId) {
+      tabs = updateChartTab(
+        tabs,
+        activeId,
+        {
+          symbol: active,
+          timeframe,
+          chartView,
+        },
+      );
+    }
+
+    chartTabsBootstrapRef.current = {
+      tabs,
+      activeId,
+      recent:
+        loadRecentSymbols(),
+    };
+  }
+
+  const [chartTabs, setChartTabs] =
+    useState<ChartTab[]>(
+      () =>
+        chartTabsBootstrapRef
+          .current!.tabs,
+    );
+  const [
+    activeChartTabId,
+    setActiveChartTabId,
+  ] = useState<string | null>(
+    () =>
+      chartTabsBootstrapRef
+        .current!.activeId,
+  );
+  const [
+    recentSymbols,
+    setRecentSymbols,
+  ] = useState<RecentSymbol[]>(
+    () =>
+      chartTabsBootstrapRef
+        .current!.recent,
+  );
+
   const [chartSettings, setChartSettings] = useState<ChartSettings>(() => loadChartSettings());
   const [showChartSettings, setShowChartSettings] = useState(false);
   const [chartTemplates, setChartTemplates] = useState<SavedChartTemplate[]>(() => loadChartTemplates());
@@ -631,6 +737,32 @@ export default function App() {
   const [commandQuery, setCommandQuery] = useState("");
   const [commandSymbolResults, setCommandSymbolResults] = useState<MarketSymbol[]>([]);
   const [commandSymbolLoading, setCommandSymbolLoading] = useState(false);
+
+  useEffect(() => {
+    saveChartTabs(chartTabs);
+  }, [chartTabs]);
+
+  useEffect(() => {
+    saveActiveChartTabId(
+      activeChartTabId,
+    );
+  }, [activeChartTabId]);
+
+  useEffect(() => {
+    saveRecentSymbols(
+      recentSymbols,
+    );
+  }, [recentSymbols]);
+
+  useEffect(() => {
+    setRecentSymbols(
+      (current) =>
+        recordRecentSymbol(
+          current,
+          active,
+        ),
+    );
+  }, [active.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
