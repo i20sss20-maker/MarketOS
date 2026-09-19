@@ -11,6 +11,7 @@ import type {
   MarketEvent,
   MarketOverviewItem,
   MarketSymbol,
+  MultiTimeframeAnalysisResponse,
   Quote,
   Timeframe,
 } from "@marketos/market-core";
@@ -20,7 +21,7 @@ import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
-import { analyzeChart } from "./lib/aiApi";
+import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoFeed } from "./lib/demoFeed";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
@@ -222,6 +223,9 @@ export default function App() {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [multiTimeframeLoading, setMultiTimeframeLoading] = useState(false);
+  const [multiTimeframeResult, setMultiTimeframeResult] = useState<MultiTimeframeAnalysisResponse | null>(null);
+  const [multiTimeframeError, setMultiTimeframeError] = useState<string | null>(null);
   const [aiPrompt, setAiPrompt] = useState("اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت");
 
   const [indicators, setIndicators] = useState<IndicatorSelection>(() => loadIndicatorSelection());
@@ -1064,6 +1068,35 @@ export default function App() {
       saveWorkspaces(next);
       return next;
     });
+  };
+
+  const runMultiTimeframeReading = async () => {
+    if (multiTimeframeLoading) return;
+
+    setMultiTimeframeLoading(true);
+    setMultiTimeframeError(null);
+    setMultiTimeframeResult(null);
+
+    try {
+      const result = await analyzeMultipleTimeframes(
+        active,
+        ["15m", "1h", "4h", "1d"],
+        [
+          ...activeIndicatorItems.map((item) => item.id),
+          ...activeCustomIndicators.map((item) => `custom:${item.name}`),
+        ],
+        aiPrompt,
+      );
+      setMultiTimeframeResult(result);
+    } catch (error) {
+      setMultiTimeframeError(
+        error instanceof Error
+          ? error.message
+          : "تعذر تشغيل التحليل متعدد الفريمات.",
+      );
+    } finally {
+      setMultiTimeframeLoading(false);
+    }
   };
 
   const runChartReading = async (promptOverride?: string) => {
@@ -2129,6 +2162,16 @@ export default function App() {
             <button onClick={() => runChartReading("اشرح الحركة والحجم والمؤشرات النشطة")}>اشرح الحركة</button>
           </div>
 
+          <button
+            className="multi-timeframe-button"
+            onClick={() => void runMultiTimeframeReading()}
+            disabled={multiTimeframeLoading}
+          >
+            <span>Multi‑Timeframe AI</span>
+            <small>15m · 1h · 4h · 1d</small>
+            <b>{multiTimeframeLoading ? "…" : "↗"}</b>
+          </button>
+
           <div className="prompt-box">
             <textarea
               value={aiPrompt}
@@ -2151,6 +2194,60 @@ export default function App() {
                 </ul>
               ) : null}
               <small>Engine: {aiResult.engine}</small>
+            </div>
+          ) : null}
+
+          {multiTimeframeError ? (
+            <div className="multi-timeframe-error">{multiTimeframeError}</div>
+          ) : null}
+
+          {multiTimeframeResult ? (
+            <div className="multi-timeframe-result">
+              <div className="multi-timeframe-summary">
+                <span className={`multi-alignment ${multiTimeframeResult.alignment}`}>
+                  {multiTimeframeResult.alignment === "up"
+                    ? "توافق صاعد"
+                    : multiTimeframeResult.alignment === "down"
+                      ? "توافق هابط"
+                      : multiTimeframeResult.alignment === "sideways"
+                        ? "توافق جانبي"
+                        : "توافق مختلط"}
+                </span>
+                <strong>{multiTimeframeResult.summary}</strong>
+                <small>
+                  النطاق المركب: {formatPrice(multiTimeframeResult.rangeLow)} – {formatPrice(multiTimeframeResult.rangeHigh)}
+                </small>
+              </div>
+
+              <div className="multi-timeframe-grid">
+                {multiTimeframeResult.items.map((item) => (
+                  <article className={`multi-timeframe-card ${item.trend}`} key={item.timeframe}>
+                    <div>
+                      <strong>{item.timeframe.toUpperCase()}</strong>
+                      <span>
+                        {item.trend === "up" ? "صاعد" : item.trend === "down" ? "هابط" : "جانبي"}
+                      </span>
+                    </div>
+                    <b className={item.analysis.metrics.change20 >= 0 ? "positive" : "negative"}>
+                      {formatPercent(item.analysis.metrics.change20)}
+                    </b>
+                    <small>
+                      SMA20 {item.analysis.metrics.distanceFromSma20 >= 0 ? "+" : ""}
+                      {item.analysis.metrics.distanceFromSma20.toFixed(2)}%
+                    </small>
+                  </article>
+                ))}
+              </div>
+
+              {multiTimeframeResult.failures.length > 0 ? (
+                <div className="multi-timeframe-failures">
+                  تعذر: {multiTimeframeResult.failures.map((item) => item.timeframe.toUpperCase()).join("، ")}
+                </div>
+              ) : null}
+
+              <small className="multi-timeframe-engine">
+                Engine: {multiTimeframeResult.engine}
+              </small>
             </div>
           ) : null}
 
