@@ -2247,12 +2247,32 @@ export default function App() {
     const fourthPane = workspace.panes?.fourth ?? null;
 
     const requestedLayout = workspace.layoutMode ?? "single";
-    const restoredLayout: ChartLayoutMode =
+    const requestedRestoredLayout: ChartLayoutMode =
       requestedLayout === "quad" && secondaryPane && thirdPane && fourthPane
         ? "quad"
         : requestedLayout === "split" && secondaryPane
           ? "split"
           : "single";
+
+    const restoredLayout: ChartLayoutMode =
+      requestedRestoredLayout === "quad" &&
+      !canUseFeature(
+        entitlement,
+        "quadChart",
+      )
+        ? secondaryPane
+          ? "split"
+          : "single"
+        : requestedRestoredLayout;
+
+    if (
+      requestedRestoredLayout === "quad" &&
+      restoredLayout !== "quad"
+    ) {
+      showPlanRequirement(
+        "هذا التخطيط محفوظ بوضع 4×. تم فتحه بوضع 2× لأن خطتك الحالية لا تشمل 4×.",
+      );
+    }
 
     setActive(primaryPane.symbol);
     setTimeframe(primaryPane.timeframe);
@@ -3630,7 +3650,7 @@ export default function App() {
                 <button
                   className={layoutMode === "quad" ? "selected" : ""}
                   onClick={() => chooseLayoutMode("quad")}
-                  disabled={
+                  aria-disabled={
                     !canUseFeature(
                       entitlement,
                       "quadChart",
