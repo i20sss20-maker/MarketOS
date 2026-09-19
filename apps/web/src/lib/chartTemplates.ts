@@ -129,23 +129,34 @@ function sanitizeCustomIndicators(
       (
         item.pane !== "price" &&
         item.pane !== "separate"
-      ) ||
-      !validateFormula(item.formula).ok
+      )
+    ) {
+      continue;
+    }
+
+    const id = item.id.trim().slice(0, 120);
+    const name = item.name.trim().slice(0, 60);
+    const formula = item.formula.trim().slice(0, 300);
+
+    if (
+      !id ||
+      !name ||
+      !formula ||
+      !validateFormula(formula).ok
     ) {
       continue;
     }
 
     const signature =
-      `${item.formula.trim()}::${item.pane}`;
+      `${formula}::${item.pane}`;
 
     if (seen.has(signature)) continue;
     seen.add(signature);
 
     output.push({
-      id: item.id.slice(0, 120),
-      name: item.name.trim().slice(0, 60),
-      formula:
-        item.formula.trim().slice(0, 300),
+      id,
+      name,
+      formula,
       pane: item.pane,
       enabled: true,
       createdAt:
