@@ -213,7 +213,7 @@ export default function App() {
       .then((response) => setComparisonCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setComparisonCandles([]);
+        setComparisonCandles(createDemoCandles(comparisonSymbol.id, timeframe, 300));
       });
 
     return () => controller.abort();
@@ -473,7 +473,7 @@ export default function App() {
         userDrawings: drawings.map((drawing) =>
           drawing.type === "horizontal"
             ? { type: "horizontal", price: drawing.price }
-            : { type: "trend", points: drawing.points },
+            : { type: drawing.type, points: drawing.points },
         ),
         prompt: requestedPrompt,
       });
@@ -522,7 +522,6 @@ export default function App() {
             : null;
 
   const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
-  const triggeredAlerts = alerts.filter((alert) => Boolean(alert.triggeredAt));
 
   return (
     <main className="shell">
