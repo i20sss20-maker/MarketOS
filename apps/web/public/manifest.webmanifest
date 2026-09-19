@@ -1,0 +1,12 @@
+{
+  "name": "MarketOS",
+  "short_name": "MarketOS",
+  "description": "AI-native market charting and market intelligence workspace",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070b12",
+  "theme_color": "#0b1020",
+  "lang": "ar",
+  "dir": "rtl"
+}
