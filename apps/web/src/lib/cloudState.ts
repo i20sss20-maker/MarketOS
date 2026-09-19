@@ -13,6 +13,7 @@ export type CloudStatePayload = {
   alerts: unknown[];
   chartSettings: Record<string, unknown> | null;
   customIndicators: unknown[];
+  drawings: Record<string, unknown[]>;
   ui: Record<string, unknown>;
 };
 
@@ -21,6 +22,7 @@ export type CloudStateResponse = {
   storageMode: "memory" | "cosmos";
   state: CloudStatePayload | null;
   updatedAt: number | null;
+  clientRevision: number | null;
   user?: {
     userId: string;
     identityProvider: string;
@@ -99,6 +101,24 @@ export function collectLocalCloudState(): CloudStatePayload {
     [],
   );
 
+  const drawings: Record<string, unknown[]> = {};
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key?.startsWith("marketos:drawings:")) continue;
+
+    const symbolId =
+      key.slice("marketos:drawings:".length);
+    if (!symbolId) continue;
+
+    const parsed = parseJson(
+      storage.getItem(key),
+      [],
+    );
+    if (Array.isArray(parsed)) {
+      drawings[symbolId] = parsed;
+    }
+  }
+
   const ui: Record<string, unknown> = {};
   for (const key of UI_KEYS) {
     const value = storage.getItem(key);
@@ -116,6 +136,7 @@ export function collectLocalCloudState(): CloudStatePayload {
         ? chartSettings as Record<string, unknown>
         : null,
     customIndicators: Array.isArray(customIndicators) ? customIndicators : [],
+    drawings,
     ui,
   };
 }
@@ -138,6 +159,27 @@ export function applyCloudStateToLocal(state: CloudStatePayload) {
     JSON_KEYS.customIndicators,
     JSON.stringify(state.customIndicators),
   );
+
+  for (
+    let index = storage.length - 1;
+    index >= 0;
+    index -= 1
+  ) {
+    const key = storage.key(index);
+    if (key?.startsWith("marketos:drawings:")) {
+      storage.removeItem(key);
+    }
+  }
+
+  for (
+    const [symbolId, drawings]
+    of Object.entries(state.drawings ?? {})
+  ) {
+    storage.setItem(
+      `marketos:drawings:${symbolId}`,
+      JSON.stringify(drawings),
+    );
+  }
 
   for (const [key, value] of Object.entries(state.ui)) {
     if (!UI_KEYS.includes(key as typeof UI_KEYS[number])) continue;
@@ -187,8 +229,14 @@ export function getCloudState() {
   return cloudRequest<CloudStateResponse>("GET");
 }
 
-export function putCloudState(state: CloudStatePayload) {
-  return cloudRequest<CloudStateResponse>("PUT", state);
+export function putCloudState(
+  state: CloudStatePayload,
+  expectedClientRevision: number | null,
+) {
+  return cloudRequest<CloudStateResponse>("PUT", {
+    state,
+    expectedClientRevision,
+  });
 }
 
 export function deleteCloudState() {
