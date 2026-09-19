@@ -30,6 +30,7 @@ type Props = {
   drawings: ChartDrawing[];
   drawingTool: DrawingTool;
   onDrawingCreated: (drawing: ChartDrawing) => void;
+  onCrosshairCandle?: (candle: Candle | null) => void;
 };
 
 function lineData(points: Array<{ time: number; value: number }>) {
@@ -47,6 +48,7 @@ export default function MarketChart({
   drawings,
   drawingTool,
   onDrawingCreated,
+  onCrosshairCandle,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -93,6 +95,8 @@ export default function MarketChart({
       handleScroll: drawingTool === "cursor",
       handleScale: drawingTool === "cursor",
     });
+
+    const candleByTime = new Map(candles.map((candle) => [candle.time, candle]));
 
     const candleData = candles.map((point) => ({
       time: point.time as UTCTimestamp,
@@ -332,7 +336,19 @@ export default function MarketChart({
       pendingTrendPoint = null;
     };
 
+    const handleCrosshairMove = (
+      param: Parameters<Parameters<typeof chart.subscribeCrosshairMove>[0]>[0],
+    ) => {
+      if (!onCrosshairCandle) return;
+      if (typeof param.time !== "number") {
+        onCrosshairCandle(null);
+        return;
+      }
+      onCrosshairCandle(candleByTime.get(param.time) ?? null);
+    };
+
     chart.subscribeClick(handleClick);
+    chart.subscribeCrosshairMove(handleCrosshairMove);
 
     const resize = new ResizeObserver(() => {
       chart.applyOptions({
@@ -347,9 +363,11 @@ export default function MarketChart({
     return () => {
       resize.disconnect();
       chart.unsubscribeClick(handleClick);
+      chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      onCrosshairCandle?.(null);
       chart.remove();
     };
-  }, [candles, timeframe, chartView, indicators, drawings, drawingTool, onDrawingCreated]);
+  }, [candles, timeframe, chartView, indicators, drawings, drawingTool, onDrawingCreated, onCrosshairCandle]);
 
   return (
     <div
