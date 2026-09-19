@@ -2,15 +2,6 @@ name: Azure Preview Deploy
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: "Deployment target"
-        required: true
-        default: "preview"
-        type: choice
-        options:
-          - preview
-          - production
 
 permissions:
   contents: read
