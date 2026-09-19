@@ -65,6 +65,7 @@ const UI_KEYS = [
   "marketos:chart-tabs",
   "marketos:active-chart-tab",
   "marketos:recent-symbols",
+  "marketos:forecast-journal",
   "marketos:ui-watchlist",
   "marketos:ui-ai",
   "marketos:watchlist-filter",
