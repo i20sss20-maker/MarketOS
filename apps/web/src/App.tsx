@@ -182,11 +182,30 @@ export default function App() {
 
   const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteRefreshing, setQuoteRefreshing] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
+    () => readSaved("marketos:auto-refresh", "off") === "on",
+  );
   const [providerStatus, setProviderStatus] = useState<MarketDataStatus | null>(null);
   const [dataState, setDataState] = useState<"loading" | "provider" | "fallback">("fallback");
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const refreshQuote = useCallback(async (showLoading = false) => {
+    if (replayActive) return;
+
+    if (showLoading) setQuoteRefreshing(true);
+    try {
+      const response = await getMarketQuote(active);
+      setQuote(response.quote);
+      if (response.provider !== "demo") setDataState("provider");
+    } catch {
+      // Keep the last successful quote; market-data fallback is handled by the main load flow.
+    } finally {
+      if (showLoading) setQuoteRefreshing(false);
+    }
+  }, [active, replayActive]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -210,6 +229,38 @@ export default function App() {
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!autoRefreshEnabled || replayActive) return;
+
+    const intervalMs =
+      quote?.isMarketOpen === false && !quote?.isExtendedHours
+        ? 60_000
+        : 30_000;
+
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refreshQuote(false);
+      }
+    };
+
+    const interval = window.setInterval(refreshIfVisible, intervalMs);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") refreshIfVisible();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [
+    autoRefreshEnabled,
+    replayActive,
+    quote?.isMarketOpen,
+    quote?.isExtendedHours,
+    refreshQuote,
+  ]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -381,6 +432,42 @@ export default function App() {
       : dataState === "provider"
         ? providerStatus?.provider ?? quote?.source ?? "Provider"
         : "Demo fallback";
+
+  const sessionLabel = replayActive
+    ? "Replay"
+    : quote?.isExtendedHours
+      ? "جلسة ممتدة"
+      : quote?.isMarketOpen === true
+        ? "السوق مفتوح"
+        : quote?.isMarketOpen === false
+          ? "السوق مغلق"
+          : providerStatus?.mode === "demo"
+            ? "جلسة تجريبية"
+            : "حالة الجلسة غير متاحة";
+
+  const sessionState = replayActive
+    ? "replay"
+    : quote?.isMarketOpen === true || quote?.isExtendedHours
+      ? "open"
+      : quote?.isMarketOpen === false
+        ? "closed"
+        : "unknown";
+
+  const quoteTimeLabel = quote
+    ? new Date(quote.timestamp * 1000).toLocaleTimeString("ar-SA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : "—";
+
+  const toggleAutoRefresh = () => {
+    setAutoRefreshEnabled((current) => {
+      const next = !current;
+      saveSetting("marketos:auto-refresh", next ? "on" : "off");
+      return next;
+    });
+  };
 
   const addToWatchlist = useCallback((symbol: MarketSymbol) => {
     setWatchlist((current) => {
