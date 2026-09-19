@@ -32,6 +32,7 @@ assert.deepEqual(
     range: true,
     symbol: false,
     timeframe: false,
+    crosshair: false,
   },
 );
 
@@ -40,11 +41,13 @@ assert.deepEqual(
     range: false,
     symbol: true,
     timeframe: true,
+    crosshair: true,
   }),
   {
     range: false,
     symbol: true,
     timeframe: true,
+    crosshair: true,
   },
 );
 
@@ -58,12 +61,14 @@ assert.deepEqual(
       range: false,
       symbol: true,
       timeframe: true,
+      crosshair: true,
     },
   ),
   {
     range: false,
     symbol: true,
     timeframe: true,
+    crosshair: true,
   },
 );
 
@@ -76,9 +81,10 @@ const app = readFileSync(
   "utf8",
 );
 
-assert.match(
-  workspace,
-  /version\?: 2 \| 3 \| 4/,
+assert.ok(
+  workspace.includes(
+    "version?: 2 | 3 | 4 | 5",
+  ),
 );
 assert.match(
   workspace,
@@ -92,7 +98,11 @@ assert.match(
   app,
   /paneTimeframeLinkEnabled/,
 );
+assert.match(
+  app,
+  /paneCrosshairLinkEnabled/,
+);
 
 console.log(
-  "Pane Linking smoke passed: independent range/symbol/timeframe links + Workspace V4",
+  "Pane Linking smoke passed: independent range/symbol/timeframe/crosshair links + Workspace V5",
 );

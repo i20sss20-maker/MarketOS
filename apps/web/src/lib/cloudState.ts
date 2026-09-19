@@ -52,6 +52,7 @@ const UI_KEYS = [
   "marketos:chart-sync",
   "marketos:pane-link-symbol",
   "marketos:pane-link-timeframe",
+  "marketos:pane-link-crosshair",
   "marketos:pane-secondary",
   "marketos:pane-secondary-timeframe",
   "marketos:pane-third",
