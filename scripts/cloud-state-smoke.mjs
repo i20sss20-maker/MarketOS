@@ -102,6 +102,16 @@ const sanitized = sanitizeUserCloudState({
     id: "forged-event",
     alertId: "forged-alert",
   }],
+  pushSubscriptions: [{
+    endpoint: "https://push.example.test/forged",
+    expirationTime: null,
+    keys: {
+      p256dh: "forged-p256dh",
+      auth: "forged-auth",
+    },
+    createdAt: Date.now(),
+    lastSeenAt: Date.now(),
+  }],
 
   chartSettings: {
     showGrid: true,
@@ -131,6 +141,10 @@ assert.equal(sanitized.workspaces.length, 20);
 assert.equal(sanitized.alerts.length, 150);
 assert.deepEqual(
   sanitized.alertEvents,
+  [],
+);
+assert.deepEqual(
+  sanitized.pushSubscriptions,
   [],
 );
 assert.equal(
@@ -293,6 +307,63 @@ await store.delete(
   "revision-user",
 );
 
+// Push registration is a server-only mutation:
+// it must not look like a user/device sync.
+const pushBase = await store.put(
+  "push-revision-user",
+  {
+    ...sanitized,
+    pushSubscriptions: [],
+  },
+  {
+    expectedClientRevision: null,
+    expectedServerRevision: null,
+  },
+);
+const pushClientUpdatedAt =
+  pushBase.clientUpdatedAt;
+
+const pushOnly =
+  await store.updatePushSubscriptions(
+    "push-revision-user",
+    (current) => [
+      ...current,
+      {
+        endpoint:
+          "https://push.example.test/device-a",
+        expirationTime: null,
+        keys: {
+          p256dh: "p256dh",
+          auth: "auth",
+        },
+        createdAt: Date.now(),
+        lastSeenAt: Date.now(),
+      },
+    ],
+  );
+
+assert.equal(
+  pushOnly?.clientRevision,
+  1,
+);
+assert.equal(
+  pushOnly?.serverRevision,
+  2,
+);
+assert.equal(
+  pushOnly?.clientUpdatedAt,
+  pushClientUpdatedAt,
+);
+assert.equal(
+  pushOnly?.payload
+    .pushSubscriptions?.length,
+  1,
+);
+
+await store.delete(
+  "push-revision-user",
+);
+
 // Pagination is preserved.
 for (
   const userId
@@ -343,8 +414,16 @@ const apiFirst = await userState(
   apiRequest("PUT", {
     state: {
       ...sanitized,
-      // Browser tries to forge an inbox event.
+      // Browser tries to forge server-owned records.
       alertEvents: [inboxEvent],
+      pushSubscriptions: [{
+        endpoint:
+          "https://push.example.test/forged-api",
+        keys: {
+          p256dh: "forged",
+          auth: "forged",
+        },
+      }],
     },
     expectedClientRevision: null,
     expectedServerRevision: null,
@@ -366,6 +445,11 @@ assert.deepEqual(
   apiFirst.jsonBody?.state
     ?.alertEvents,
   [],
+);
+assert.equal(
+  "pushSubscriptions" in
+    apiFirst.jsonBody.state,
+  false,
 );
 
 const serverInbox = [{

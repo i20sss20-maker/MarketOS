@@ -23,6 +23,7 @@ const packageJson = {
     "@azure/functions": "^4.0.0",
     "@azure/cosmos": "^4.4.1",
     "@marketos/alert-core": "file:vendor/alert-core",
+    "web-push": "^3.6.7",
   },
 };
 

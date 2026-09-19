@@ -3,6 +3,7 @@ import { marketEventsProvider } from "../events/index.js";
 import { companyFeedProvider } from "../feed/index.js";
 import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
+import { getWebPushConfiguration } from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -12,11 +13,12 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   const aiProvider = (process.env.AI_PROVIDER ?? "local-chart-engine").trim() || "local-chart-engine";
   const environment = (process.env.MARKETOS_ENVIRONMENT ?? "local").trim() || "local";
   const buildSha = (process.env.MARKETOS_BUILD_SHA ?? process.env.GITHUB_SHA ?? "dev").trim();
+  const webPush = getWebPushConfiguration();
 
   return json(200, {
       ok: true,
       service: "marketos-api",
-      version: "0.6.0",
+      version: "0.7.0",
       environment,
       buildSha: buildSha.slice(0, 12),
       generatedAt: Math.floor(Date.now() / 1000),
@@ -39,6 +41,10 @@ export async function health(_request: HttpRequest, context: InvocationContext):
             .trim()
             .toLowerCase() === "true",
         mode: "scheduled-worker",
+      },
+      webPush: {
+        enabled: webPush.enabled,
+        mode: "vapid",
       },
     ai: {
       provider: aiProvider,

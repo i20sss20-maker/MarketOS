@@ -4,6 +4,10 @@ import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { hasValidWorkerSecret } from "../auth/workerSecret.js";
 import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
+import {
+  removePushSubscriptions,
+  sendBackgroundAlertPushes,
+} from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
 
 const USERS_PER_PAGE = 10;
@@ -49,6 +53,10 @@ export async function internalAlertSweep(
     let triggeredCount = 0;
     let failureCount = 0;
     let cappedUsers = 0;
+    let pushAttempted = 0;
+    let pushSent = 0;
+    let pushStale = 0;
+    let pushFailed = 0;
 
     for (const stored of batch.items) {
       const result = await evaluateStoredUserAlerts(
@@ -65,7 +73,7 @@ export async function internalAlertSweep(
       if (result.capped) cappedUsers += 1;
 
       if (result.checkedGroups > 0) {
-        await userStateStore.updateAlerts(
+        const saved = await userStateStore.updateAlerts(
           stored.userId,
           result.alerts,
           appendAlertInboxEvents(
@@ -74,6 +82,29 @@ export async function internalAlertSweep(
             "background",
           ),
         );
+
+        if (saved && result.triggered.length > 0) {
+          const push = await sendBackgroundAlertPushes(
+            saved.payload,
+            result.triggered,
+          );
+
+          pushAttempted += push.attempted;
+          pushSent += push.sent;
+          pushStale += push.stale;
+          pushFailed += push.failed;
+
+          if (push.staleEndpoints.length > 0) {
+            await userStateStore.updatePushSubscriptions(
+              stored.userId,
+              (current) =>
+                removePushSubscriptions(
+                  current,
+                  push.staleEndpoints,
+                ),
+            );
+          }
+        }
       }
     }
 
@@ -86,6 +117,10 @@ export async function internalAlertSweep(
       triggeredCount,
       failureCount,
       cappedUsers,
+      pushAttempted,
+      pushSent,
+      pushStale,
+      pushFailed,
       nextContinuationToken:
         batch.continuationToken ?? null,
     });

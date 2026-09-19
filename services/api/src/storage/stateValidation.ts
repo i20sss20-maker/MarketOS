@@ -117,9 +117,10 @@ export function sanitizeUserCloudState(
       MAX_ALERTS,
     ),
 
-    // Alert inbox history is server-owned.
-    // Browser uploads can never forge delivery history.
+    // Alert inbox history and Push registrations are server-owned.
+    // Browser uploads can never forge or replace them.
     alertEvents: [],
+    pushSubscriptions: [],
 
     chartSettings:
       isObject(value.chartSettings)

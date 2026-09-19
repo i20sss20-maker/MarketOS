@@ -12,6 +12,22 @@ export type AlertInboxEvent = {
   readAt?: number;
 };
 
+export type PushSubscriptionRecord = {
+  endpoint: string;
+  expirationTime: number | null;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  createdAt: number;
+  lastSeenAt: number;
+  userAgent?: string;
+};
+
+export type PushSubscriptionUpdater = (
+  current: PushSubscriptionRecord[],
+) => PushSubscriptionRecord[];
+
 export type UserCloudState = {
   version: 1;
   updatedAt: number;
@@ -19,6 +35,7 @@ export type UserCloudState = {
   workspaces: unknown[];
   alerts: unknown[];
   alertEvents?: AlertInboxEvent[];
+  pushSubscriptions?: PushSubscriptionRecord[];
   chartSettings: Record<string, unknown> | null;
   customIndicators: unknown[];
   drawings: Record<string, unknown[]>;
@@ -72,6 +89,11 @@ export interface UserStateStore {
     userId: string,
     alerts: unknown[],
     alertEvents?: AlertInboxEvent[],
+  ): Promise<StoredUserState | null>;
+
+  updatePushSubscriptions(
+    userId: string,
+    updater: PushSubscriptionUpdater,
   ): Promise<StoredUserState | null>;
 
   delete(userId: string): Promise<void>;

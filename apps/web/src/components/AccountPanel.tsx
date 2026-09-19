@@ -11,11 +11,20 @@ type Props = {
   busy: boolean;
   error: string | null;
   message: string | null;
+  pushSupported: boolean;
+  pushConfigured: boolean;
+  pushPermission: NotificationPermission | "unsupported";
+  pushSubscribed: boolean;
+  pushBusy: boolean;
+  pushError: string | null;
   onClose: () => void;
   onRefresh: () => void;
   onUpload: () => void;
   onRestore: () => void;
   onDeleteCloud: () => void;
+  onEnablePush: () => void;
+  onDisablePush: () => void;
+  onRefreshPush: () => void;
 };
 
 function providerLabel(provider: string) {
@@ -40,11 +49,20 @@ export default function AccountPanel({
   busy,
   error,
   message,
+  pushSupported,
+  pushConfigured,
+  pushPermission,
+  pushSubscribed,
+  pushBusy,
+  pushError,
   onClose,
   onRefresh,
   onUpload,
   onRestore,
   onDeleteCloud,
+  onEnablePush,
+  onDisablePush,
+  onRefreshPush,
 }: Props) {
   if (!open) return null;
 
@@ -110,6 +128,65 @@ export default function AccountPanel({
 
               {error ? <div className="account-error">{error}</div> : null}
               {message ? <div className="account-message">{message}</div> : null}
+
+              <section className="account-push-card">
+                <div className="account-push-head">
+                  <div>
+                    <span>الإشعارات الفورية</span>
+                    <strong>
+                      {!pushSupported
+                        ? "غير مدعومة"
+                        : !pushConfigured
+                          ? "غير مهيأة"
+                          : pushSubscribed
+                            ? "مفعلة على هذا الجهاز"
+                            : pushPermission === "denied"
+                              ? "محظورة من المتصفح"
+                              : "غير مفعلة"}
+                    </strong>
+                  </div>
+                  <span className={pushSubscribed ? "account-push-status on" : "account-push-status"}>
+                    {pushSubscribed ? "ON" : "OFF"}
+                  </span>
+                </div>
+
+                <p>
+                  يوصل تنبيه MarketOS حتى لو الصفحة مقفلة، ويأخذك مباشرة إلى سجل التنبيهات.
+                </p>
+
+                {pushError ? <div className="account-push-error">{pushError}</div> : null}
+
+                <div className="account-push-actions">
+                  {pushSubscribed ? (
+                    <button onClick={onDisablePush} disabled={pushBusy}>
+                      {pushBusy ? "جاري الإيقاف…" : "إيقاف على هذا الجهاز"}
+                    </button>
+                  ) : (
+                    <button
+                      className="primary"
+                      onClick={onEnablePush}
+                      disabled={
+                        pushBusy ||
+                        !pushSupported ||
+                        !pushConfigured ||
+                        pushPermission === "denied"
+                      }
+                    >
+                      {pushBusy ? "جاري التفعيل…" : "تفعيل الإشعارات"}
+                    </button>
+                  )}
+
+                  <button onClick={onRefreshPush} disabled={pushBusy || !pushSupported}>
+                    تحديث الحالة
+                  </button>
+                </div>
+
+                {pushPermission === "denied" ? (
+                  <small className="account-push-hint">
+                    الإذن محظور من إعدادات المتصفح. فعّل إشعارات الموقع من إعدادات المتصفح ثم حدّث الحالة.
+                  </small>
+                ) : null}
+              </section>
 
               <div className="account-sync-actions">
                 <button className="primary" onClick={onUpload} disabled={busy}>

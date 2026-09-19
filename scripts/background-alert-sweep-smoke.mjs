@@ -76,6 +76,10 @@ assert.equal(body.processedUsers, 2);
 assert.equal(body.checkedGroups, 2);
 assert.equal(body.triggeredCount, 2);
 assert.equal(body.failureCount, 0);
+assert.equal(body.pushAttempted, 0);
+assert.equal(body.pushSent, 0);
+assert.equal(body.pushStale, 0);
+assert.equal(body.pushFailed, 0);
 
 for (const userId of ["worker-user-a", "worker-user-b"]) {
   const stored = await userStateStore.get(userId);

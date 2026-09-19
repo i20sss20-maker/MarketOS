@@ -164,6 +164,21 @@ export default function SystemPanel({
                       : "التنبيهات السحابية تعمل يدويًا فقط"}
                   </small>
                 </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
+                    <StatusDot mode={health.webPush.enabled ? "provider" : "demo"} />
+                    <strong>Web Push</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.webPush.enabled ? "VAPID configured" : "Disabled"}
+                  </span>
+                  <small>
+                    {health.webPush.enabled
+                      ? "إشعارات فورية للأجهزة المسجلة"
+                      : "شغّل bootstrap-web-push لتفعيل الإشعارات"}
+                  </small>
+                </article>
               </div>
 
               <div className="system-footnote">
