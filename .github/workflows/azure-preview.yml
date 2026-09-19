@@ -36,11 +36,26 @@ jobs:
       - name: Market data smoke
         run: pnpm smoke:market
 
+      - name: Twelve Data adapter/cache smoke
+        run: pnpm smoke:twelvedata
+
       - name: AI chart smoke
         run: pnpm smoke:ai-chart
 
+      - name: Strategy Tester smoke
+        run: pnpm smoke:backtest
+
+      - name: Custom indicator formula smoke
+        run: pnpm smoke:formula
+
       - name: Market events smoke
         run: pnpm smoke:events
+
+      - name: Company Feed demo smoke
+        run: pnpm smoke:feed
+
+      - name: Company Feed provider security/cache smoke
+        run: pnpm smoke:feed-provider
 
       - name: Prepare Azure API bundle
         run: pnpm prepare:azure-api
