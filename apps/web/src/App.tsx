@@ -3,14 +3,18 @@ import type {
   Candle,
   ChartAnalysisResponse,
   MarketDataStatus,
+  MarketEvent,
   MarketOverviewItem,
   MarketSymbol,
   Quote,
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import MarketEventsPanel from "./components/MarketEventsPanel";
 import { analyzeChart } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
+import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
+import { getMarketEvents } from "./lib/eventsApi";
 import type { ChartDrawing, DrawingTool } from "./lib/drawings";
 import {
   drawingDetail,
@@ -146,6 +150,12 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showScreener, setShowScreener] = useState(false);
+  const [showEvents, setShowEvents] = useState(false);
+  const [marketEvents, setMarketEvents] = useState<MarketEvent[]>([]);
+  const [eventsProvider, setEventsProvider] = useState("demo-events");
+  const [eventsRangeDays, setEventsRangeDays] = useState(7);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
   const [screenerMode, setScreenerMode] = useState<ScreenerMode>("heatmap");
   const [screenerFilter, setScreenerFilter] = useState<ScreenerFilter>("all");
   const [overview, setOverview] = useState<MarketOverviewItem[]>([]);
@@ -523,6 +533,53 @@ export default function App() {
     void refreshScreener();
   };
 
+  const refreshEvents = useCallback(async (rangeDays = eventsRangeDays) => {
+    const { startDate, endDate } = localDateRange(rangeDays);
+    const symbols = watchlist.map((symbol) => symbol.ticker).slice(0, 50);
+    setEventsLoading(true);
+    setEventsError(null);
+
+    try {
+      const result = await getMarketEvents(startDate, endDate, symbols);
+      setMarketEvents(result.events);
+      setEventsProvider(result.provider);
+    } catch {
+      setMarketEvents(createBrowserDemoEvents(watchlist, rangeDays));
+      setEventsProvider("browser-demo-events");
+      setEventsError("تعذر الوصول لمصدر الأحداث، لذلك تظهر بيانات Sample للتجربة فقط.");
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [eventsRangeDays, watchlist]);
+
+  const openEvents = () => {
+    setShowEvents(true);
+    void refreshEvents(eventsRangeDays);
+  };
+
+  const changeEventsRange = (days: number) => {
+    setEventsRangeDays(days);
+    void refreshEvents(days);
+  };
+
+  const openEventSymbol = (ticker: string) => {
+    const normalized = ticker.replace(/\s+/g, "").toUpperCase();
+    const symbol = watchlist.find(
+      (item) =>
+        item.ticker.replace(/\s+/g, "").toUpperCase() === normalized ||
+        (item.providerSymbol ?? "").replace(/\s+/g, "").toUpperCase() === normalized,
+    );
+
+    setShowEvents(false);
+    if (symbol) {
+      chooseSymbol(symbol);
+      return;
+    }
+
+    setQuery(ticker);
+    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  };
+
   const toggleActiveWatchlist = () => {
     setWatchlist((current) => {
       const exists = current.some((item) => item.id === active.id);
@@ -876,6 +933,10 @@ export default function App() {
             السوق
           </button>
 
+          <button className="ghost-button events-button" onClick={openEvents}>
+            الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
+          </button>
+
           <div className="alert-menu-wrap">
             <button className="ghost-button" onClick={() => setShowAlertMenu((value) => !value)}>
               التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
@@ -953,6 +1014,20 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {showEvents ? (
+        <MarketEventsPanel
+          events={marketEvents}
+          provider={eventsProvider}
+          rangeDays={eventsRangeDays}
+          loading={eventsLoading}
+          error={eventsError}
+          onRangeChange={changeEventsRange}
+          onRefresh={() => void refreshEvents(eventsRangeDays)}
+          onClose={() => setShowEvents(false)}
+          onSelectSymbol={openEventSymbol}
+        />
+      ) : null}
 
       {showScreener ? (
         <div className="scanner-overlay" role="dialog" aria-modal="true" aria-label="Market Screener">
