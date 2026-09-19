@@ -1,9 +1,24 @@
+import type { MarketSymbol, Timeframe } from "@marketos/market-core";
+
+export type AlertInboxEvent = {
+  id: string;
+  alertId: string;
+  symbol: MarketSymbol;
+  timeframe: Timeframe;
+  triggeredAt: number;
+  snapshot?: unknown;
+  conditions?: unknown;
+  source: "manual-cloud" | "background";
+  readAt?: number;
+};
+
 export type UserCloudState = {
   version: 1;
   updatedAt: number;
   watchlist: unknown[];
   workspaces: unknown[];
   alerts: unknown[];
+  alertEvents?: AlertInboxEvent[];
   chartSettings: Record<string, unknown> | null;
   customIndicators: unknown[];
   ui: Record<string, unknown>;
