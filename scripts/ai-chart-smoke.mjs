@@ -34,6 +34,18 @@ const context = sanitizeChartContext({
         { time: candles[50].time, price: candles[50].high },
       ],
     },
+    {
+      type: "measure",
+      points: [
+        { time: candles[30].time, price: candles[30].close },
+        { time: candles[40].time, price: candles[40].close },
+      ],
+    },
+    {
+      type: "text",
+      point: { time: candles[45].time, price: candles[45].high },
+      text: "اختبار ملاحظة",
+    },
   ],
   prompt: "Explain the chart",
 });
@@ -42,11 +54,13 @@ const analysis = analyzeChartContext(context);
 
 assert.equal(analysis.symbol, "TEST");
 assert.equal(analysis.timeframe, "1h");
-assert.equal(analysis.drawingCount, 2);
+assert.equal(analysis.drawingCount, 4);
 assert.deepEqual(analysis.activeIndicators, ["sma20", "rsi14"]);
 assert.ok(analysis.metrics.lastPrice > 0);
 assert.ok(analysis.metrics.rangeHigh20 > analysis.metrics.rangeLow20);
-assert.ok(analysis.observations.length >= 5);
+assert.ok(analysis.observations.length >= 7);
+assert.ok(analysis.observations.some((item) => item.includes("قياس")));
+assert.ok(analysis.observations.some((item) => item.includes("ملاحظة")));
 assert.ok(analysis.summary.includes("TEST"));
 
 console.log(`AI chart smoke test passed: ${analysis.summary}`);
