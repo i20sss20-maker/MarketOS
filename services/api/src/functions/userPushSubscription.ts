@@ -89,7 +89,8 @@ export async function userPushSubscription(
         | { subscription?: unknown }
         | null;
 
-      if (!validSubscription(body?.subscription)) {
+      const subscription = body?.subscription;
+      if (!validSubscription(subscription)) {
         return json(400, {
           ok: false,
           error: "Invalid push subscription.",
@@ -102,7 +103,7 @@ export async function userPushSubscription(
         (current) =>
           upsertPushSubscription(
             current,
-            body.subscription,
+            subscription,
             userAgent,
           ),
       );
