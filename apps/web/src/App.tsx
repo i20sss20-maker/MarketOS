@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   Candle,
   ChartAnalysisResponse,
@@ -18,6 +18,14 @@ import {
   loadIndicatorSelection,
   saveIndicatorSelection,
 } from "./lib/indicators";
+import {
+  createWorkspace,
+  loadWatchlist,
+  loadWorkspaces,
+  saveWatchlist,
+  saveWorkspaces,
+  type SavedWorkspace,
+} from "./lib/workspace";
 import {
   getMarketCandles,
   getMarketQuote,
@@ -97,6 +105,11 @@ export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
   const [chartView, setChartView] = useState<ChartView>(() => readSaved("marketos:chart-view", "candles"));
   const [query, setQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [savedWorkspaces, setSavedWorkspaces] = useState<SavedWorkspace[]>(() => loadWorkspaces());
+  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+  const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
   const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت");
@@ -204,8 +217,8 @@ export default function App() {
   }, [query]);
 
   const visibleSymbols = useMemo(
-    () => query.trim() ? searchResults : initialSymbols,
-    [query, searchResults],
+    () => query.trim() ? searchResults : watchlist,
+    [query, searchResults, watchlist],
   );
 
   const activeIndicatorItems = useMemo(
@@ -214,6 +227,8 @@ export default function App() {
   );
 
   const lastCandle = candles[candles.length - 1];
+  const inspectedCandle = hoverCandle ?? lastCandle;
+  const isActiveWatchlisted = watchlist.some((symbol) => symbol.id === active.id);
   const displayedPrice = quote?.price ?? lastCandle?.close;
   const displayedPercent = quote?.percentChange;
   const providerLabel =
@@ -223,12 +238,34 @@ export default function App() {
         ? providerStatus?.provider ?? quote?.source ?? "Provider"
         : "Demo fallback";
 
+  const addToWatchlist = useCallback((symbol: MarketSymbol) => {
+    setWatchlist((current) => {
+      if (current.some((item) => item.id === symbol.id)) return current;
+      const next = [symbol, ...current].slice(0, 50);
+      saveWatchlist(next);
+      return next;
+    });
+  }, []);
+
+  const toggleActiveWatchlist = () => {
+    setWatchlist((current) => {
+      const exists = current.some((item) => item.id === active.id);
+      const next = exists
+        ? current.filter((item) => item.id !== active.id)
+        : [active, ...current].slice(0, 50);
+      saveWatchlist(next);
+      return next;
+    });
+  };
+
   const chooseSymbol = (symbol: MarketSymbol) => {
     setActive(symbol);
+    addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
     setDrawings(loadDrawings(symbol.id));
     setDrawingTool("cursor");
+    setHoverCandle(null);
     setQuery("");
     setAiResult(null);
   };
@@ -237,6 +274,7 @@ export default function App() {
     setTimeframe(value);
     saveSetting("marketos:timeframe", value);
     setDrawingTool("cursor");
+    setHoverCandle(null);
     setAiResult(null);
   };
 
@@ -265,6 +303,52 @@ export default function App() {
     setDrawings([]);
     saveDrawings(active.id, []);
     setDrawingTool("cursor");
+  };
+
+  const saveCurrentWorkspace = () => {
+    const workspace = createWorkspace({
+      name: `تخطيط ${savedWorkspaces.length + 1}`,
+      symbol: active,
+      timeframe,
+      chartView,
+      indicators,
+      drawings,
+    });
+
+    setSavedWorkspaces((current) => {
+      const next = [workspace, ...current].slice(0, 12);
+      saveWorkspaces(next);
+      return next;
+    });
+    setShowWorkspaceMenu(true);
+  };
+
+  const restoreWorkspace = (workspace: SavedWorkspace) => {
+    setActive(workspace.symbol);
+    setTimeframe(workspace.timeframe);
+    setChartView(workspace.chartView);
+    setIndicators(workspace.indicators);
+    setDrawings(workspace.drawings);
+    setDrawingTool("cursor");
+    setHoverCandle(null);
+    setAiResult(null);
+    addToWatchlist(workspace.symbol);
+
+    saveSetting("marketos:symbol", workspace.symbol.id);
+    saveSetting("marketos:symbol-object", JSON.stringify(workspace.symbol));
+    saveSetting("marketos:timeframe", workspace.timeframe);
+    saveSetting("marketos:chart-view", workspace.chartView);
+    saveIndicatorSelection(workspace.indicators);
+    saveDrawings(workspace.symbol.id, workspace.drawings);
+    setShowWorkspaceMenu(false);
+  };
+
+  const deleteWorkspace = (id: string) => {
+    setSavedWorkspaces((current) => {
+      const next = current.filter((workspace) => workspace.id !== id);
+      saveWorkspaces(next);
+      return next;
+    });
   };
 
   const runChartReading = async (promptOverride?: string) => {
@@ -349,7 +433,34 @@ export default function App() {
             <span className={`status-dot ${dataState}`} />
             {providerLabel}
           </div>
-          <button className="ghost-button">تخطيط جديد</button>
+
+          <div className="workspace-menu-wrap">
+            <button className="ghost-button" onClick={() => setShowWorkspaceMenu((value) => !value)}>
+              التخطيطات {savedWorkspaces.length > 0 ? `(${savedWorkspaces.length})` : ""}
+            </button>
+
+            {showWorkspaceMenu ? (
+              <div className="workspace-popover" dir="rtl">
+                <button className="save-workspace-button" onClick={saveCurrentWorkspace}>
+                  + حفظ التخطيط الحالي
+                </button>
+                <div className="workspace-list">
+                  {savedWorkspaces.map((workspace) => (
+                    <div className="workspace-row" key={workspace.id}>
+                      <button className="workspace-open" onClick={() => restoreWorkspace(workspace)}>
+                        <strong>{workspace.name}</strong>
+                        <small>{workspace.symbol.ticker} · {workspace.timeframe.toUpperCase()}</small>
+                      </button>
+                      <button className="workspace-delete" onClick={() => deleteWorkspace(workspace.id)} title="حذف">×</button>
+                    </div>
+                  ))}
+                  {savedWorkspaces.length === 0 ? (
+                    <div className="workspace-empty">ما عندك تخطيطات محفوظة إلى الآن</div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -366,12 +477,13 @@ export default function App() {
         <aside className="watchlist panel">
           <div className="watchlist-head">
             <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
-            <button title="إضافة رمز">+</button>
+            <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
           </div>
 
           <div className="search-box">
             <span>{searchLoading ? "…" : "⌕"}</span>
             <input
+              ref={searchInputRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="ابحث عن سهم أو سوق"
@@ -400,6 +512,13 @@ export default function App() {
         <section className="chart-area panel">
           <div className="instrument-bar">
             <div className="instrument-id">
+              <button
+                className={isActiveWatchlisted ? "watch-star active" : "watch-star"}
+                onClick={toggleActiveWatchlist}
+                title={isActiveWatchlisted ? "إزالة من قائمة المتابعة" : "إضافة إلى قائمة المتابعة"}
+              >
+                {isActiveWatchlisted ? "★" : "☆"}
+              </button>
               <div className="instrument-icon">{active.ticker.slice(0, 1)}</div>
               <div>
                 <strong>{active.name}</strong>
@@ -493,6 +612,17 @@ export default function App() {
             </div>
 
             <div className="chart-host">
+              {inspectedCandle ? (
+                <div className="ohlc-legend" dir="ltr">
+                  <span>O <b>{formatPrice(inspectedCandle.open)}</b></span>
+                  <span>H <b>{formatPrice(inspectedCandle.high)}</b></span>
+                  <span>L <b>{formatPrice(inspectedCandle.low)}</b></span>
+                  <span>C <b className={inspectedCandle.close >= inspectedCandle.open ? "positive" : "negative"}>
+                    {formatPrice(inspectedCandle.close)}
+                  </b></span>
+                  {inspectedCandle.volume !== undefined ? <span>V <b>{Math.round(inspectedCandle.volume).toLocaleString("en-US")}</b></span> : null}
+                </div>
+              ) : null}
               <MarketChart
                 candles={candles}
                 timeframe={timeframe}
@@ -501,6 +631,7 @@ export default function App() {
                 drawings={drawings}
                 drawingTool={drawingTool}
                 onDrawingCreated={handleDrawingCreated}
+                onCrosshairCandle={setHoverCandle}
               />
               {dataState === "loading" ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
               {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
