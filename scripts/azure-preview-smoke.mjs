@@ -13,8 +13,22 @@ assert.ok(
   "Security headers must include a CSP",
 );
 
-const apiDist = "services/api/dist";
-assert.ok(existsSync(apiDist), "API dist folder must exist after build");
+const apiDist = "artifacts/azure-api/dist";
+assert.ok(existsSync(apiDist), "Standalone Azure API dist folder must exist after staging");
+
+const stagedPackagePath = "artifacts/azure-api/package.json";
+assert.ok(existsSync(stagedPackagePath), "Standalone Azure API package.json must exist");
+const stagedPackage = JSON.parse(readFileSync(stagedPackagePath, "utf8"));
+assert.equal(stagedPackage?.engines?.node, "20.x", "Standalone Azure API must target Node 20");
+assert.equal(
+  stagedPackage?.dependencies?.["@azure/functions"],
+  "^4.0.0",
+  "Standalone Azure API must include the Azure Functions runtime dependency",
+);
+assert.ok(
+  !Object.keys(stagedPackage?.dependencies ?? {}).some((name) => name.startsWith("@marketos/")),
+  "Standalone Azure API must not depend on MarketOS workspace packages at runtime",
+);
 
 const javascriptFiles = [];
 function walk(directory) {
@@ -36,7 +50,8 @@ for (const file of javascriptFiles) {
 }
 
 const healthFile = javascriptFiles.find((file) => file.endsWith("health.js"));
-assert.ok(healthFile, "Azure API build must contain the health function");
+assert.ok(healthFile, "Standalone Azure API bundle must contain the health function");
+assert.ok(existsSync("artifacts/azure-api/host.json"), "Standalone Azure API bundle must include host.json");
 
 const deployWorkflow = readFileSync(".github/workflows/azure-preview.yml", "utf8");
 assert.ok(deployWorkflow.includes("workflow_dispatch"), "Azure deployment must remain manual");
@@ -50,5 +65,5 @@ assert.ok(bootstrap.includes("rg-marketos-dev"), "Bootstrap script must stay sco
 assert.ok(bootstrap.includes("--sku Free"), "Bootstrap script must create a Free Static Web App");
 
 console.log(
-  `Azure preview smoke test passed: ${javascriptFiles.length} API JS files, Node ${config.platform.apiRuntime}`,
+  `Azure preview smoke test passed: ${javascriptFiles.length} staged API JS files, Node ${config.platform.apiRuntime}`,
 );
