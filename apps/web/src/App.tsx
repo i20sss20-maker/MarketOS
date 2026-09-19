@@ -928,11 +928,24 @@ export default function App() {
         visibleCandles: displayCandles.slice(-300),
         quote,
         indicators: activeIndicatorItems.map((item) => item.id),
-        userDrawings: drawings.map((drawing) =>
-          drawing.type === "horizontal"
-            ? { type: "horizontal", price: drawing.price }
-            : { type: drawing.type, points: drawing.points },
-        ),
+        userDrawings: drawings
+          .filter((drawing) => !drawing.hidden)
+          .map((drawing) => {
+            if (drawing.type === "horizontal") {
+              return { type: "horizontal" as const, price: drawing.price };
+            }
+            if (drawing.type === "text") {
+              return {
+                type: "text" as const,
+                point: drawing.point,
+                text: drawing.text,
+              };
+            }
+            return {
+              type: drawing.type,
+              points: drawing.points,
+            };
+          }),
         prompt: requestedPrompt,
       });
 
@@ -977,7 +990,11 @@ export default function App() {
           ? "منطقة السعر: انقر زاويتين للمستطيل"
           : drawingTool === "fibonacci"
             ? "Fibonacci: اختر البداية ثم النهاية"
-            : null;
+            : drawingTool === "measure"
+              ? "القياس: اختر نقطة البداية ثم النهاية"
+              : drawingTool === "text"
+                ? "الملاحظة: انقر مكان النص على الشارت"
+                : null;
 
   const filteredOverview = useMemo(
     () => overview.filter((item) => overviewMatchesFilter(item, screenerFilter)),
