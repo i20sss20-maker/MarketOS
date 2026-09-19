@@ -45,6 +45,7 @@ export class MemoryUserStateStore implements UserStateStore {
       id: "state",
       userId,
       updatedAt: now,
+      clientUpdatedAt: now,
       clientRevision: (existing?.clientRevision ?? 0) + 1,
       payload: {
         ...state,
