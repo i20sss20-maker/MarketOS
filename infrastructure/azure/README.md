@@ -85,3 +85,57 @@ az staticwebapp appsettings list -n marketos-preview -g rg-marketos-dev
 ```
 
 Do not paste a real provider key into commits, screenshots, issues, or chat logs.
+
+
+## Persistent user accounts and cloud sync
+
+MarketOS uses Azure Static Web Apps built-in authentication for Microsoft Entra ID and GitHub.
+
+Protected user-state route:
+
+`/api/user/state`
+
+The API reads the authenticated user from Azure's `x-ms-client-principal` header. The browser never supplies or chooses the storage user ID.
+
+### Enable persistent Cosmos storage
+
+After the Static Web App exists, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-cosmos.ps1
+```
+
+The script:
+
+1. derives a deterministic Cosmos account name from the current Azure subscription
+2. creates a Cosmos DB Free Tier account if one is not already present
+3. creates SQL database `marketos`
+4. creates container `userState` with partition key `/userId`
+5. reads the connection string without printing it
+6. writes the connection string directly to Azure Static Web Apps application settings
+7. switches `USER_DATA_PROVIDER` from `memory` to `cosmos`
+
+No paid fallback is created automatically if Free Tier creation fails.
+
+### Authentication shortcuts
+
+On Azure:
+
+- `/login/microsoft`
+- `/login/github`
+- `/logout`
+
+The MarketOS account panel can upload the current device state, restore the cloud copy, or delete the cloud copy. Restore is intentionally manual in V1 to avoid overwriting a user's local layouts or alerts without confirmation.
+
+### Cloud-synced state
+
+V1 sync includes:
+
+- Watchlist
+- saved Workspaces/layouts
+- advanced Alerts
+- Chart Settings
+- custom indicators
+- selected UI/workspace preferences
+
+Provider keys and Azure secrets are never part of the user-state payload.
