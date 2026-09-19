@@ -1,0 +1,48 @@
+name: Real Provider Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  twelvedata:
+    name: Twelve Data live integration
+    runs-on: ubuntu-latest
+    env:
+      TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require provider secret
+        shell: bash
+        run: |
+          if [ -z "$TWELVE_DATA_API_KEY" ]; then
+            echo "::error::Missing TWELVE_DATA_API_KEY GitHub Actions secret."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Live provider integration check
+        run: pnpm smoke:provider-live
