@@ -6,21 +6,31 @@ import {
   HistogramSeries,
   LineSeries,
   LineStyle,
+  PriceScaleMode,
   createChart,
   type UTCTimestamp,
 } from "lightweight-charts";
-import type { Candle, Timeframe } from "@marketos/market-core";
+import type { Candle, MarketSymbol, Timeframe } from "@marketos/market-core";
 import type { ChartDrawing, DrawingPoint, DrawingTool } from "../lib/drawings";
 import { createDrawingId } from "../lib/drawings";
+import { FibonacciPrimitive, ZonePrimitive } from "../lib/drawingPrimitives";
 import type { IndicatorSelection } from "../lib/indicators";
 import {
+  calculateAtr,
   calculateBollinger,
   calculateEma,
+  calculateMacd,
   calculateRsi,
   calculateSma,
+  calculateStochastic,
 } from "../lib/indicators";
 
 export type ChartView = "candles" | "line" | "area";
+
+type ComparisonData = {
+  symbol: MarketSymbol;
+  candles: Candle[];
+};
 
 type Props = {
   candles: Candle[];
@@ -31,6 +41,7 @@ type Props = {
   drawingTool: DrawingTool;
   onDrawingCreated: (drawing: ChartDrawing) => void;
   onCrosshairCandle?: (candle: Candle | null) => void;
+  comparison?: ComparisonData | null;
 };
 
 function lineData(points: Array<{ time: number; value: number }>) {
@@ -49,6 +60,7 @@ export default function MarketChart({
   drawingTool,
   onDrawingCreated,
   onCrosshairCandle,
+  comparison,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -70,6 +82,15 @@ export default function MarketChart({
       },
       rightPriceScale: {
         borderColor: "rgba(148,163,184,0.14)",
+        scaleMargins: {
+          top: 0.06,
+          bottom: 0.08,
+        },
+      },
+      leftPriceScale: {
+        visible: Boolean(comparison?.candles.length),
+        mode: PriceScaleMode.Percentage,
+        borderColor: "rgba(34,211,238,.18)",
         scaleMargins: {
           top: 0.06,
           bottom: 0.08,
@@ -157,6 +178,24 @@ export default function MarketChart({
       })),
     );
 
+    if (comparison?.candles.length) {
+      const comparisonSeries = chart.addSeries(LineSeries, {
+        priceScaleId: "left",
+        color: "#22d3ee",
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        title: comparison.symbol.ticker,
+        crosshairMarkerRadius: 3,
+      });
+      comparisonSeries.setData(
+        comparison.candles.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.close,
+        })),
+      );
+    }
+
     if (indicators.sma20 && candles.length >= 20) {
       const series = chart.addSeries(LineSeries, {
         color: "#f59e0b",
@@ -225,24 +264,23 @@ export default function MarketChart({
     let nextPaneIndex = 1;
 
     if (volumeData.length > 0) {
-      const volumePaneIndex = nextPaneIndex;
-      nextPaneIndex += 1;
-
+      const volumePaneIndex = nextPaneIndex++;
       const volumeSeries = chart.addSeries(
         HistogramSeries,
         {
           priceFormat: { type: "volume" },
           lastValueVisible: false,
           priceLineVisible: false,
+          title: "Volume",
         },
         volumePaneIndex,
       );
       volumeSeries.setData(volumeData);
-      chart.panes()[volumePaneIndex]?.setHeight(105);
+      chart.panes()[volumePaneIndex]?.setHeight(95);
     }
 
     if (indicators.rsi14 && candles.length > 14) {
-      const rsiPaneIndex = nextPaneIndex;
+      const rsiPaneIndex = nextPaneIndex++;
       const rsiSeries = chart.addSeries(
         LineSeries,
         {
@@ -271,7 +309,119 @@ export default function MarketChart({
         axisLabelVisible: true,
         title: "30",
       });
-      chart.panes()[rsiPaneIndex]?.setHeight(120);
+      chart.panes()[rsiPaneIndex]?.setHeight(110);
+    }
+
+    if (indicators.macd && candles.length >= 35) {
+      const macdPaneIndex = nextPaneIndex++;
+      const macd = calculateMacd(candles);
+      const macdSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: "#38bdf8",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: "MACD",
+        },
+        macdPaneIndex,
+      );
+      const signalSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: "#f59e0b",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: "Signal",
+        },
+        macdPaneIndex,
+      );
+      const histogramSeries = chart.addSeries(
+        HistogramSeries,
+        {
+          priceLineVisible: false,
+          lastValueVisible: false,
+          title: "Histogram",
+        },
+        macdPaneIndex,
+      );
+
+      macdSeries.setData(lineData(macd.macd));
+      signalSeries.setData(lineData(macd.signal));
+      histogramSeries.setData(
+        macd.histogram.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.value,
+          color: point.value >= 0
+            ? "rgba(32,201,151,.48)"
+            : "rgba(240,93,111,.48)",
+        })),
+      );
+      chart.panes()[macdPaneIndex]?.setHeight(120);
+    }
+
+    if (indicators.atr14 && candles.length > 14) {
+      const atrPaneIndex = nextPaneIndex++;
+      const atrSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: "#fb7185",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: "ATR 14",
+        },
+        atrPaneIndex,
+      );
+      atrSeries.setData(lineData(calculateAtr(candles, 14)));
+      chart.panes()[atrPaneIndex]?.setHeight(105);
+    }
+
+    if (indicators.stochastic14 && candles.length >= 22) {
+      const stochasticPaneIndex = nextPaneIndex++;
+      const stochastic = calculateStochastic(candles);
+      const kSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: "#22d3ee",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: "%K",
+        },
+        stochasticPaneIndex,
+      );
+      const dSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: "#f59e0b",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: "%D",
+        },
+        stochasticPaneIndex,
+      );
+      kSeries.setData(lineData(stochastic.k));
+      dSeries.setData(lineData(stochastic.d));
+      kSeries.createPriceLine({
+        price: 80,
+        color: "rgba(240,93,111,.32)",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "80",
+      });
+      kSeries.createPriceLine({
+        price: 20,
+        color: "rgba(32,201,151,.32)",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "20",
+      });
+      chart.panes()[stochasticPaneIndex]?.setHeight(110);
     }
 
     for (const drawing of drawings) {
@@ -284,6 +434,20 @@ export default function MarketChart({
           axisLabelVisible: true,
           title: "H",
         });
+        continue;
+      }
+
+      if (drawing.type === "zone") {
+        interactionSeries.attachPrimitive(
+          new ZonePrimitive(chart, interactionSeries, drawing.points[0], drawing.points[1]),
+        );
+        continue;
+      }
+
+      if (drawing.type === "fibonacci") {
+        interactionSeries.attachPrimitive(
+          new FibonacciPrimitive(chart, interactionSeries, drawing.points[0], drawing.points[1]),
+        );
         continue;
       }
 
@@ -301,7 +465,7 @@ export default function MarketChart({
       ]);
     }
 
-    let pendingTrendPoint: DrawingPoint | null = null;
+    let pendingPoint: DrawingPoint | null = null;
 
     const handleClick = (param: Parameters<Parameters<typeof chart.subscribeClick>[0]>[0]) => {
       if (drawingTool === "cursor" || !param.point || typeof param.time !== "number") return;
@@ -323,17 +487,17 @@ export default function MarketChart({
         return;
       }
 
-      if (!pendingTrendPoint) {
-        pendingTrendPoint = point;
+      if (!pendingPoint) {
+        pendingPoint = point;
         return;
       }
 
       onDrawingCreated({
         id: createDrawingId(),
-        type: "trend",
-        points: [pendingTrendPoint, point],
+        type: drawingTool,
+        points: [pendingPoint, point],
       });
-      pendingTrendPoint = null;
+      pendingPoint = null;
     };
 
     const handleCrosshairMove = (
@@ -367,7 +531,17 @@ export default function MarketChart({
       onCrosshairCandle?.(null);
       chart.remove();
     };
-  }, [candles, timeframe, chartView, indicators, drawings, drawingTool, onDrawingCreated, onCrosshairCandle]);
+  }, [
+    candles,
+    timeframe,
+    chartView,
+    indicators,
+    drawings,
+    drawingTool,
+    onDrawingCreated,
+    onCrosshairCandle,
+    comparison,
+  ]);
 
   return (
     <div
