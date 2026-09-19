@@ -16,6 +16,7 @@ type Props = {
   onAlerts: () => void;
   onAlertInbox: () => void;
   onOverview: () => void;
+  onExport: () => void;
   onCorrelation: () => void;
   onEvents: () => void;
   onCompanyFeed: () => void;
@@ -35,6 +36,7 @@ type IconName =
   | "calendar"
   | "company"
   | "overview"
+  | "export"
   | "correlation"
   | "strategy"
   | "system";
@@ -76,6 +78,9 @@ function Icon({ name }: { name: IconName }) {
   if (name === "overview") {
     return <svg {...common}><path d="M4 19V5h16v14H4Z" /><path d="M8 15v-3M12 15V8M16 15v-5" /></svg>;
   }
+  if (name === "export") {
+    return <svg {...common}><path d="M12 3v12" /><path d="m8 7 4-4 4 4" /><path d="M5 13v7h14v-7" /></svg>;
+  }
   if (name === "correlation") {
     return <svg {...common}><path d="M4 17 9 12l4 4 7-9" /><path d="M16 7h4v4" /></svg>;
   }
@@ -104,6 +109,7 @@ export default function CommercialTopBar({
   onAlerts,
   onAlertInbox,
   onOverview,
+  onExport,
   onCorrelation,
   onEvents,
   onCompanyFeed,
@@ -180,6 +186,10 @@ export default function CommercialTopBar({
               <button onClick={() => { onOverview(); setMoreOpen(false); }}>
                 <Icon name="overview" />
                 <span>تفاصيل الأصل</span>
+              </button>
+              <button onClick={() => { onExport(); setMoreOpen(false); }}>
+                <Icon name="export" />
+                <span>تصدير ومشاركة</span>
               </button>
               <button onClick={() => { onAlertInbox(); setMoreOpen(false); }}>
                 <Icon name="alert" />

@@ -37,6 +37,8 @@ import {
 } from "../lib/indicators";
 
 export type ChartView = "candles" | "line" | "area";
+export type ChartSnapshotCapture =
+  () => HTMLCanvasElement | null;
 
 type ComparisonData = {
   symbol: MarketSymbol;
@@ -59,6 +61,9 @@ type Props = {
   resetViewKey?: number;
   syncedLogicalRange?: LogicalRange | null;
   onVisibleLogicalRangeChange?: (range: LogicalRange | null) => void;
+  onSnapshotCaptureReady?: (
+    capture: ChartSnapshotCapture | null,
+  ) => void;
 };
 
 function lineData(points: Array<{ time: number; value: number }>) {
@@ -101,6 +106,7 @@ export default function MarketChart({
   resetViewKey = 0,
   syncedLogicalRange = null,
   onVisibleLogicalRangeChange,
+  onSnapshotCaptureReady,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartApiRef = useRef<IChartApi | null>(null);
@@ -170,6 +176,9 @@ export default function MarketChart({
     });
 
     chartApiRef.current = chart;
+    onSnapshotCaptureReady?.(
+      () => chart.takeScreenshot(true, false),
+    );
 
     const candleByTime = new Map(candles.map((candle) => [candle.time, candle]));
     const candleIndexByTime = new Map(candles.map((candle, index) => [candle.time, index]));
@@ -692,6 +701,7 @@ export default function MarketChart({
       chart.unsubscribeCrosshairMove(handleCrosshairMove);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
       onCrosshairCandle?.(null);
+      onSnapshotCaptureReady?.(null);
       chartApiRef.current = null;
       chart.remove();
     };
@@ -710,6 +720,7 @@ export default function MarketChart({
     settings,
     resetViewKey,
     onVisibleLogicalRangeChange,
+    onSnapshotCaptureReady,
   ]);
 
   useEffect(() => {

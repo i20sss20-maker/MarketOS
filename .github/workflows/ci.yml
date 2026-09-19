@@ -84,6 +84,9 @@ jobs:
       - name: Web Push runtime/security smoke test
         run: pnpm smoke:web-push
 
+      - name: Export and Share runtime smoke test
+        run: pnpm smoke:export-share
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
