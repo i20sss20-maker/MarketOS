@@ -2,6 +2,7 @@ import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { hasValidWorkerSecret } from "../auth/workerSecret.js";
 import { json } from "../http/responses.js";
+import { recordAlertNotifications } from "../notifications/alertNotifications.js";
 import { marketDataProvider } from "../providers/index.js";
 import { userStateStore } from "../storage/index.js";
 
@@ -48,6 +49,8 @@ export async function internalAlertSweep(
     let triggeredCount = 0;
     let failureCount = 0;
     let cappedUsers = 0;
+    let notificationsCreated = 0;
+    let notificationFailures = 0;
 
     for (const stored of batch.items) {
       const result = await evaluateStoredUserAlerts(
@@ -73,6 +76,16 @@ export async function internalAlertSweep(
           },
         );
       }
+
+      const notificationResult =
+        await recordAlertNotifications(
+          stored.userId,
+          result.triggered,
+        );
+      notificationsCreated +=
+        notificationResult.created;
+      notificationFailures +=
+        notificationResult.failures;
     }
 
     return json(200, {
@@ -84,6 +97,8 @@ export async function internalAlertSweep(
       triggeredCount,
       failureCount,
       cappedUsers,
+      notificationsCreated,
+      notificationFailures,
       nextContinuationToken:
         batch.continuationToken ?? null,
     });
