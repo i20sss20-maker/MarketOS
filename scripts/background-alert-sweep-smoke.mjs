@@ -7,6 +7,8 @@ const { internalAlertSweep } =
   await import("../services/api/dist/src/functions/internalAlertSweep.js");
 const { userStateStore } =
   await import("../services/api/dist/src/storage/index.js");
+const { entitlementStore } =
+  await import("../services/api/dist/src/entitlements/index.js");
 
 function triggerAlert(id, ticker) {
   return {
@@ -40,6 +42,14 @@ for (const [userId, ticker] of [
   ["worker-user-a", "AAPL"],
   ["worker-user-b", "NVDA"],
 ]) {
+  await entitlementStore.set({
+    userId,
+    plan: "pro",
+    status: "active",
+    source: "internal",
+    updatedAt: Date.now(),
+  });
+
   await userStateStore.put(userId, {
     version: 1,
     updatedAt: Date.now(),
@@ -92,6 +102,7 @@ for (const userId of ["worker-user-a", "worker-user-b"]) {
     `alert-${userId}`,
   );
   await userStateStore.delete(userId);
+  await entitlementStore.delete(userId);
 }
 
 console.log(
