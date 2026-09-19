@@ -13,6 +13,8 @@
     "COSMOS_DATABASE": "marketos",
     "COSMOS_CONTAINER": "userState",
     "ALERT_WORKER_ENABLED": "false",
-    "MARKETOS_WORKER_SECRET": ""
+    "MARKETOS_WORKER_SECRET": "",
+    "ENTITLEMENT_DATA_PROVIDER": "memory",
+    "COSMOS_ENTITLEMENTS_CONTAINER": "entitlements"
   }
 }
