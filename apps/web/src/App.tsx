@@ -532,12 +532,14 @@ export default function App() {
     return nextSymbols.sort((a, b) => {
       const aChange = watchlistQuoteMap.get(a.id)?.percentChange;
       const bChange = watchlistQuoteMap.get(b.id)?.percentChange;
-      const aValue = typeof aChange === "number" ? aChange : -Infinity;
-      const bValue = typeof bChange === "number" ? bChange : -Infinity;
+
+      if (typeof aChange !== "number" && typeof bChange !== "number") return 0;
+      if (typeof aChange !== "number") return 1;
+      if (typeof bChange !== "number") return -1;
 
       return watchlistSort === "change-desc"
-        ? bValue - aValue
-        : aValue - bValue;
+        ? bChange - aChange
+        : aChange - bChange;
     });
   }, [filteredWatchlist, watchlistSort, watchlistQuoteMap]);
 
