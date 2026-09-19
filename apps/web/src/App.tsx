@@ -1515,6 +1515,17 @@ export default function App() {
   const activeAlerts = alerts.filter(
     (alert) => alert.enabled && !alert.triggeredAt,
   );
+
+  const watchlistAlertCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const alert of activeAlerts) {
+      counts.set(
+        alert.symbol.id,
+        (counts.get(alert.symbol.id) ?? 0) + 1,
+      );
+    }
+    return counts;
+  }, [activeAlerts]);
   const replayDateLabel = replayActive && lastCandle
     ? new Date(lastCandle.time * 1000).toLocaleString("ar-SA", {
         dateStyle: "medium",
