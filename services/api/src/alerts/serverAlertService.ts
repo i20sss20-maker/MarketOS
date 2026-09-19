@@ -38,6 +38,7 @@ type AlertGroup = {
   key: string;
   symbol: MarketSymbol;
   timeframe: Timeframe;
+  lastCheckedAt: number;
 };
 
 const DEFAULT_CANDLE_LIMIT = 80;
@@ -51,16 +52,33 @@ function collectActiveGroups(
     if (!alert.enabled || alert.triggeredAt) continue;
 
     const key = `${alert.symbol.id}::${alert.timeframe}`;
-    if (groups.has(key)) continue;
+    const checkedAt =
+      typeof alert.lastCheckedAt === "number"
+        ? alert.lastCheckedAt
+        : 0;
+
+    const existing = groups.get(key);
+    if (existing) {
+      existing.lastCheckedAt = Math.min(
+        existing.lastCheckedAt,
+        checkedAt,
+      );
+      continue;
+    }
 
     groups.set(key, {
       key,
       symbol: alert.symbol,
       timeframe: alert.timeframe,
+      lastCheckedAt: checkedAt,
     });
   }
 
-  return [...groups.values()];
+  return [...groups.values()].sort(
+    (a, b) =>
+      a.lastCheckedAt - b.lastCheckedAt ||
+      a.key.localeCompare(b.key),
+  );
 }
 
 export async function evaluateStoredUserAlerts(
