@@ -18,13 +18,23 @@ import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
-import type { ChartDrawing, DrawingTool } from "./lib/drawings";
+import type { ChartDrawing, DrawingPoint, DrawingTool } from "./lib/drawings";
 import {
+  createDrawingId,
   drawingDetail,
   drawingName,
   loadDrawings,
   saveDrawings,
+  withDrawingMeta,
 } from "./lib/drawings";
+import {
+  canRedoDrawings,
+  canUndoDrawings,
+  commitDrawingHistory,
+  createDrawingHistory,
+  redoDrawingHistory,
+  undoDrawingHistory,
+} from "./lib/drawingHistory";
 import type { AlertCondition, PriceAlert } from "./lib/alerts";
 import {
   createPriceAlert,
@@ -196,7 +206,13 @@ export default function App() {
   const [indicators, setIndicators] = useState<IndicatorSelection>(() => loadIndicatorSelection());
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>("cursor");
-  const [drawings, setDrawings] = useState<ChartDrawing[]>(() => loadDrawings(active.id));
+  const [drawingHistory, setDrawingHistory] = useState(
+    () => createDrawingHistory(loadDrawings(active.id)),
+  );
+  const drawings = drawingHistory.present;
+  const [textAnchor, setTextAnchor] = useState<DrawingPoint | null>(null);
+  const [textDraft, setTextDraft] = useState("");
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
   const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -633,8 +649,11 @@ export default function App() {
     addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
-    setDrawings(loadDrawings(symbol.id));
+    setDrawingHistory(createDrawingHistory(loadDrawings(symbol.id)));
     setDrawingTool("cursor");
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
     setHoverCandle(null);
     setQuery("");
     setAiResult(null);
@@ -664,25 +683,121 @@ export default function App() {
     });
   };
 
+  const commitDrawingChange = useCallback((
+    updater: ChartDrawing[] | ((current: ChartDrawing[]) => ChartDrawing[]),
+  ) => {
+    setDrawingHistory((currentHistory) => {
+      const current = currentHistory.present;
+      const nextDrawings =
+        typeof updater === "function"
+          ? updater(current)
+          : updater;
+      const nextHistory = commitDrawingHistory(currentHistory, nextDrawings);
+      saveDrawings(active.id, nextHistory.present);
+      return nextHistory;
+    });
+  }, [active.id]);
+
   const handleDrawingCreated = useCallback((drawing: ChartDrawing) => {
-    setDrawings((current) => {
-      const next = [...current, drawing];
-      saveDrawings(active.id, next);
+    commitDrawingChange((current) => [
+      ...current,
+      withDrawingMeta(drawing),
+    ]);
+  }, [commitDrawingChange]);
+
+  const deleteDrawing = (id: string) => {
+    commitDrawingChange((current) =>
+      current.filter((drawing) => drawing.id !== id || drawing.locked),
+    );
+  };
+
+  const toggleDrawingHidden = (id: string) => {
+    commitDrawingChange((current) =>
+      current.map((drawing) =>
+        drawing.id === id
+          ? { ...drawing, hidden: !drawing.hidden }
+          : drawing,
+      ),
+    );
+  };
+
+  const toggleDrawingLocked = (id: string) => {
+    commitDrawingChange((current) =>
+      current.map((drawing) =>
+        drawing.id === id
+          ? { ...drawing, locked: !drawing.locked }
+          : drawing,
+      ),
+    );
+  };
+
+  const clearDrawings = () => {
+    commitDrawingChange((current) => current.filter((drawing) => drawing.locked));
+    setDrawingTool("cursor");
+    setTextAnchor(null);
+    setEditingTextId(null);
+  };
+
+  const undoDrawings = useCallback(() => {
+    setDrawingHistory((current) => {
+      const next = undoDrawingHistory(current);
+      saveDrawings(active.id, next.present);
       return next;
     });
   }, [active.id]);
 
-  const deleteDrawing = (id: string) => {
-    setDrawings((current) => {
-      const next = current.filter((drawing) => drawing.id !== id);
-      saveDrawings(active.id, next);
+  const redoDrawings = useCallback(() => {
+    setDrawingHistory((current) => {
+      const next = redoDrawingHistory(current);
+      saveDrawings(active.id, next.present);
       return next;
     });
+  }, [active.id]);
+
+  const requestTextAnchor = useCallback((point: DrawingPoint) => {
+    setTextAnchor(point);
+    setTextDraft("");
+    setEditingTextId(null);
+  }, []);
+
+  const editTextDrawing = (drawing: ChartDrawing) => {
+    if (drawing.type !== "text" || drawing.locked) return;
+    setTextAnchor(drawing.point);
+    setTextDraft(drawing.text);
+    setEditingTextId(drawing.id);
   };
 
-  const clearDrawings = () => {
-    setDrawings([]);
-    saveDrawings(active.id, []);
+  const saveTextDrawing = () => {
+    const text = textDraft.trim();
+    if (!text || !textAnchor) return;
+
+    if (editingTextId) {
+      commitDrawingChange((current) =>
+        current.map((drawing) =>
+          drawing.id === editingTextId && drawing.type === "text" && !drawing.locked
+            ? { ...drawing, text }
+            : drawing,
+        ),
+      );
+    } else {
+      handleDrawingCreated({
+        id: createDrawingId(),
+        type: "text",
+        point: textAnchor,
+        text,
+      });
+    }
+
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
+    setDrawingTool("cursor");
+  };
+
+  const cancelTextDrawing = () => {
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
     setDrawingTool("cursor");
   };
 
@@ -764,8 +879,11 @@ export default function App() {
     setTimeframe(workspace.timeframe);
     setChartView(workspace.chartView);
     setIndicators(workspace.indicators);
-    setDrawings(workspace.drawings);
+    setDrawingHistory(createDrawingHistory(workspace.drawings));
     setDrawingTool("cursor");
+    setTextAnchor(null);
+    setTextDraft("");
+    setEditingTextId(null);
     setHoverCandle(null);
     setAiResult(null);
     addToWatchlist(workspace.symbol);
