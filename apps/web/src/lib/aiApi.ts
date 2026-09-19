@@ -1,4 +1,5 @@
 import type {
+  AnalystForecastResponse,
   ChartAnalysisResponse,
   ChartContext,
   MarketSymbol,
@@ -71,4 +72,51 @@ export async function analyzeMultipleTimeframes(
   }
 
   return payload.analysis;
+}
+
+type AnalystForecastApiResponse = {
+  ok: boolean;
+  forecast?: AnalystForecastResponse;
+  error?: string;
+};
+
+export async function getAnalystForecast(
+  symbol: MarketSymbol,
+  signal?: AbortSignal,
+): Promise<AnalystForecastResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/analyst/forecast`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type":
+          "application/json",
+      },
+      body: JSON.stringify({
+        symbol,
+      }),
+      signal,
+    },
+  );
+
+  const payload =
+    await response
+      .json()
+      .catch(() => null) as
+      AnalystForecastApiResponse |
+      null;
+
+  if (
+    !response.ok ||
+    !payload?.ok ||
+    !payload.forecast
+  ) {
+    throw new Error(
+      payload?.error ??
+      `Analyst forecast failed (${response.status}).`,
+    );
+  }
+
+  return payload.forecast;
 }

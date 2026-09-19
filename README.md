@@ -1,6 +1,6 @@
 # MarketOS
 
-MarketOS is an independent, AI-native market charting and market-intelligence platform.
+MarketOS is an independent, analyst-first market intelligence platform with professional charting as the visual evidence layer.
 
 The product is chart-first and provider-neutral: professional charts, indicators, drawing tools, replay, multi-chart layouts, screeners, heatmaps, alerts, market events, watchlists, saved workspaces, and structured AI chart context.
 
@@ -50,6 +50,8 @@ This repository is **fully isolated** from every other project:
 - Drawing Alerts bridge for creating live price alerts directly from horizontal chart levels
 - independent pane links for symbol, timeframe, range/zoom and crosshair, persisted in Workspace V5
 - Chart Tabs with per-tab symbol/timeframe/view sessions, Recent Symbols and Cloud Sync
+- probabilistic Analyst Forecast with multi-timeframe scoring, EMA/RSI/ATR/MACD evidence, support/resistance, scenarios, catalysts and confidence
+- analyst coverage model for stocks, ETFs, indices, forex, crypto, futures and commodities, subject to configured market-data licensing
 - Multiple Watchlists with safe legacy migration, named lists, active-list switching and Cloud Sync
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type {
+  AnalystForecastResponse,
   ChartAnalysisResponse,
   MultiTimeframeAnalysisResponse,
   Timeframe,
 } from "@marketos/market-core";
+import AnalystForecastView from "./AnalystForecastView";
 import type { DataWindowSnapshot } from "../lib/dataWindow";
 
 type AiResult = Pick<ChartAnalysisResponse, "summary" | "observations" | "engine">;
@@ -12,6 +14,9 @@ type Props = {
   open: boolean;
   prompt: string;
   aiLoading: boolean;
+  forecastLoading: boolean;
+  forecastResult: AnalystForecastResponse | null;
+  forecastError: string | null;
   multiTimeframeLoading: boolean;
   multiTimeframeEnabled: boolean;
   aiResult: AiResult | null;
@@ -30,6 +35,7 @@ type Props = {
   previewMode: boolean;
   providerMessage?: string | null;
   onClose: () => void;
+  onForecast: () => void;
   onPromptChange: (value: string) => void;
   onRead: (prompt?: string) => void;
   onMultiTimeframe: () => void;
@@ -42,6 +48,9 @@ export default function CommercialAiPanel({
   open,
   prompt,
   aiLoading,
+  forecastLoading,
+  forecastResult,
+  forecastError,
   multiTimeframeLoading,
   multiTimeframeEnabled,
   aiResult,
@@ -60,6 +69,7 @@ export default function CommercialAiPanel({
   previewMode,
   providerMessage,
   onClose,
+  onForecast,
   onPromptChange,
   onRead,
   onMultiTimeframe,
@@ -67,30 +77,50 @@ export default function CommercialAiPanel({
   formatPercent,
   formatVolume,
 }: Props) {
-  const [tab, setTab] = useState<"ai" | "data">("ai");
+  const [tab, setTab] = useState<"analyst" | "ask" | "data">("analyst");
 
   return (
     <aside className={open ? "ai-panel panel commercial-ai-panel" : "ai-panel panel commercial-ai-panel panel-collapsed"}>
       <div className="commercial-panel-head ai-panel-head">
         <div>
-          <div className="panel-title">MarketOS</div>
-          <small>{tab === "ai" ? "Chart-aware assistant" : "Crosshair data"}</small>
+          <div className="panel-title">MarketOS Analyst</div>
+          <small>
+            {tab === "analyst"
+              ? "Probabilistic market analyst"
+              : tab === "ask"
+                ? "Chart-aware assistant"
+                : "Crosshair data"}
+          </small>
         </div>
         <button className="commercial-panel-close" title="إغلاق اللوحة" onClick={onClose}>
           ×
         </button>
       </div>
 
-      <div className="commercial-panel-tabs">
-        <button className={tab === "ai" ? "active" : ""} onClick={() => setTab("ai")}>
-          AI
+      <div className="commercial-panel-tabs analyst-tabs">
+        <button className={tab === "analyst" ? "active" : ""} onClick={() => setTab("analyst")}>
+          المحلل
+        </button>
+        <button className={tab === "ask" ? "active" : ""} onClick={() => setTab("ask")}>
+          اسأل
         </button>
         <button className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>
-          Data Window
+          البيانات
         </button>
       </div>
 
-      {tab === "ai" ? (
+      {tab === "analyst" ? (
+        <AnalystForecastView
+          result={forecastResult}
+          loading={forecastLoading}
+          error={forecastError}
+          ticker={ticker}
+          onRun={onForecast}
+          formatPrice={formatPrice}
+        />
+      ) : null}
+
+      {tab === "ask" ? (
         <>
       <div className="ai-card">
         <span className="eyebrow">CHART CONTEXT</span>

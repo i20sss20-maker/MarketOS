@@ -123,6 +123,9 @@ jobs:
       - name: Chart Tabs session smoke test
         run: pnpm smoke:chart-tabs
 
+      - name: Analyst Forecast engine smoke test
+        run: pnpm smoke:analyst-forecast
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
