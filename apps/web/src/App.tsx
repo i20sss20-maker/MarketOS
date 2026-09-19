@@ -617,6 +617,14 @@ export default function App() {
     setCloudMessage(null);
 
     try {
+      if (pushState.subscribed) {
+        try {
+          setPushState(await disablePushNotifications());
+        } catch {
+          // Deleting the server state below still removes the push registration.
+        }
+      }
+
       await deleteCloudState();
       setCloudState((current) =>
         current
