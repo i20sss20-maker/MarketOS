@@ -875,3 +875,166 @@ input:focus-visible {
   cursor: progress;
   opacity: .65;
 }
+
+
+/* Workspace V1 */
+.top-actions {
+  position: relative;
+}
+
+.workspace-menu-wrap {
+  position: relative;
+}
+
+.workspace-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
+  width: 270px;
+  padding: 8px;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 10px;
+  background: rgba(8,13,24,.985);
+  box-shadow: 0 22px 60px rgba(0,0,0,.46);
+  backdrop-filter: blur(14px);
+}
+
+.save-workspace-button {
+  width: 100%;
+  border: 1px solid rgba(99,102,241,.18);
+  border-radius: 7px;
+  padding: 9px 10px;
+  background: rgba(79,70,229,.12);
+  color: #b8c0ff;
+  text-align: right;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.workspace-list {
+  max-height: 300px;
+  margin-top: 7px;
+  overflow-y: auto;
+}
+
+.workspace-row {
+  display: grid;
+  grid-template-columns: 1fr 26px;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(148,163,184,.055);
+}
+
+.workspace-open,
+.workspace-delete {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspace-open {
+  padding: 7px 8px;
+  text-align: right;
+}
+
+.workspace-open:hover,
+.workspace-delete:hover {
+  background: rgba(148,163,184,.06);
+}
+
+.workspace-open strong,
+.workspace-open small {
+  display: block;
+}
+
+.workspace-open strong {
+  color: #bdc8d8;
+  font-size: 9px;
+}
+
+.workspace-open small {
+  margin-top: 3px;
+  color: #5f6d82;
+  font-size: 7px;
+}
+
+.workspace-delete {
+  width: 26px;
+  height: 26px;
+  color: #67758a;
+  font-size: 14px;
+}
+
+.workspace-empty {
+  padding: 18px 8px;
+  color: #56647a;
+  text-align: center;
+  font-size: 8px;
+}
+
+.watch-star {
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #5b687c;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.watch-star:hover {
+  background: rgba(148,163,184,.06);
+  color: #a7b3c6;
+}
+
+.watch-star.active {
+  color: #f5c451;
+}
+
+.ohlc-legend {
+  position: absolute;
+  top: 8px;
+  left: 11px;
+  z-index: 3;
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  max-width: calc(100% - 100px);
+  padding: 4px 6px;
+  border-radius: 5px;
+  color: #59677c;
+  background: rgba(9,14,25,.70);
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ohlc-legend b {
+  margin-left: 2px;
+  color: #98a6ba;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .workspace-popover {
+    position: fixed;
+    top: 70px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+
+  .ohlc-legend {
+    gap: 5px;
+    max-width: calc(100% - 76px);
+    overflow: hidden;
+  }
+}
