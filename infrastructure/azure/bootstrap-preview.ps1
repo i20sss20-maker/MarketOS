@@ -45,7 +45,7 @@ if (-not $existing) {
 }
 
 Write-Host "Configuring safe development app settings..." -ForegroundColor Cyan
-az staticwebapp appsettings set --name $AppName --resource-group $ResourceGroup --setting-names MARKET_DATA_PROVIDER=demo MARKET_EVENTS_PROVIDER=demo MARKET_FEED_PROVIDER=demo AI_PROVIDER=local-chart-engine USER_DATA_PROVIDER=memory MARKETOS_ENVIRONMENT=azure-preview --output none
+az staticwebapp appsettings set --name $AppName --resource-group $ResourceGroup --setting-names MARKET_DATA_PROVIDER=demo MARKET_EVENTS_PROVIDER=demo MARKET_FEED_PROVIDER=demo AI_PROVIDER=local-chart-engine USER_DATA_PROVIDER=memory MARKETOS_ENVIRONMENT=azure-preview WEB_PUSH_ENABLED=false --output none
 
 $hostname = az staticwebapp show --name $AppName --resource-group $ResourceGroup --query "defaultHostname" --output tsv
 $token = az staticwebapp secrets list --name $AppName --resource-group $ResourceGroup --query "properties.apiKey" --output tsv
