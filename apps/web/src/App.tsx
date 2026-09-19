@@ -692,8 +692,10 @@ export default function App() {
 
           <div className="notice">
             {dataError
-              ? `تعذر الوصول للـAPI وتم تشغيل Demo fallback: ${dataError}`
-              : providerStatus?.message ?? "Market Data V1 active."}
+              ? "وضع البيانات التجريبية نشط مؤقتًا لأن مصدر البيانات المباشر غير متصل."
+              : providerStatus?.mode === "demo"
+                ? "وضع البيانات التجريبية نشط للتطوير. عند ربط مزود السوق ستظهر البيانات من المصدر مباشرة."
+                : providerStatus?.message ?? "Market Data V1 active."}
           </div>
 
           <div className="chart-attribution">
