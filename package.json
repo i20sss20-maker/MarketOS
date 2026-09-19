@@ -16,7 +16,9 @@
     "smoke:twelvedata": "node scripts/twelvedata-adapter-smoke.mjs",
     "smoke:provider-live": "node scripts/provider-live-smoke.mjs",
     "smoke:backtest": "node scripts/backtest-smoke.mjs",
-    "smoke:formula": "node scripts/formula-smoke.mjs"
+    "smoke:formula": "node scripts/formula-smoke.mjs",
+    "smoke:feed": "node scripts/feed-smoke.mjs",
+    "smoke:feed-provider": "node scripts/feed-provider-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

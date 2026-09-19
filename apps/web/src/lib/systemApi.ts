@@ -18,6 +18,10 @@ export type SystemHealth = {
     provider: string;
     mode: "demo" | "provider";
   };
+  companyFeed: {
+    provider: string;
+    mode: "demo" | "provider";
+  };
   ai: {
     provider: string;
     mode: "local" | "provider";

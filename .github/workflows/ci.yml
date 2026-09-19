@@ -51,6 +51,12 @@ jobs:
       - name: Market events runtime smoke test
         run: pnpm smoke:events
 
+      - name: Company Feed demo runtime smoke test
+        run: pnpm smoke:feed
+
+      - name: Company Feed provider security/cache smoke test
+        run: pnpm smoke:feed-provider
+
       - name: Prepare Azure API bundle
         run: pnpm prepare:azure-api
 

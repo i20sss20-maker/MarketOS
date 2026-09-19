@@ -40,6 +40,7 @@ This repository is **fully isolated** from every other project:
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
 - Market Events / earnings calendar
+- Company Feed for official company press releases with sanitized plain-text rendering
 - MarketOS AI chart-context endpoint
 - provider-neutral market data/events adapters
 - Demo fallbacks for development
@@ -52,6 +53,7 @@ The repository includes:
 - Twelve Data adapter for quotes/candles/search
 - batch quote support for screener workloads
 - independent Twelve Data earnings-calendar adapter
+- independent Twelve Data company press-release adapter with server-side HTML sanitization and cache
 
 No real provider key is committed to source.
 
@@ -127,6 +129,7 @@ Use the **النظام** button in MarketOS to inspect:
 - current environment
 - Market Data provider and mode
 - Market Events provider and mode
+- Company Feed provider and mode
 - AI engine mode
 - build identifier when available
 

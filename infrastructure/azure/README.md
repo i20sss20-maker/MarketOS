@@ -60,6 +60,7 @@ Before deployment the workflow runs TypeScript validation, the full build, marke
 ```text
 MARKET_DATA_PROVIDER=demo
 MARKET_EVENTS_PROVIDER=demo
+MARKET_FEED_PROVIDER=demo
 AI_PROVIDER=local-chart-engine
 MARKETOS_ENVIRONMENT=azure-preview
 ```
@@ -69,10 +70,11 @@ To connect Twelve Data later, configure these in Azure Static Web Apps environme
 ```text
 MARKET_DATA_PROVIDER=twelvedata
 MARKET_EVENTS_PROVIDER=twelvedata
+MARKET_FEED_PROVIDER=twelvedata
 TWELVE_DATA_API_KEY=<secret>
 ```
 
-Market Events only loads on explicit user action and the provider adapter caches results to reduce provider-credit usage.
+Market Events and Company Feed only load on explicit user action. Their provider adapters cache results to reduce provider-credit usage.
 
 ## Useful Azure CLI commands
 
