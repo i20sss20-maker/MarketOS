@@ -2,15 +2,31 @@ import type { HttpResponseInit } from "@azure/functions";
 
 const allowedOrigin = process.env.MARKETOS_WEB_ORIGIN?.trim() || "*";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": allowedOrigin,
+  "Access-Control-Allow-Headers": "Content-Type, Accept",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+};
+
 export function json(status: number, jsonBody: unknown): HttpResponseInit {
   return {
     status,
     headers: {
-      "Access-Control-Allow-Origin": allowedOrigin,
+      ...corsHeaders,
       "Cache-Control": "no-store",
       "Content-Type": "application/json; charset=utf-8",
     },
     jsonBody,
+  };
+}
+
+export function preflight(): HttpResponseInit {
+  return {
+    status: 204,
+    headers: {
+      ...corsHeaders,
+      "Access-Control-Max-Age": "600",
+    },
   };
 }
 
