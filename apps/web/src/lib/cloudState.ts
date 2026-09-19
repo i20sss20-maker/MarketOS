@@ -9,6 +9,7 @@ export type CloudStatePayload = {
   version: 1;
   updatedAt: number;
   watchlist: unknown[];
+  watchlistCollections: unknown[];
   workspaces: unknown[];
   alerts: unknown[];
   chartSettings: Record<string, unknown> | null;
@@ -34,6 +35,7 @@ export type CloudStateResponse = {
 
 const JSON_KEYS = {
   watchlist: "marketos:watchlist",
+  watchlistCollections: "marketos:watchlist-collections",
   workspaces: "marketos:workspaces",
   alerts: "marketos:alerts-v2",
   chartSettings: "marketos:chart-settings",
@@ -58,6 +60,7 @@ const UI_KEYS = [
   "marketos:ui-ai",
   "marketos:watchlist-filter",
   "marketos:watchlist-sort",
+  "marketos:active-watchlist",
   "marketos:auto-refresh",
   "marketos:indicators",
 ] as const;
@@ -96,6 +99,7 @@ export function collectLocalCloudState(): CloudStatePayload {
   const storage = window.localStorage;
 
   const watchlist = parseJson(storage.getItem(JSON_KEYS.watchlist), []);
+  const watchlistCollections = parseJson(storage.getItem(JSON_KEYS.watchlistCollections), []);
   const workspaces = parseJson(storage.getItem(JSON_KEYS.workspaces), []);
   const alerts = parseJson(storage.getItem(JSON_KEYS.alerts), []);
   const chartSettings = parseJson(storage.getItem(JSON_KEYS.chartSettings), null);
@@ -136,6 +140,7 @@ export function collectLocalCloudState(): CloudStatePayload {
     version: 1,
     updatedAt: Date.now(),
     watchlist: Array.isArray(watchlist) ? watchlist : [],
+    watchlistCollections: Array.isArray(watchlistCollections) ? watchlistCollections : [],
     workspaces: Array.isArray(workspaces) ? workspaces : [],
     alerts: Array.isArray(alerts) ? alerts : [],
     chartSettings:
@@ -153,6 +158,10 @@ export function applyCloudStateToLocal(state: CloudStatePayload) {
   const storage = window.localStorage;
 
   storage.setItem(JSON_KEYS.watchlist, JSON.stringify(state.watchlist));
+  storage.setItem(
+    JSON_KEYS.watchlistCollections,
+    JSON.stringify(state.watchlistCollections ?? []),
+  );
   storage.setItem(JSON_KEYS.workspaces, JSON.stringify(state.workspaces));
   storage.setItem(JSON_KEYS.alerts, JSON.stringify(state.alerts));
 
