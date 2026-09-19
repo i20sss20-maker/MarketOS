@@ -1,6 +1,7 @@
 import { CosmosClient, type Container } from "@azure/cosmos";
 import {
   UserStateConflictError,
+  type AlertInboxEvent,
   type StoredUserState,
   type UserCloudState,
   type UserStatePutOptions,
