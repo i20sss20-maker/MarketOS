@@ -9,6 +9,8 @@ import {
   LineStyle,
   PriceScaleMode,
   createChart,
+  type IChartApi,
+  type LogicalRange,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle, MarketSymbol, Timeframe } from "@marketos/market-core";
@@ -55,6 +57,8 @@ type Props = {
   comparison?: ComparisonData | null;
   settings: ChartSettings;
   resetViewKey?: number;
+  syncedLogicalRange?: LogicalRange | null;
+  onVisibleLogicalRangeChange?: (range: LogicalRange | null) => void;
 };
 
 function lineData(points: Array<{ time: number; value: number }>) {
@@ -95,8 +99,12 @@ export default function MarketChart({
   comparison,
   settings,
   resetViewKey = 0,
+  syncedLogicalRange = null,
+  onVisibleLogicalRangeChange,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const chartApiRef = useRef<IChartApi | null>(null);
+  const applyingSyncedRangeRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -160,6 +168,8 @@ export default function MarketChart({
       handleScroll: drawingTool === "cursor",
       handleScale: drawingTool === "cursor",
     });
+
+    chartApiRef.current = chart;
 
     const candleByTime = new Map(candles.map((candle) => [candle.time, candle]));
     const candleIndexByTime = new Map(candles.map((candle, index) => [candle.time, index]));
@@ -657,8 +667,14 @@ export default function MarketChart({
       onCrosshairCandle(candleByTime.get(param.time) ?? null);
     };
 
+    const handleVisibleLogicalRangeChange = (range: LogicalRange | null) => {
+      if (applyingSyncedRangeRef.current) return;
+      onVisibleLogicalRangeChange?.(range);
+    };
+
     chart.subscribeClick(handleClick);
     chart.subscribeCrosshairMove(handleCrosshairMove);
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
 
     const resize = new ResizeObserver(() => {
       chart.applyOptions({
@@ -674,7 +690,9 @@ export default function MarketChart({
       resize.disconnect();
       chart.unsubscribeClick(handleClick);
       chart.unsubscribeCrosshairMove(handleCrosshairMove);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
       onCrosshairCandle?.(null);
+      chartApiRef.current = null;
       chart.remove();
     };
   }, [
@@ -691,7 +709,22 @@ export default function MarketChart({
     comparison,
     settings,
     resetViewKey,
+    onVisibleLogicalRangeChange,
   ]);
+
+  useEffect(() => {
+    const chart = chartApiRef.current;
+    if (!chart || !syncedLogicalRange) return;
+
+    applyingSyncedRangeRef.current = true;
+    try {
+      chart.timeScale().setVisibleLogicalRange(syncedLogicalRange);
+    } finally {
+      queueMicrotask(() => {
+        applyingSyncedRangeRef.current = false;
+      });
+    }
+  }, [syncedLogicalRange]);
 
   return (
     <div
