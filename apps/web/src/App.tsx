@@ -99,6 +99,12 @@ import {
   updateAlertInbox,
   type AlertInboxEvent,
 } from "./lib/alertInboxApi";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getPushDeviceState,
+  type PushDeviceState,
+} from "./lib/pushApi";
 import type { IndicatorId, IndicatorSelection } from "./lib/indicators";
 import {
   indicatorCatalog,
@@ -274,6 +280,15 @@ export default function App() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
+  const [pushState, setPushState] = useState<PushDeviceState>({
+    supported: false,
+    configured: false,
+    permission: "unsupported",
+    subscribed: false,
+    subscriptionCount: 0,
+  });
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
   const [watchlistOpen, setWatchlistOpen] = useState(
     () => readSaved<"on" | "off">("marketos:ui-watchlist", "on") === "on",
   );
@@ -468,6 +483,34 @@ export default function App() {
     }
   }, [authUser]);
 
+  const refreshPushState = useCallback(async () => {
+    if (!authUser) {
+      setPushState({
+        supported: false,
+        configured: false,
+        permission: "unsupported",
+        subscribed: false,
+        subscriptionCount: 0,
+      });
+      setPushError(null);
+      return;
+    }
+
+    setPushBusy(true);
+    setPushError(null);
+    try {
+      setPushState(await getPushDeviceState());
+    } catch (error) {
+      setPushError(
+        error instanceof Error
+          ? error.message
+          : "تعذر قراءة حالة الإشعارات.",
+      );
+    } finally {
+      setPushBusy(false);
+    }
+  }, [authUser]);
+
   const syncLocalStateToCloud = async () => {
     const localState = collectLocalCloudState();
     const latest = await getCloudState();
@@ -549,6 +592,49 @@ export default function App() {
     return message || "تعذر مزامنة بيانات الجهاز.";
   };
 
+  const enablePushOnThisDevice = async () => {
+    if (!authUser || pushBusy) return;
+
+    setPushBusy(true);
+    setPushError(null);
+
+    try {
+      if (!cloudState?.state) {
+        await syncLocalStateToCloud();
+      }
+
+      setPushState(await enablePushNotifications());
+
+      // Device registration changes only serverRevision.
+      // Refresh the cloud baseline so the next normal sync stays conflict-safe.
+      setCloudState(await getCloudState());
+    } catch (error) {
+      setPushError(cloudConflictMessage(error));
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const disablePushOnThisDevice = async () => {
+    if (!authUser || pushBusy) return;
+
+    setPushBusy(true);
+    setPushError(null);
+
+    try {
+      setPushState(await disablePushNotifications());
+      setCloudState(await getCloudState());
+    } catch (error) {
+      setPushError(
+        error instanceof Error
+          ? error.message
+          : "تعذر إيقاف الإشعارات.",
+      );
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
   const uploadCurrentDeviceToCloud = async () => {
     if (!authUser) return;
 
@@ -618,6 +704,14 @@ export default function App() {
     setCloudMessage(null);
 
     try {
+      if (pushState.subscribed) {
+        try {
+          setPushState(await disablePushNotifications());
+        } catch {
+          // Deleting the cloud state below still removes server registrations.
+        }
+      }
+
       await deleteCloudState();
       setCloudState((current) =>
         current
@@ -713,6 +807,40 @@ export default function App() {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", refreshIfVisible);
     };
+  }, [authUser, refreshAlertInbox]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setPushState({
+        supported: false,
+        configured: false,
+        permission: "unsupported",
+        subscribed: false,
+        subscriptionCount: 0,
+      });
+      setPushError(null);
+      return;
+    }
+
+    void refreshPushState();
+  }, [authUser, refreshPushState]);
+
+  useEffect(() => {
+    if (!authUser) return;
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("inbox") !== "alerts") return;
+
+    setShowAlertInbox(true);
+    void refreshAlertInbox();
+
+    url.searchParams.delete("inbox");
+    const search = url.searchParams.toString();
+    window.history.replaceState(
+      {},
+      "",
+      `${url.pathname}${search ? `?${search}` : ""}${url.hash}`,
+    );
   }, [authUser, refreshAlertInbox]);
 
   useEffect(() => {
@@ -2621,7 +2749,10 @@ export default function App() {
               setShowAccountPanel(true);
               setCloudError(null);
               setCloudMessage(null);
-              if (authUser) void refreshCloudState();
+              if (authUser) {
+                void refreshCloudState();
+                void refreshPushState();
+              }
             }}
             title={authUser ? "الحساب والمزامنة" : "تسجيل الدخول"}
           >
@@ -2688,11 +2819,20 @@ export default function App() {
         busy={cloudBusy}
         error={cloudError}
         message={cloudMessage}
+        pushSupported={pushState.supported}
+        pushConfigured={pushState.configured}
+        pushPermission={pushState.permission}
+        pushSubscribed={pushState.subscribed}
+        pushBusy={pushBusy}
+        pushError={pushError}
         onClose={() => setShowAccountPanel(false)}
         onRefresh={() => void refreshCloudState()}
         onUpload={() => void uploadCurrentDeviceToCloud()}
         onRestore={() => void restoreCloudToThisDevice()}
         onDeleteCloud={() => void removeCloudCopy()}
+        onEnablePush={() => void enablePushOnThisDevice()}
+        onDisablePush={() => void disablePushOnThisDevice()}
+        onRefreshPush={() => void refreshPushState()}
       />
 
       <IndicatorLab
