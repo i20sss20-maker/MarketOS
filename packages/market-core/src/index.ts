@@ -258,6 +258,30 @@ export type AnalystCatalyst = {
   source: string;
 };
 
+export type AnalystCalibrationReliability =
+  | "low"
+  | "medium"
+  | "high";
+
+export type AnalystForecastCalibration = {
+  method: "historical-analog";
+  timeframe: Timeframe;
+  lookaheadBars: number;
+  sampleSize: number;
+  comparableSamples: number;
+  currentSignal: number;
+  outcomeThresholdPercent: number;
+  directionalHitRate: number;
+  averageForwardReturn: number;
+  medianForwardReturn: number;
+  bullProbability: number;
+  baseProbability: number;
+  bearProbability: number;
+  similarityScore: number;
+  reliability: AnalystCalibrationReliability;
+  blendWeight: number;
+};
+
 export type AnalystForecastResponse = {
   engine: string;
   generatedAt: number;
@@ -277,6 +301,7 @@ export type AnalystForecastResponse = {
   expectedRangeHigh: number;
   summary: string;
   scenarios: AnalystForecastScenario[];
+  calibration?: AnalystForecastCalibration;
   catalysts: AnalystCatalyst[];
   evidence: string[];
   uncertaintyNote: string;
