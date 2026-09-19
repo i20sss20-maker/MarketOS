@@ -413,17 +413,65 @@ export default function App() {
 
   const uploadCurrentDeviceToCloud = async () => {
     if (!authUser) return;
+
     setCloudBusy(true);
     setCloudError(null);
     setCloudMessage(null);
 
     try {
+      const localState = collectLocalCloudState();
+      const latest = await getCloudState();
+
+      if (latest.state) {
+        if (
+          !cloudState?.state ||
+          cloudState.clientRevision !== latest.clientRevision
+        ) {
+          setCloudState(latest);
+          setCloudError(
+            "توجد نسخة سحابية أحدث من النسخة التي قرأها هذا الجهاز. راجع الحالة ثم أعد الرفع.",
+          );
+          return;
+        }
+
+        if (
+          cloudState.serverRevision !== latest.serverRevision
+        ) {
+          const baselineAlerts =
+            JSON.stringify(cloudState.state.alerts ?? []);
+          const localAlerts =
+            JSON.stringify(localState.alerts ?? []);
+
+          if (baselineAlerts !== localAlerts) {
+            setCloudState(latest);
+            setCloudError(
+              "التنبيهات تغيرت محليًا وفي الخلفية في نفس الوقت. تم تحديث حالة السحابة؛ راجع التنبيهات قبل الرفع.",
+            );
+            return;
+          }
+
+          localState.alerts = latest.state.alerts;
+        }
+      } else if (cloudState?.state) {
+        setCloudState(latest);
+        setCloudError(
+          "النسخة السحابية حُذفت أو تغيرت من جلسة أخرى. تم تحديث الحالة؛ أعد المحاولة بعد المراجعة.",
+        );
+        return;
+      }
+
       const response = await putCloudState(
-        collectLocalCloudState(),
-        cloudState?.clientRevision ?? null,
+        localState,
+        latest.clientRevision,
+        latest.serverRevision,
       );
+
       setCloudState(response);
-      setCloudMessage("تم حفظ بيانات هذا الجهاز في السحابة.");
+      setCloudMessage(
+        latest.state
+          ? "تم تحديث النسخة السحابية بأمان."
+          : "تم إنشاء أول نسخة سحابية لهذا الجهاز.",
+      );
     } catch (error) {
       const message =
         error instanceof Error
@@ -433,7 +481,7 @@ export default function App() {
       setCloudError(
         message.includes("Cloud state changed") ||
         message.includes("cloud copy already exists")
-          ? "توجد نسخة سحابية أحدث أو مختلفة. اضغط «تحديث الحالة» وراجعها قبل الرفع من جديد."
+          ? "تغيرت النسخة السحابية أثناء الرفع. اضغط «تحديث الحالة» ثم أعد المحاولة."
           : message,
       );
     } finally {
@@ -495,6 +543,8 @@ export default function App() {
               ...current,
               state: null,
               updatedAt: null,
+              clientRevision: null,
+              serverRevision: null,
             }
           : null,
       );
