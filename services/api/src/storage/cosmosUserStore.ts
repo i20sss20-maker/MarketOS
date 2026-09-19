@@ -31,6 +31,12 @@ function normalizeStored(
       value.clientRevision >= 1
         ? Math.floor(value.clientRevision)
         : 1,
+    serverRevision:
+      typeof value.serverRevision === "number" &&
+      Number.isFinite(value.serverRevision) &&
+      value.serverRevision >= 1
+        ? Math.floor(value.serverRevision)
+        : 1,
   };
 }
 
@@ -94,24 +100,42 @@ export class CosmosUserStateStore implements UserStateStore {
   ) {
     const container = await this.container();
     const existing = await this.get(userId);
-    const expected = options?.expectedClientRevision;
+    const expectedClient =
+      options?.expectedClientRevision;
+    const expectedServer =
+      options?.expectedServerRevision;
 
-    if (expected !== undefined) {
-      if (expected === null && existing) {
-        throw new UserStateConflictError(
-          existing.clientRevision,
-          "A cloud copy already exists.",
-        );
-      }
+    if (
+      (expectedClient === null || expectedServer === null) &&
+      existing
+    ) {
+      throw new UserStateConflictError(
+        existing.clientRevision,
+        existing.serverRevision,
+        "A cloud copy already exists.",
+      );
+    }
 
-      if (
-        expected !== null &&
-        (!existing || existing.clientRevision !== expected)
-      ) {
-        throw new UserStateConflictError(
-          existing?.clientRevision ?? null,
-        );
-      }
+    if (
+      expectedClient !== undefined &&
+      expectedClient !== null &&
+      (!existing || existing.clientRevision !== expectedClient)
+    ) {
+      throw new UserStateConflictError(
+        existing?.clientRevision ?? null,
+        existing?.serverRevision ?? null,
+      );
+    }
+
+    if (
+      expectedServer !== undefined &&
+      expectedServer !== null &&
+      (!existing || existing.serverRevision !== expectedServer)
+    ) {
+      throw new UserStateConflictError(
+        existing?.clientRevision ?? null,
+        existing?.serverRevision ?? null,
+      );
     }
 
     const now = Date.now();
@@ -121,6 +145,7 @@ export class CosmosUserStateStore implements UserStateStore {
       updatedAt: now,
       clientUpdatedAt: now,
       clientRevision: (existing?.clientRevision ?? 0) + 1,
+      serverRevision: (existing?.serverRevision ?? 0) + 1,
       payload: {
         ...state,
         updatedAt: now,
@@ -139,6 +164,7 @@ export class CosmosUserStateStore implements UserStateStore {
           const current = await this.get(userId);
           throw new UserStateConflictError(
             current?.clientRevision ?? null,
+            current?.serverRevision ?? null,
           );
         }
         throw error;
@@ -148,6 +174,7 @@ export class CosmosUserStateStore implements UserStateStore {
     if (!existing._etag) {
       throw new UserStateConflictError(
         existing.clientRevision,
+        existing.serverRevision,
         "Cloud state version is unavailable. Refresh before saving.",
       );
     }
@@ -173,6 +200,7 @@ export class CosmosUserStateStore implements UserStateStore {
         const current = await this.get(userId);
         throw new UserStateConflictError(
           current?.clientRevision ?? null,
+          current?.serverRevision ?? null,
         );
       }
       throw error;
@@ -197,6 +225,7 @@ export class CosmosUserStateStore implements UserStateStore {
         updatedAt: now,
         clientUpdatedAt: existing.clientUpdatedAt,
         clientRevision: existing.clientRevision,
+        serverRevision: existing.serverRevision + 1,
         payload: {
           ...existing.payload,
           alerts,
