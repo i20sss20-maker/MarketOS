@@ -5881,3 +5881,34 @@ input:focus-visible {
     min-height: 520px;
   }
 }
+
+
+/* Workspace Layout V2 */
+.pane-symbol-selector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  gap: 4px;
+  max-width: min(285px, 62%);
+}
+
+.pane-symbol-selector .pane-timeframe-select {
+  min-width: 58px;
+  padding: 0 16px 0 6px;
+  text-align: center;
+}
+
+.chart-sync-toggle:disabled[title*="الفريم"] {
+  border-style: dashed;
+}
+
+@media (max-width: 760px) {
+  .pane-symbol-selector {
+    grid-template-columns: minmax(0, 1fr) 52px;
+    max-width: min(240px, 72%);
+  }
+
+  .pane-symbol-selector .pane-timeframe-select {
+    min-width: 52px;
+    padding-inline: 5px;
+  }
+}
