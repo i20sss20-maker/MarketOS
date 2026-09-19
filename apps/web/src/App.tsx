@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { LogicalRange } from "lightweight-charts";
 import {
   applySmartScreener,
   parseSmartScreenerQuery,
@@ -109,6 +110,7 @@ const initialSymbols: MarketSymbol[] = [
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 type ChartLayoutMode = "single" | "split";
+type MaximizedChartPane = "primary" | "secondary" | null;
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
@@ -260,6 +262,11 @@ export default function App() {
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
   );
+  const [chartSyncEnabled, setChartSyncEnabled] = useState(
+    () => readSaved<"on" | "off">("marketos:chart-sync", "on") === "on",
+  );
+  const [syncedLogicalRange, setSyncedLogicalRange] = useState<LogicalRange | null>(null);
+  const [maximizedChartPane, setMaximizedChartPane] = useState<MaximizedChartPane>(null);
   const [replayActive, setReplayActive] = useState(false);
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
   const [replayPlaying, setReplayPlaying] = useState(false);
@@ -1150,7 +1157,32 @@ export default function App() {
   const chooseLayoutMode = (mode: ChartLayoutMode) => {
     if (mode === "split" && !comparisonSymbol) return;
     setLayoutMode(mode);
+    setMaximizedChartPane(null);
+    if (mode === "single") setSyncedLogicalRange(null);
     saveSetting("marketos:chart-layout", mode);
+  };
+
+  const toggleChartSync = () => {
+    setChartSyncEnabled((current) => {
+      const next = !current;
+      saveSetting("marketos:chart-sync", next ? "on" : "off");
+      if (!next) setSyncedLogicalRange(null);
+      return next;
+    });
+  };
+
+  const handlePrimaryRangeChange = useCallback((range: LogicalRange | null) => {
+    if (!chartSyncEnabled || layoutMode !== "split") return;
+    setSyncedLogicalRange(range);
+  }, [chartSyncEnabled, layoutMode]);
+
+  const handleSecondaryRangeChange = useCallback((range: LogicalRange | null) => {
+    if (!chartSyncEnabled || layoutMode !== "split") return;
+    setSyncedLogicalRange(range);
+  }, [chartSyncEnabled, layoutMode]);
+
+  const toggleMaximizedPane = (pane: Exclude<MaximizedChartPane, null>) => {
+    setMaximizedChartPane((current) => current === pane ? null : pane);
   };
 
   const startReplay = () => {
@@ -1566,6 +1598,16 @@ export default function App() {
 
   const primaryChartNode = (
     <div className="chart-host primary-chart-host">
+      {layoutMode === "split" ? (
+        <div className="chart-pane-actions primary-pane-actions">
+          <button
+            onClick={() => toggleMaximizedPane("primary")}
+            title={maximizedChartPane === "primary" ? "إرجاع الشارتين" : "تكبير الشارت"}
+          >
+            {maximizedChartPane === "primary" ? "⊞" : "⛶"}
+          </button>
+        </div>
+      ) : null}
       {inspectedCandle ? (
         <div className="ohlc-legend" dir="ltr">
           <span>O <b>{formatPrice(inspectedCandle.open)}</b></span>
@@ -1597,6 +1639,8 @@ export default function App() {
         }
         settings={chartSettings}
         resetViewKey={chartResetKey}
+        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        onVisibleLogicalRangeChange={handlePrimaryRangeChange}
       />
       {textAnchor ? (
         <div className="text-note-composer" dir="rtl">
@@ -1635,6 +1679,14 @@ export default function App() {
         <strong>{comparisonSymbol.ticker}</strong>
         <span>{comparisonSymbol.exchange}</span>
       </div>
+      <div className="chart-pane-actions">
+        <button
+          onClick={() => toggleMaximizedPane("secondary")}
+          title={maximizedChartPane === "secondary" ? "إرجاع الشارتين" : "تكبير الشارت"}
+        >
+          {maximizedChartPane === "secondary" ? "⊞" : "⛶"}
+        </button>
+      </div>
       <MarketChart
         candles={displayComparisonCandles}
         timeframe={timeframe}
@@ -1647,6 +1699,8 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
+        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        onVisibleLogicalRangeChange={handleSecondaryRangeChange}
       />
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2428,6 +2482,15 @@ export default function App() {
                   2×
                 </button>
               </div>
+
+              <button
+                className={chartSyncEnabled && layoutMode === "split" ? "chart-sync-toggle active" : "chart-sync-toggle"}
+                onClick={toggleChartSync}
+                disabled={layoutMode !== "split"}
+                title="مزامنة Zoom/Scroll بين الشارتين"
+              >
+                Sync
+              </button>
             </div>
 
             {replayActive ? (
@@ -2543,9 +2606,17 @@ export default function App() {
             </div>
 
             {layoutMode === "split" && secondaryChartNode ? (
-              <div className="multi-chart-grid">
-                {primaryChartNode}
-                {secondaryChartNode}
+              <div className={[
+                "multi-chart-grid",
+                maximizedChartPane ? "pane-maximized" : "",
+                maximizedChartPane ? `max-${maximizedChartPane}` : "",
+              ].filter(Boolean).join(" ")}>
+                <div className={maximizedChartPane === "secondary" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {primaryChartNode}
+                </div>
+                <div className={maximizedChartPane === "primary" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {secondaryChartNode}
+                </div>
               </div>
             ) : primaryChartNode}
           </div>
