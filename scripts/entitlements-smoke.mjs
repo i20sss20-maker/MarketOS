@@ -29,6 +29,11 @@ const {
   "../services/api/dist/src/functions/userState.js"
 );
 const {
+  multiTimeframeAnalyze,
+} = await import(
+  "../services/api/dist/src/functions/multiTimeframeAnalyze.js"
+);
+const {
   userStateStore,
 } = await import(
   "../services/api/dist/src/storage/index.js"
@@ -136,6 +141,50 @@ assert.equal(
   10,
 );
 
+const multiTfBody = {
+  symbol: {
+    id: "NASDAQ:AAPL",
+    ticker: "AAPL",
+    name: "Apple Inc.",
+    exchange: "NASDAQ",
+    micCode: "XNAS",
+    assetClass: "stock",
+    currency: "USD",
+  },
+  timeframes: ["1h", "1d"],
+  indicators: ["sma20"],
+  prompt: "describe",
+};
+
+const anonymousMultiTf =
+  await multiTimeframeAnalyze({
+    method: "POST",
+    headers: new Headers(),
+    json: async () => multiTfBody,
+  });
+
+assert.equal(
+  anonymousMultiTf.status,
+  401,
+);
+
+const freeMultiTf =
+  await multiTimeframeAnalyze(
+    userRequest(
+      "POST",
+      multiTfBody,
+    ),
+  );
+
+assert.equal(
+  freeMultiTf.status,
+  403,
+);
+assert.equal(
+  freeMultiTf.jsonBody?.code,
+  "PLAN_FEATURE",
+);
+
 const overFreeState = {
   version: 1,
   updatedAt: Date.now(),
@@ -224,6 +273,27 @@ assert.equal(
   proPlan.jsonBody?.entitlement
     ?.definition?.limits?.watchlistItems,
   50,
+);
+
+const proMultiTf =
+  await multiTimeframeAnalyze(
+    userRequest(
+      "POST",
+      multiTfBody,
+    ),
+  );
+
+assert.equal(
+  proMultiTf.status,
+  200,
+);
+assert.equal(
+  proMultiTf.jsonBody?.ok,
+  true,
+);
+assert.ok(
+  proMultiTf.jsonBody?.analysis
+    ?.items?.length >= 2,
 );
 
 const accepted = await userState(
