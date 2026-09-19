@@ -123,6 +123,14 @@ const sanitized = sanitizeUserCloudState({
     (_, index) => ({ id: index }),
   ),
 
+  chartTemplates: Array.from(
+    { length: 40 },
+    (_, index) => ({
+      id: "template-" + index,
+      name: "Template " + index,
+    }),
+  ),
+
   drawings,
 
   ui: Object.fromEntries(
@@ -153,6 +161,10 @@ assert.equal(
   30,
 );
 assert.equal(
+  sanitized.chartTemplates.length,
+  30,
+);
+assert.equal(
   Object.keys(sanitized.drawings).length,
   80,
 );
@@ -173,6 +185,7 @@ assert.throws(
       alerts: [],
       chartSettings: null,
       customIndicators: [],
+      chartTemplates: [],
       drawings: {},
       ui: {
         huge: "x".repeat(
