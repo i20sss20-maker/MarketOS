@@ -7,6 +7,7 @@ MarketOS multi-chart panes can be linked independently by dimension.
 - **Symbol** — changing the symbol from any visible pane aligns all visible panes to the selected symbol.
 - **Timeframe** — changing the timeframe from any visible pane aligns all visible panes to the selected timeframe.
 - **Range** — synchronizes Zoom / Scroll using the existing logical-range synchronization.
+- **Crosshair** — synchronizes the hovered time across visible panes. Each target pane uses its nearest local candle and local close price.
 
 Each mode can be enabled or disabled separately.
 
@@ -29,26 +30,29 @@ The current link preferences are stored locally:
 - `marketos:chart-sync` — Range Link
 - `marketos:pane-link-symbol` — Symbol Link
 - `marketos:pane-link-timeframe` — Timeframe Link
+- `marketos:pane-link-crosshair` — Crosshair Link
 
 These keys are part of MarketOS Cloud Sync UI state.
 
 ## Workspaces
 
-Workspace V4 stores:
+Workspace V5 stores:
 
 ```ts
 paneLinks: {
   range: boolean;
   symbol: boolean;
   timeframe: boolean;
+  crosshair: boolean;
 }
 ```
 
-Older Workspace V2/V3 data remains compatible:
+Older Workspace V2/V3/V4 data remains compatible:
 
 - legacy `chartSyncEnabled` becomes the Range setting,
 - Symbol Link defaults to OFF,
-- Timeframe Link defaults to OFF.
+- Timeframe Link defaults to OFF,
+- Crosshair Link defaults to OFF.
 
 ## Same-symbol panes
 
