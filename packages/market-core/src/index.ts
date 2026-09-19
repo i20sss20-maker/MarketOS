@@ -167,6 +167,14 @@ export type ChartAnalysisMetrics = {
   rangeHigh20: number;
   sma20: number;
   distanceFromSma20: number;
+  ema20?: number;
+  ema50?: number;
+  rsi14?: number;
+  atr14?: number;
+  atrPercent?: number;
+  macd?: number;
+  macdSignal?: number;
+  macdHistogram?: number;
   averageVolume20?: number;
   latestVolumeRatio?: number;
   realizedRangePercent20: number;
