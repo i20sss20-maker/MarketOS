@@ -52,8 +52,10 @@ export function sanitizeUserCloudState(
     watchlist: boundedArray(value.watchlist, MAX_WATCHLIST),
     workspaces: boundedArray(value.workspaces, MAX_WORKSPACES),
     alerts: boundedArray(value.alerts, MAX_ALERTS),
-    // Alert inbox history is server-owned. Client cloud uploads cannot forge it.
+    // Alert inbox history and Push subscriptions are server-owned.
+    // Client cloud uploads cannot forge or replace them.
     alertEvents: [],
+    pushSubscriptions: [],
     chartSettings: isObject(value.chartSettings)
       ? value.chartSettings
       : null,
