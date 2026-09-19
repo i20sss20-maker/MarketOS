@@ -64,6 +64,7 @@ import {
   type CloudStateResponse,
 } from "./lib/cloudState";
 import { buildDataWindowSnapshot } from "./lib/dataWindow";
+import { buildHorizontalDrawingAlertSpec } from "./lib/drawingAlerts";
 import {
   buildReplaySessionStats,
   defaultReplayStartIndex,
@@ -121,6 +122,7 @@ import {
   undoDrawingHistory,
 } from "./lib/drawingHistory";
 import {
+  createAlertConditionId,
   describeAdvancedAlert,
   evaluateAdvancedAlerts,
   type AdvancedAlert,
@@ -2785,6 +2787,68 @@ export default function App() {
     );
   };
 
+  const createAlertFromHorizontalDrawing = (
+    drawing: ChartDrawing,
+  ) => {
+    if (drawing.type !== "horizontal") {
+      return "هذا النوع من الرسومات لا يدعم تنبيه سعر مباشر.";
+    }
+
+    if (replayActive) {
+      return "اخرج من Replay أولًا حتى لا تربط تنبيهًا حيًا بسعر تاريخي.";
+    }
+
+    if (
+      alerts.length >=
+      planLimits.alerts
+    ) {
+      showPlanRequirement(
+        `وصلت حد التنبيهات في خطة ${entitlement.definition.name}: ${planLimits.alerts} تنبيه.`,
+      );
+      return "وصلت حد التنبيهات في خطتك الحالية.";
+    }
+
+    const currentPrice =
+      quote?.price ??
+      candles[candles.length - 1]?.close;
+
+    if (
+      currentPrice === undefined ||
+      !Number.isFinite(currentPrice)
+    ) {
+      return "السعر الحالي غير متاح لإنشاء اتجاه التنبيه.";
+    }
+
+    const spec =
+      buildHorizontalDrawingAlertSpec(
+        currentPrice,
+        drawing.price,
+      );
+
+    if (!spec) {
+      return "السعر الحالي عند مستوى الخط تقريبًا؛ حرّك الخط قليلًا لتجنب تفعيل فوري.";
+    }
+
+    addAdvancedAlert(
+      timeframe,
+      "all",
+      [{
+        id: createAlertConditionId(),
+        type: "numeric",
+        metric: "price",
+        operator: spec.operator,
+        value: spec.value,
+      }],
+    );
+
+    const direction =
+      spec.operator === "above"
+        ? "صعودًا"
+        : "هبوطًا";
+
+    return `تم إنشاء تنبيه ${active.ticker} عند ${formatPrice(spec.value)} ${direction}. استخدم الفحص السحابي لمزامنته وتشغيله بالخلفية.`;
+  };
+
   const deleteAlert = (id: string) => {
     setAlerts((current) => {
       const next = current.filter((alert) => alert.id !== id);
@@ -4684,6 +4748,7 @@ export default function App() {
           setShowObjectTree(false);
           editTextDrawing(drawing);
         }}
+        onCreateDrawingAlert={createAlertFromHorizontalDrawing}
         onRemoveComparison={clearComparison}
       />
 
