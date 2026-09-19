@@ -56,14 +56,26 @@ assert.ok(
   existsSync("artifacts/azure-api/vendor/alert-core/dist/index.js"),
   "Azure bundle must contain the vendored alert-core runtime",
 );
+assert.equal(
+  stagedPackage?.dependencies?.["@marketos/entitlements-core"],
+  "file:vendor/entitlements-core",
+  "Standalone Azure API must vendor the entitlement engine",
+);
+assert.ok(
+  existsSync("artifacts/azure-api/vendor/entitlements-core/dist/index.js"),
+  "Azure bundle must contain the vendored entitlements-core runtime",
+);
 const marketosRuntimeDependencies = Object.entries(
   stagedPackage?.dependencies ?? {},
 ).filter(([name]) => name.startsWith("@marketos/"));
 
 assert.deepEqual(
   marketosRuntimeDependencies,
-  [["@marketos/alert-core", "file:vendor/alert-core"]],
-  "Standalone Azure API may only use the explicitly vendored alert-core MarketOS package",
+  [
+    ["@marketos/alert-core", "file:vendor/alert-core"],
+    ["@marketos/entitlements-core", "file:vendor/entitlements-core"],
+  ],
+  "Standalone Azure API may only use explicitly vendored MarketOS runtime packages",
 );
 
 const javascriptFiles = [];
@@ -111,6 +123,14 @@ assert.ok(!cosmosBootstrap.includes("Write-Host $connectionString"), "Cosmos con
 assert.ok(
   cosmosBootstrap.includes("USER_DATA_PROVIDER=cosmos"),
   "Cosmos bootstrap must explicitly enable persistent user storage",
+);
+assert.ok(
+  cosmosBootstrap.includes("ENTITLEMENT_DATA_PROVIDER=cosmos"),
+  "Cosmos bootstrap must explicitly enable persistent entitlement storage",
+);
+assert.ok(
+  cosmosBootstrap.includes("EntitlementsContainer"),
+  "Cosmos bootstrap must create the entitlements container",
 );
 
 console.log(
