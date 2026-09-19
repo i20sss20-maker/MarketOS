@@ -96,28 +96,27 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
     });
   }
 
-  const entitlement =
-    await getResolvedUserEntitlement(
-      user.userId,
-    );
-
-  if (
-    !canUseFeature(
-      entitlement,
-      "multiTimeframeAi",
-    )
-  ) {
-    return json(403, {
-      ok: false,
-      code: "PLAN_FEATURE",
-      error:
-        "Multi-Timeframe AI is not included in the current MarketOS plan.",
-      plan: entitlement.plan,
-      feature: "multiTimeframeAi",
-    });
-  }
-
   try {
+    const entitlement =
+      await getResolvedUserEntitlement(
+        user.userId,
+      );
+
+    if (
+      !canUseFeature(
+        entitlement,
+        "multiTimeframeAi",
+      )
+    ) {
+      return json(403, {
+        ok: false,
+        code: "PLAN_FEATURE",
+        error:
+          "Multi-Timeframe AI is not included in the current MarketOS plan.",
+        plan: entitlement.plan,
+        feature: "multiTimeframeAi",
+      });
+    }
     const body = await request.json() as Record<string, unknown>;
     const symbol = sanitizeSymbol(body.symbol);
     const timeframes = sanitizeTimeframes(body.timeframes);
