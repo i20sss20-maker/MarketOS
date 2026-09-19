@@ -14,6 +14,7 @@ import MarketChart, { type ChartView } from "./components/MarketChart";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
+import PaperTradingPanel from "./components/PaperTradingPanel";
 import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart } from "./lib/aiApi";
@@ -23,6 +24,7 @@ import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getCompanyFeed } from "./lib/feedApi";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
+import { loadPaperAccount, savePaperAccount } from "./lib/paperStorage";
 import {
   loadCustomIndicators,
   saveCustomIndicators,
@@ -173,6 +175,8 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showScreener, setShowScreener] = useState(false);
+  const [showPaperTrading, setShowPaperTrading] = useState(false);
+  const [paperAccount, setPaperAccount] = useState(() => loadPaperAccount());
   const [showCompanyFeed, setShowCompanyFeed] = useState(false);
   const [companyReleases, setCompanyReleases] = useState<CompanyRelease[]>([]);
   const [companyFeedProvider, setCompanyFeedProvider] = useState("demo-company-feed");
@@ -692,6 +696,11 @@ export default function App() {
     void refreshSystemHealth();
   };
 
+  const updatePaperAccount = useCallback((next: typeof paperAccount) => {
+    setPaperAccount(next);
+    savePaperAccount(next);
+  }, []);
+
   const changeEventsRange = (days: number) => {
     setEventsRangeDays(days);
     void refreshEvents(days);
@@ -914,7 +923,8 @@ export default function App() {
         showSystemPanel ||
         showStrategyTester ||
         showIndicatorLab ||
-        showCompanyFeed
+        showCompanyFeed ||
+        showPaperTrading
       ) {
         return;
       }
@@ -954,6 +964,7 @@ export default function App() {
     showStrategyTester,
     showIndicatorLab,
     showCompanyFeed,
+    showPaperTrading,
   ]);
 
   const chooseComparison = (symbol: MarketSymbol) => {
@@ -1295,6 +1306,10 @@ export default function App() {
             الشركات {companyReleases.length > 0 ? `(${companyReleases.length})` : ""}
           </button>
 
+          <button className="ghost-button paper-button" onClick={() => setShowPaperTrading(true)}>
+            Paper
+          </button>
+
           <button className="ghost-button strategy-button" onClick={() => setShowStrategyTester(true)}>
             الاختبار
           </button>
@@ -1386,6 +1401,16 @@ export default function App() {
         indicators={customIndicators}
         onChange={updateCustomIndicators}
         onClose={() => setShowIndicatorLab(false)}
+      />
+
+      <PaperTradingPanel
+        open={showPaperTrading}
+        account={paperAccount}
+        activeSymbol={active}
+        activePrice={displayedPrice}
+        replayActive={replayActive}
+        onAccountChange={updatePaperAccount}
+        onClose={() => setShowPaperTrading(false)}
       />
 
       <StrategyTester
