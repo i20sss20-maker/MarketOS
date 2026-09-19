@@ -85,6 +85,12 @@ for (const userId of ["worker-user-a", "worker-user-b"]) {
     typeof stored.payload.alerts[0].triggeredAt === "number",
     "Background sweep must persist triggeredAt",
   );
+  assert.equal(stored.payload.alertEvents?.length, 1);
+  assert.equal(stored.payload.alertEvents?.[0].source, "background");
+  assert.equal(
+    stored.payload.alertEvents?.[0].alertId,
+    `alert-${userId}`,
+  );
   await userStateStore.delete(userId);
 }
 
