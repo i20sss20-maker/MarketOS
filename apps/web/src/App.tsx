@@ -949,6 +949,69 @@ export default function App() {
             </div>
           </div>
 
+          <div className={replayActive ? "replay-toolbar active" : "replay-toolbar"}>
+            <div className="replay-main-actions">
+              <button
+                className={replayActive ? "replay-toggle active" : "replay-toggle"}
+                onClick={replayActive ? exitReplay : startReplay}
+              >
+                {replayActive ? "خروج Replay" : "Replay"}
+              </button>
+
+              <div className="layout-toggle" title="تخطيط الشارت">
+                <button
+                  className={layoutMode === "single" ? "selected" : ""}
+                  onClick={() => chooseLayoutMode("single")}
+                >
+                  1×
+                </button>
+                <button
+                  className={layoutMode === "split" ? "selected" : ""}
+                  onClick={() => chooseLayoutMode("split")}
+                  disabled={!comparisonSymbol}
+                  title={comparisonSymbol ? "شارتان جنبًا إلى جنب" : "اختر أصلًا للمقارنة أولًا"}
+                >
+                  2×
+                </button>
+              </div>
+            </div>
+
+            {replayActive ? (
+              <div className="replay-controls" dir="ltr">
+                <button onClick={() => stepReplay(-1)} disabled={safeReplayIndex <= 20}>‹</button>
+                <button
+                  className={replayPlaying ? "selected" : ""}
+                  onClick={() => setReplayPlaying((value) => !value)}
+                >
+                  {replayPlaying ? "Ⅱ" : "▶"}
+                </button>
+                <button
+                  onClick={() => stepReplay(1)}
+                  disabled={safeReplayIndex >= candles.length - 1}
+                >
+                  ›
+                </button>
+                <input
+                  type="range"
+                  min={20}
+                  max={Math.max(20, candles.length - 1)}
+                  value={Math.max(20, safeReplayIndex)}
+                  onChange={(event) => {
+                    setReplayPlaying(false);
+                    setReplayIndex(Number(event.target.value));
+                    setHoverCandle(null);
+                  }}
+                />
+                <span className="replay-progress">
+                  {Math.min(candles.length, safeReplayIndex + 1)} / {candles.length}
+                </span>
+                <span className="replay-date">{replayDateLabel}</span>
+              </div>
+            ) : (
+              <div className="replay-idle-note">إعادة تشغيل تاريخية من نفس بيانات الشارت</div>
+            )}
+          </div>
+
           <div className="chart-stage">
             <div className="drawing-rail">
               <button
@@ -989,37 +1052,12 @@ export default function App() {
               <button title="مسح الرسومات" onClick={clearDrawings} disabled={drawings.length === 0}>⌫</button>
             </div>
 
-            <div className="chart-host">
-              {inspectedCandle ? (
-                <div className="ohlc-legend" dir="ltr">
-                  <span>O <b>{formatPrice(inspectedCandle.open)}</b></span>
-                  <span>H <b>{formatPrice(inspectedCandle.high)}</b></span>
-                  <span>L <b>{formatPrice(inspectedCandle.low)}</b></span>
-                  <span>C <b className={inspectedCandle.close >= inspectedCandle.open ? "positive" : "negative"}>
-                    {formatPrice(inspectedCandle.close)}
-                  </b></span>
-                  {inspectedCandle.volume !== undefined ? <span>V <b>{Math.round(inspectedCandle.volume).toLocaleString("en-US")}</b></span> : null}
-                </div>
-              ) : null}
-              <MarketChart
-                candles={candles}
-                timeframe={timeframe}
-                chartView={chartView}
-                indicators={indicators}
-                drawings={drawings}
-                drawingTool={drawingTool}
-                onDrawingCreated={handleDrawingCreated}
-                onCrosshairCandle={setHoverCandle}
-                comparison={
-                  comparisonSymbol && comparisonCandles.length > 0
-                    ? { symbol: comparisonSymbol, candles: comparisonCandles }
-                    : null
-                }
-              />
-              {dataState === "loading" ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
-              {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
-              {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
-            </div>
+            {layoutMode === "split" && secondaryChartNode ? (
+              <div className="multi-chart-grid">
+                {primaryChartNode}
+                {secondaryChartNode}
+              </div>
+            ) : primaryChartNode}
           </div>
         </section>
 
