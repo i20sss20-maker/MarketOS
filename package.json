@@ -7,7 +7,8 @@
     "dev:web": "pnpm --filter @marketos/web dev",
     "dev:api": "pnpm --filter @marketos/api start",
     "build": "pnpm --filter @marketos/market-core build && pnpm --filter @marketos/web build && pnpm --filter @marketos/api build",
-    "typecheck": "pnpm --filter @marketos/market-core build && pnpm --filter @marketos/web typecheck && pnpm --filter @marketos/api typecheck"
+    "typecheck": "pnpm --filter @marketos/market-core build && pnpm --filter @marketos/web typecheck && pnpm --filter @marketos/api typecheck",
+    "smoke:market": "node scripts/market-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

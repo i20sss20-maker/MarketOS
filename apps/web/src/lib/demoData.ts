@@ -1,5 +1,4 @@
-import type { CandlestickData, LineData, UTCTimestamp } from "lightweight-charts";
-import type { Timeframe } from "@marketos/market-core";
+import type { Candle, Quote, Timeframe } from "@marketos/market-core";
 
 function seedFrom(text: string) {
   return [...text].reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -16,31 +15,38 @@ const secondsByTimeframe: Record<Timeframe, number> = {
   "1M": 30 * 24 * 60 * 60,
 };
 
-export function createDemoCandles(symbol: string, timeframe: Timeframe): CandlestickData<UTCTimestamp>[] {
+export function createDemoCandles(symbol: string, timeframe: Timeframe, limit = 260): Candle[] {
   const seed = seedFrom(symbol);
-  const points: CandlestickData<UTCTimestamp>[] = [];
-  const now = Math.floor(Date.now() / 1000);
+  const points: Candle[] = [];
   const step = secondsByTimeframe[timeframe];
-  const volatility = timeframe === "1m" || timeframe === "5m" ? 0.28 : timeframe === "1d" || timeframe === "1w" ? 1.05 : 0.62;
+  const now = Math.floor(Date.now() / step) * step;
+  const volatility =
+    timeframe === "1m" || timeframe === "5m"
+      ? 0.28
+      : timeframe === "1d" || timeframe === "1w" || timeframe === "1M"
+        ? 1.05
+        : 0.62;
   let previousClose = 45 + (seed % 220);
 
-  for (let i = 220; i >= 0; i -= 1) {
-    const time = (now - i * step) as UTCTimestamp;
-    const cycle = Math.sin((i + seed) / 9) * volatility;
-    const drift = Math.cos((i + seed) / 27) * volatility * 0.55;
-    const pulse = Math.sin((i + seed) / 3.7) * volatility * 0.25;
+  for (let index = limit - 1; index >= 0; index -= 1) {
+    const waveIndex = limit - index;
+    const time = now - index * step;
+    const cycle = Math.sin((waveIndex + seed) / 9) * volatility;
+    const drift = Math.cos((waveIndex + seed) / 27) * volatility * 0.55;
+    const pulse = Math.sin((waveIndex + seed) / 3.7) * volatility * 0.25;
     const open = previousClose;
     const close = Math.max(1, open + cycle * 0.38 + drift * 0.26 + pulse * 0.18);
     const spread = Math.max(0.16, volatility * 0.7);
-    const high = Math.max(open, close) + spread + Math.abs(Math.sin(i / 5)) * spread;
-    const low = Math.max(0.01, Math.min(open, close) - spread - Math.abs(Math.cos(i / 6)) * spread);
+    const high = Math.max(open, close) + spread + Math.abs(Math.sin(waveIndex / 5)) * spread;
+    const low = Math.max(0.01, Math.min(open, close) - spread - Math.abs(Math.cos(waveIndex / 6)) * spread);
 
     points.push({
       time,
-      open: Number(open.toFixed(2)),
-      high: Number(high.toFixed(2)),
-      low: Number(low.toFixed(2)),
-      close: Number(close.toFixed(2)),
+      open: Number(open.toFixed(4)),
+      high: Number(high.toFixed(4)),
+      low: Number(low.toFixed(4)),
+      close: Number(close.toFixed(4)),
+      volume: Math.round(50_000 + Math.abs(Math.sin((waveIndex + seed) / 4)) * 450_000),
     });
 
     previousClose = close;
@@ -49,18 +55,37 @@ export function createDemoCandles(symbol: string, timeframe: Timeframe): Candles
   return points;
 }
 
-export function createSma(
-  candles: CandlestickData<UTCTimestamp>[],
-  period: number,
-): LineData<UTCTimestamp>[] {
-  const output: LineData<UTCTimestamp>[] = [];
+export function createDemoQuote(symbol: string, currency: string, candles: Candle[]): Quote {
+  const current = candles[candles.length - 1];
+  const previous = candles[candles.length - 2] ?? current;
+  const change = current.close - previous.close;
+  const percentChange = previous.close === 0 ? 0 : (change / previous.close) * 100;
+
+  return {
+    symbol,
+    price: current.close,
+    open: current.open,
+    high: current.high,
+    low: current.low,
+    previousClose: previous.close,
+    change,
+    percentChange,
+    volume: current.volume,
+    currency,
+    timestamp: current.time,
+    source: "web-demo-fallback",
+  };
+}
+
+export function createSma(candles: Candle[], period: number) {
+  const output: Array<{ time: number; value: number }> = [];
 
   for (let index = period - 1; index < candles.length; index += 1) {
     const window = candles.slice(index - period + 1, index + 1);
     const average = window.reduce((sum, candle) => sum + candle.close, 0) / period;
     output.push({
       time: candles[index].time,
-      value: Number(average.toFixed(2)),
+      value: Number(average.toFixed(4)),
     });
   }
 

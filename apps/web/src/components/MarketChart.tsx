@@ -3,30 +3,30 @@ import {
   AreaSeries,
   CandlestickSeries,
   ColorType,
+  HistogramSeries,
   LineSeries,
   createChart,
+  type UTCTimestamp,
 } from "lightweight-charts";
-import type { MarketSymbol, Timeframe } from "@marketos/market-core";
-import { createDemoCandles, createSma } from "../lib/demoData";
+import type { Candle, Timeframe } from "@marketos/market-core";
+import { createSma } from "../lib/demoData";
 
 export type ChartView = "candles" | "line" | "area";
 
 type Props = {
-  symbol: MarketSymbol;
+  candles: Candle[];
   timeframe: Timeframe;
   chartView: ChartView;
   showSma: boolean;
 };
 
-export default function MarketChart({ symbol, timeframe, chartView, showSma }: Props) {
+export default function MarketChart({ candles, timeframe, chartView, showSma }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const container = containerRef.current;
-    const candles = createDemoCandles(symbol.ticker, timeframe);
-
     const chart = createChart(container, {
       width: container.clientWidth,
       height: container.clientHeight,
@@ -42,8 +42,8 @@ export default function MarketChart({ symbol, timeframe, chartView, showSma }: P
       rightPriceScale: {
         borderColor: "rgba(148,163,184,0.14)",
         scaleMargins: {
-          top: 0.08,
-          bottom: 0.08,
+          top: 0.06,
+          bottom: 0.24,
         },
       },
       timeScale: {
@@ -67,6 +67,14 @@ export default function MarketChart({ symbol, timeframe, chartView, showSma }: P
       handleScale: true,
     });
 
+    const candleData = candles.map((point) => ({
+      time: point.time as UTCTimestamp,
+      open: point.open,
+      high: point.high,
+      low: point.low,
+      close: point.close,
+    }));
+
     if (chartView === "candles") {
       const priceSeries = chart.addSeries(CandlestickSeries, {
         upColor: "#20c997",
@@ -76,14 +84,19 @@ export default function MarketChart({ symbol, timeframe, chartView, showSma }: P
         wickDownColor: "#f05d6f",
         priceLineVisible: true,
       });
-      priceSeries.setData(candles);
+      priceSeries.setData(candleData);
     } else if (chartView === "line") {
       const priceSeries = chart.addSeries(LineSeries, {
         color: "#8b8cf8",
         lineWidth: 2,
         crosshairMarkerRadius: 4,
       });
-      priceSeries.setData(candles.map((point) => ({ time: point.time, value: point.close })));
+      priceSeries.setData(
+        candles.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.close,
+        })),
+      );
     } else {
       const priceSeries = chart.addSeries(AreaSeries, {
         lineColor: "#7c7cf5",
@@ -91,10 +104,15 @@ export default function MarketChart({ symbol, timeframe, chartView, showSma }: P
         bottomColor: "rgba(99,102,241,.015)",
         lineWidth: 2,
       });
-      priceSeries.setData(candles.map((point) => ({ time: point.time, value: point.close })));
+      priceSeries.setData(
+        candles.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.close,
+        })),
+      );
     }
 
-    if (showSma) {
+    if (showSma && candles.length >= 20) {
       const smaSeries = chart.addSeries(LineSeries, {
         color: "#f59e0b",
         lineWidth: 1,
@@ -102,7 +120,38 @@ export default function MarketChart({ symbol, timeframe, chartView, showSma }: P
         lastValueVisible: false,
         crosshairMarkerVisible: false,
       });
-      smaSeries.setData(createSma(candles, 20));
+      smaSeries.setData(
+        createSma(candles, 20).map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.value,
+        })),
+      );
+    }
+
+    const volumeData = candles
+      .filter((point) => point.volume !== undefined)
+      .map((point) => ({
+        time: point.time as UTCTimestamp,
+        value: point.volume ?? 0,
+        color: point.close >= point.open
+          ? "rgba(32,201,151,.34)"
+          : "rgba(240,93,111,.34)",
+      }));
+
+    if (volumeData.length > 0) {
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        priceFormat: { type: "volume" },
+        priceScaleId: "volume",
+        lastValueVisible: false,
+        priceLineVisible: false,
+      });
+      volumeSeries.setData(volumeData);
+      chart.priceScale("volume").applyOptions({
+        scaleMargins: {
+          top: 0.80,
+          bottom: 0,
+        },
+      });
     }
 
     const resize = new ResizeObserver(() => {
@@ -119,7 +168,7 @@ export default function MarketChart({ symbol, timeframe, chartView, showSma }: P
       resize.disconnect();
       chart.remove();
     };
-  }, [symbol.id, symbol.ticker, timeframe, chartView, showSma]);
+  }, [candles, timeframe, chartView, showSma]);
 
   return <div className="chart-canvas" ref={containerRef} />;
 }

@@ -1,0 +1,245 @@
+import type {
+  AssetClass,
+  Candle,
+  MarketDataProvider,
+  MarketDataStatus,
+  MarketSymbol,
+  Quote,
+  Timeframe,
+} from "@marketos/market-core";
+
+const API_BASE_URL = "https://api.twelvedata.com";
+
+const intervalByTimeframe: Record<Timeframe, string> = {
+  "1m": "1min",
+  "5m": "5min",
+  "15m": "15min",
+  "1h": "1h",
+  "4h": "4h",
+  "1d": "1day",
+  "1w": "1week",
+  "1M": "1month",
+};
+
+type ApiError = {
+  status?: string;
+  code?: number;
+  message?: string;
+};
+
+type SearchItem = {
+  symbol?: string;
+  instrument_name?: string;
+  exchange?: string;
+  mic_code?: string;
+  country?: string;
+  currency?: string;
+  instrument_type?: string;
+};
+
+type SearchResponse = ApiError & {
+  data?: SearchItem[];
+};
+
+type TimeSeriesValue = {
+  datetime?: string;
+  open?: string;
+  high?: string;
+  low?: string;
+  close?: string;
+  volume?: string;
+};
+
+type TimeSeriesResponse = ApiError & {
+  values?: TimeSeriesValue[];
+};
+
+type QuoteResponse = ApiError & {
+  symbol?: string;
+  currency?: string;
+  timestamp?: number;
+  open?: string;
+  high?: string;
+  low?: string;
+  close?: string;
+  previous_close?: string;
+  change?: string;
+  percent_change?: string;
+  volume?: string;
+  is_market_open?: boolean;
+  is_extended_hours?: boolean;
+};
+
+function numberOrUndefined(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function assetClassFromInstrumentType(type = ""): AssetClass {
+  const normalized = type.toLowerCase();
+  if (normalized.includes("digital") || normalized.includes("crypto")) return "crypto";
+  if (normalized.includes("physical currency") || normalized.includes("forex")) return "forex";
+  if (normalized.includes("future")) return "future";
+  if (normalized.includes("commodity")) return "commodity";
+  if (normalized.includes("index")) return "index";
+  if (normalized.includes("etf") || normalized.includes("exchange-traded fund")) return "etf";
+  return "stock";
+}
+
+function timestampFromDateTime(value?: string): number | undefined {
+  if (!value) return undefined;
+  const normalized = value.includes("T")
+    ? value
+    : value.length === 10
+      ? `${value}T00:00:00Z`
+      : `${value.replace(" ", "T")}Z`;
+  const milliseconds = Date.parse(normalized);
+  if (!Number.isFinite(milliseconds)) return undefined;
+  return Math.floor(milliseconds / 1000);
+}
+
+function requestSymbol(symbol: MarketSymbol) {
+  return symbol.providerSymbol ?? symbol.ticker;
+}
+
+export class TwelveDataMarketDataProvider implements MarketDataProvider {
+  readonly id = "twelvedata";
+
+  constructor(private readonly apiKey: string) {}
+
+  private async request<T extends ApiError>(path: string, params: Record<string, string | number | undefined>): Promise<T> {
+    const url = new URL(path, API_BASE_URL);
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== "") url.searchParams.set(key, String(value));
+    }
+    url.searchParams.set("apikey", this.apiKey);
+
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "MarketOS/0.1",
+      },
+    });
+
+    let payload: T;
+    try {
+      payload = await response.json() as T;
+    } catch {
+      throw new Error(`Market data provider returned an invalid response (${response.status}).`);
+    }
+
+    if (!response.ok || payload.status === "error") {
+      throw new Error(payload.message ?? `Market data provider request failed (${response.status}).`);
+    }
+
+    return payload;
+  }
+
+  async searchSymbols(query: string): Promise<MarketSymbol[]> {
+    const payload = await this.request<SearchResponse>("/symbol_search", {
+      symbol: query,
+      outputsize: 12,
+    });
+
+    return (payload.data ?? [])
+      .filter((item): item is SearchItem & { symbol: string } => Boolean(item.symbol))
+      .map((item) => {
+        const exchange = item.exchange || item.mic_code || "MARKET";
+        return {
+          id: `${item.mic_code || exchange}:${item.symbol}`,
+          ticker: item.symbol,
+          providerSymbol: item.symbol,
+          name: item.instrument_name || item.symbol,
+          exchange,
+          micCode: item.mic_code,
+          country: item.country,
+          assetClass: assetClassFromInstrumentType(item.instrument_type),
+          currency: item.currency || "",
+        };
+      });
+  }
+
+  async getCandles(symbol: MarketSymbol, timeframe: Timeframe, limit = 260): Promise<Candle[]> {
+    const payload = await this.request<TimeSeriesResponse>("/time_series", {
+      symbol: requestSymbol(symbol),
+      interval: intervalByTimeframe[timeframe],
+      outputsize: Math.min(Math.max(limit, 40), 5000),
+      order: "asc",
+      timezone: "UTC",
+      mic_code: symbol.micCode,
+      exchange: symbol.micCode ? undefined : symbol.exchange,
+    });
+
+    return (payload.values ?? []).flatMap((value) => {
+      const time = timestampFromDateTime(value.datetime);
+      const open = numberOrUndefined(value.open);
+      const high = numberOrUndefined(value.high);
+      const low = numberOrUndefined(value.low);
+      const close = numberOrUndefined(value.close);
+
+      if (
+        time === undefined ||
+        open === undefined ||
+        high === undefined ||
+        low === undefined ||
+        close === undefined
+      ) {
+        return [];
+      }
+
+      const volume = numberOrUndefined(value.volume);
+      return [{
+        time,
+        open,
+        high,
+        low,
+        close,
+        ...(volume === undefined ? {} : { volume }),
+      }];
+    });
+  }
+
+  async getQuote(symbol: MarketSymbol): Promise<Quote> {
+    const payload = await this.request<QuoteResponse>("/quote", {
+      symbol: requestSymbol(symbol),
+      mic_code: symbol.micCode,
+      exchange: symbol.micCode ? undefined : symbol.exchange,
+    });
+
+    const price = numberOrUndefined(payload.close);
+    if (price === undefined) {
+      throw new Error("Market data provider did not return a valid quote price.");
+    }
+
+    return {
+      symbol: payload.symbol || symbol.ticker,
+      price,
+      open: numberOrUndefined(payload.open),
+      high: numberOrUndefined(payload.high),
+      low: numberOrUndefined(payload.low),
+      previousClose: numberOrUndefined(payload.previous_close),
+      change: numberOrUndefined(payload.change),
+      percentChange: numberOrUndefined(payload.percent_change),
+      volume: numberOrUndefined(payload.volume),
+      currency: payload.currency || symbol.currency,
+      timestamp: payload.timestamp ?? Math.floor(Date.now() / 1000),
+      isMarketOpen: payload.is_market_open,
+      isExtendedHours: payload.is_extended_hours,
+      source: this.id,
+    };
+  }
+
+  getStatus(): MarketDataStatus {
+    return {
+      provider: this.id,
+      configured: true,
+      mode: "provider",
+      supportsSearch: true,
+      supportsQuotes: true,
+      supportsCandles: true,
+      message: "Twelve Data adapter is configured. Data entitlements depend on the connected Twelve Data account.",
+    };
+  }
+}
