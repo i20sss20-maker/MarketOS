@@ -3,7 +3,7 @@
     "rewrite": "/index.html",
     "exclude": [
       "/api/*",
-      "/*.{css,js,map,json,png,jpg,jpeg,webp,svg,ico,woff,woff2}"
+      "/*.{css,js,map,json,webmanifest,png,jpg,jpeg,webp,svg,ico,woff,woff2}"
     ]
   },
   "globalHeaders": {
@@ -17,6 +17,13 @@
     "apiRuntime": "node:20"
   },
   "routes": [
+    {
+      "route": "/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "Service-Worker-Allowed": "/"
+      }
+    },
     {
       "route": "/api/user/*",
       "allowedRoles": [
