@@ -35,8 +35,48 @@ export async function userState(
     }
 
     if (request.method === "PUT") {
-      const payload = await request.json();
-      const state = sanitizeUserCloudState(payload);
+      const payload = await request.json() as {
+        state?: unknown;
+        expectedUpdatedAt?: unknown;
+      };
+
+      const state = sanitizeUserCloudState(
+        payload?.state ?? payload,
+      );
+
+      const expectedUpdatedAt =
+        typeof payload?.expectedUpdatedAt === "number" &&
+        Number.isFinite(payload.expectedUpdatedAt)
+          ? Math.floor(payload.expectedUpdatedAt)
+          : null;
+
+      const existing = await userStateStore.get(user.userId);
+
+      if (
+        expectedUpdatedAt !== null &&
+        existing &&
+        existing.updatedAt !== expectedUpdatedAt
+      ) {
+        return json(409, {
+          ok: false,
+          error: "Cloud state changed on another device. Refresh before uploading again.",
+          conflict: true,
+          currentUpdatedAt: existing.updatedAt,
+        });
+      }
+
+      if (
+        expectedUpdatedAt === null &&
+        existing
+      ) {
+        return json(409, {
+          ok: false,
+          error: "A cloud copy already exists. Refresh it before replacing the stored state.",
+          conflict: true,
+          currentUpdatedAt: existing.updatedAt,
+        });
+      }
+
       const stored = await userStateStore.put(
         user.userId,
         state,
