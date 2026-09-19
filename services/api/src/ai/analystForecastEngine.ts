@@ -105,21 +105,45 @@ function scenarioProbabilities(
 }
 
 function timeframeScore(
-  change20: number,
-  distanceFromSma20: number,
+  metrics:
+    MultiTimeframeAnalysisResponse["items"][number]["analysis"]["metrics"],
 ) {
   const momentum =
-    clamp(change20 / 5, -1, 1);
-  const position =
     clamp(
-      distanceFromSma20 / 3,
+      metrics.change20 / 5,
       -1,
       1,
     );
+  const position =
+    clamp(
+      metrics.distanceFromSma20 / 3,
+      -1,
+      1,
+    );
+  const rsi =
+    metrics.rsi14 === undefined
+      ? 0
+      : clamp(
+          (metrics.rsi14 - 50) /
+            25,
+          -1,
+          1,
+        );
+  const macd =
+    metrics.macdHistogram ===
+    undefined
+      ? 0
+      : metrics.macdHistogram > 0
+        ? 1
+        : metrics.macdHistogram < 0
+          ? -1
+          : 0;
 
   return (
-    momentum * 0.66 +
-    position * 0.34
+    momentum * 0.5 +
+    position * 0.25 +
+    rsi * 0.15 +
+    macd * 0.1
   );
 }
 
@@ -261,10 +285,7 @@ export function buildAnalystForecast(
 
     weightedScore +=
       timeframeScore(
-        item.analysis.metrics
-          .change20,
-        item.analysis.metrics
-          .distanceFromSma20,
+        item.analysis.metrics,
       ) *
       weight;
 
@@ -331,6 +352,21 @@ export function buildAnalystForecast(
       ),
     );
 
+  const atrPercents =
+    items
+      .map(
+        (item) =>
+          item.analysis.metrics
+            .atrPercent,
+      )
+      .filter(
+        (value): value is number =>
+          value !== undefined,
+      );
+
+  const averageAtrPercent =
+    average(atrPercents);
+
   const highImpactEvents =
     input.events.filter(
       (event) =>
@@ -339,7 +375,10 @@ export function buildAnalystForecast(
 
   const risk =
     riskFrom(
-      averageRange,
+      Math.max(
+        averageRange,
+        averageAtrPercent * 4,
+      ),
       highImpactEvents,
       input.multiTimeframe
         .failures.length,
@@ -478,6 +517,58 @@ export function buildAnalystForecast(
     input.multiTimeframe.summary,
     ...input.multiTimeframe.observations.slice(0, 4),
   ];
+
+  const rsiValues =
+    items
+      .map(
+        (item) =>
+          item.analysis.metrics
+            .rsi14,
+      )
+      .filter(
+        (value): value is number =>
+          value !== undefined,
+      );
+
+  if (rsiValues.length > 0) {
+    evidence.push(
+      `متوسط RSI14 عبر الفريمات المتاحة ${round(average(rsiValues), 1)}.`,
+    );
+  }
+
+  const positiveMacd =
+    items.filter(
+      (item) =>
+        (
+          item.analysis.metrics
+            .macdHistogram ?? 0
+        ) > 0,
+    ).length;
+
+  const negativeMacd =
+    items.filter(
+      (item) =>
+        (
+          item.analysis.metrics
+            .macdHistogram ?? 0
+        ) < 0,
+    ).length;
+
+  if (
+    positiveMacd +
+      negativeMacd >
+    0
+  ) {
+    evidence.push(
+      `MACD: ${positiveMacd} فريم بزخم موجب مقابل ${negativeMacd} فريم بزخم سالب.`,
+    );
+  }
+
+  if (atrPercents.length > 0) {
+    evidence.push(
+      `متوسط ATR14 النسبي عبر الفريمات ${round(averageAtrPercent, 2)}%.`,
+    );
+  }
 
   if (input.events.length > 0) {
     evidence.push(
