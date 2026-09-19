@@ -11527,3 +11527,27 @@ button.object-tree-row {
     right: 0;
   }
 }
+
+
+/* Drawing Alerts V1 ------------------------------------------------------- */
+.object-tree-action-message {
+  margin: 7px 8px 0;
+  padding: 8px 9px;
+  border: 1px solid rgba(34,201,154,.10);
+  border-radius: 7px;
+  background: rgba(15,65,51,.12);
+  color: #77c7aa;
+  font-size: 7px;
+  line-height: 1.55;
+}
+
+.object-tree-alert-action {
+  border-color: rgba(245,158,11,.08) !important;
+  color: #b78b48 !important;
+}
+
+.object-tree-alert-action:hover {
+  border-color: rgba(245,158,11,.16) !important;
+  background: rgba(245,158,11,.05) !important;
+  color: #d8aa61 !important;
+}
