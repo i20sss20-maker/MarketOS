@@ -13,6 +13,10 @@
     "COSMOS_DATABASE": "marketos",
     "COSMOS_CONTAINER": "userState",
     "ALERT_WORKER_ENABLED": "false",
-    "MARKETOS_WORKER_SECRET": ""
+    "MARKETOS_WORKER_SECRET": "",
+    "WEB_PUSH_ENABLED": "false",
+    "VAPID_PUBLIC_KEY": "",
+    "VAPID_PRIVATE_KEY": "",
+    "VAPID_SUBJECT": ""
   }
 }
