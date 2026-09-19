@@ -215,3 +215,62 @@ export type MultiTimeframeAnalysisResponse = {
   summary: string;
   observations: string[];
 };
+
+export type AnalystForecastBias =
+  | "bullish"
+  | "bearish"
+  | "neutral";
+
+export type AnalystRiskLevel =
+  | "low"
+  | "medium"
+  | "high";
+
+export type AnalystMarketRegime =
+  | "trend"
+  | "range"
+  | "volatile";
+
+export type AnalystForecastScenario = {
+  id: "bull" | "base" | "bear";
+  label: string;
+  probability: number;
+  targetLow: number;
+  targetHigh: number;
+  trigger: string;
+  invalidation: string;
+  rationale: string[];
+};
+
+export type AnalystCatalyst = {
+  kind: "event" | "release";
+  title: string;
+  date?: string;
+  importance?: "low" | "medium" | "high";
+  source: string;
+};
+
+export type AnalystForecastResponse = {
+  engine: string;
+  generatedAt: number;
+  symbol: MarketSymbol;
+  dataProvider: string;
+  dataMode: "demo" | "provider";
+  timeframes: Timeframe[];
+  bias: AnalystForecastBias;
+  confidence: number;
+  risk: AnalystRiskLevel;
+  regime: AnalystMarketRegime;
+  horizon: string;
+  referencePrice: number;
+  support: number;
+  resistance: number;
+  expectedRangeLow: number;
+  expectedRangeHigh: number;
+  summary: string;
+  scenarios: AnalystForecastScenario[];
+  catalysts: AnalystCatalyst[];
+  evidence: string[];
+  uncertaintyNote: string;
+};
+
