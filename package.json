@@ -38,6 +38,7 @@
     "smoke:replay-v2": "node scripts/replay-v2-smoke.mjs",
     "smoke:drawing-alerts": "node scripts/drawing-alerts-smoke.mjs",
     "smoke:pane-linking": "node scripts/pane-linking-smoke.mjs",
+    "smoke:crosshair-linking": "node scripts/crosshair-linking-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
     "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
     "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",
