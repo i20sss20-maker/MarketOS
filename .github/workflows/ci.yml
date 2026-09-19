@@ -81,6 +81,9 @@ jobs:
       - name: Alert inbox runtime smoke test
         run: pnpm smoke:alert-inbox
 
+      - name: Web Push runtime/security smoke test
+        run: pnpm smoke:web-push
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
@@ -105,6 +108,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-preview.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-cosmos.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-alert-worker.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-web-push.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4
