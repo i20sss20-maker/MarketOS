@@ -3163,3 +3163,436 @@ input:focus-visible {
     bottom: 30px;
   }
 }
+
+
+/* Custom Indicator Lab V1 */
+.indicator-lab-launch {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 8px 9px;
+  border: 1px solid rgba(99,102,241,.16);
+  border-radius: 7px;
+  background: rgba(79,70,229,.09);
+  color: #aeb7ff;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.indicator-lab-launch:hover {
+  background: rgba(79,70,229,.15);
+}
+
+.indicator-popover-title.custom-title {
+  margin-top: 5px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148,163,184,.06);
+}
+
+.indicator-lab-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 132;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.indicator-lab-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2,6,14,.80);
+  backdrop-filter: blur(5px);
+}
+
+.indicator-lab-panel {
+  position: relative;
+  z-index: 1;
+  width: min(1040px, 96vw);
+  max-height: min(830px, 94vh);
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr);
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 72% 0%, rgba(34,211,238,.08), transparent 30%),
+    #070c16;
+  box-shadow: 0 34px 110px rgba(0,0,0,.58);
+  overflow: hidden;
+}
+
+.indicator-lab-header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(148,163,184,.08);
+}
+
+.indicator-lab-header h2 {
+  margin: 2px 0;
+  color: #e5eaf3;
+  font-size: 18px;
+}
+
+.indicator-lab-header p {
+  margin: 0;
+  color: #65748a;
+  font-size: 8px;
+}
+
+.indicator-lab-eyebrow {
+  color: #67e8f9;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.indicator-lab-close {
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(148,163,184,.10);
+  border-radius: 7px;
+  background: #0a101c;
+  color: #9ba8ba;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.indicator-lab-body {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 320px minmax(0,1fr);
+}
+
+.indicator-lab-editor {
+  min-height: 0;
+  padding: 12px;
+  border-left: 1px solid rgba(148,163,184,.07);
+  background: rgba(8,13,24,.72);
+  overflow-y: auto;
+}
+
+.indicator-lab-main {
+  min-width: 0;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.indicator-lab-section-title {
+  display: block;
+  margin: 5px 3px 7px;
+  color: #65748a;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.indicator-lab-field {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.indicator-lab-field > span {
+  display: block;
+  margin: 0 2px 4px;
+  color: #5e6c81;
+  font-size: 7px;
+}
+
+.indicator-lab-field input,
+.indicator-lab-field textarea {
+  width: 100%;
+  border: 1px solid rgba(148,163,184,.09);
+  border-radius: 7px;
+  padding: 8px 9px;
+  outline: 0;
+  background: #080d17;
+  color: #d8e1ed;
+  font-size: 9px;
+}
+
+.indicator-lab-field textarea {
+  min-height: 92px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.6;
+}
+
+.indicator-lab-field input:focus,
+.indicator-lab-field textarea:focus {
+  border-color: rgba(34,211,238,.25);
+}
+
+.formula-status {
+  margin: 5px 0 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.formula-status.valid {
+  border: 1px solid rgba(32,201,151,.13);
+  background: rgba(12,63,49,.18);
+  color: #6ed9b7;
+}
+
+.formula-status.invalid {
+  border: 1px solid rgba(240,93,111,.13);
+  background: rgba(72,25,34,.18);
+  color: #da8997;
+}
+
+.indicator-pane-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.indicator-pane-toggle button {
+  border: 1px solid rgba(148,163,184,.08);
+  border-radius: 6px;
+  padding: 7px;
+  background: #090e19;
+  color: #6d7a90;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+.indicator-pane-toggle button.selected {
+  border-color: rgba(34,211,238,.20);
+  background: rgba(8,145,178,.10);
+  color: #90e7f5;
+}
+
+.indicator-save {
+  width: 100%;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 7px;
+  padding: 9px;
+  background: linear-gradient(135deg,#0e7490,#0891b2);
+  color: #e9fbff;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.indicator-save:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.indicator-lab-error {
+  margin-top: 7px;
+  color: #da8997;
+  font-size: 7px;
+}
+
+.formula-reference {
+  display: grid;
+  gap: 4px;
+}
+
+.formula-reference code {
+  padding: 5px 7px;
+  border: 1px solid rgba(148,163,184,.06);
+  border-radius: 5px;
+  background: #080d17;
+  color: #78879d;
+  font-size: 7px;
+  overflow-x: auto;
+}
+
+.indicator-presets {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 6px;
+}
+
+.indicator-presets button {
+  min-height: 76px;
+  padding: 9px;
+  border: 1px solid rgba(148,163,184,.08);
+  border-radius: 8px;
+  background: rgba(9,14,25,.72);
+  text-align: right;
+  cursor: pointer;
+}
+
+.indicator-presets button:hover {
+  border-color: rgba(34,211,238,.18);
+  background: rgba(8,145,178,.05);
+}
+
+.indicator-presets strong,
+.indicator-presets small {
+  display: block;
+}
+
+.indicator-presets strong {
+  color: #bfc9d8;
+  font-size: 9px;
+}
+
+.indicator-presets small {
+  margin-top: 5px;
+  color: #5f6d82;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 7px;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.indicator-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 13px;
+}
+
+.indicator-list-head > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.indicator-list-head small {
+  color: #56647a;
+  font-size: 7px;
+}
+
+.custom-indicator-list {
+  display: grid;
+  gap: 5px;
+}
+
+.custom-indicator-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0,1fr) 28px;
+  gap: 6px;
+  align-items: center;
+  min-height: 62px;
+  padding: 7px;
+  border: 1px solid rgba(148,163,184,.07);
+  border-radius: 8px;
+  background: rgba(8,13,24,.55);
+  opacity: .58;
+}
+
+.custom-indicator-row.enabled {
+  border-color: rgba(34,211,238,.12);
+  opacity: 1;
+}
+
+.indicator-enable,
+.custom-indicator-delete {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(148,163,184,.05);
+  color: #728198;
+  cursor: pointer;
+}
+
+.indicator-enable:hover {
+  color: #67e8f9;
+}
+
+.custom-indicator-delete:hover {
+  background: rgba(240,93,111,.08);
+  color: #ef8a99;
+}
+
+.custom-indicator-info {
+  min-width: 0;
+}
+
+.custom-indicator-info strong,
+.custom-indicator-info small,
+.custom-indicator-info span {
+  display: block;
+}
+
+.custom-indicator-info strong {
+  color: #bdc8d8;
+  font-size: 9px;
+}
+
+.custom-indicator-info small {
+  margin-top: 3px;
+  color: #66758a;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-indicator-info span {
+  margin-top: 3px;
+  color: #4f5d72;
+  font-size: 6px;
+}
+
+.indicator-lab-empty {
+  min-height: 170px;
+  display: grid;
+  place-items: center;
+  color: #5b697e;
+  font-size: 8px;
+  text-align: center;
+}
+
+@media (max-width: 860px) {
+  .indicator-lab-body {
+    grid-template-columns: 270px minmax(0,1fr);
+  }
+
+  .indicator-presets {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .indicator-lab-overlay {
+    padding: 8px;
+  }
+
+  .indicator-lab-panel {
+    width: 100%;
+    max-height: calc(100vh - 16px);
+  }
+
+  .indicator-lab-header {
+    min-height: 64px;
+    padding: 10px;
+  }
+
+  .indicator-lab-header h2 {
+    font-size: 15px;
+  }
+
+  .indicator-lab-body {
+    display: block;
+    overflow-y: auto;
+  }
+
+  .indicator-lab-editor {
+    border-left: 0;
+    border-bottom: 1px solid rgba(148,163,184,.07);
+  }
+
+  .indicator-lab-main {
+    overflow: visible;
+  }
+}

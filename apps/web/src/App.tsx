@@ -10,6 +10,7 @@ import type {
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
@@ -18,6 +19,11 @@ import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
 import { getMarketEvents } from "./lib/eventsApi";
 import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
+import {
+  loadCustomIndicators,
+  saveCustomIndicators,
+  type CustomIndicatorDefinition,
+} from "./lib/customIndicators";
 import type { ChartDrawing, DrawingPoint, DrawingTool } from "./lib/drawings";
 import {
   createDrawingId,
@@ -204,6 +210,10 @@ export default function App() {
   const [aiPrompt, setAiPrompt] = useState("اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت");
 
   const [indicators, setIndicators] = useState<IndicatorSelection>(() => loadIndicatorSelection());
+  const [customIndicators, setCustomIndicators] = useState<CustomIndicatorDefinition[]>(
+    () => loadCustomIndicators(),
+  );
+  const [showIndicatorLab, setShowIndicatorLab] = useState(false);
   const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
   const [drawingTool, setDrawingTool] = useState<DrawingTool>("cursor");
   const [drawingHistory, setDrawingHistory] = useState(
@@ -451,6 +461,26 @@ export default function App() {
     () => indicatorCatalog.filter((item) => indicators[item.id]),
     [indicators],
   );
+
+  const activeCustomIndicators = useMemo(
+    () => customIndicators.filter((indicator) => indicator.enabled),
+    [customIndicators],
+  );
+
+  const updateCustomIndicators = useCallback((next: CustomIndicatorDefinition[]) => {
+    setCustomIndicators(next);
+    saveCustomIndicators(next);
+  }, []);
+
+  const toggleCustomIndicator = (id: string) => {
+    updateCustomIndicators(
+      customIndicators.map((indicator) =>
+        indicator.id === id
+          ? { ...indicator, enabled: !indicator.enabled }
+          : indicator,
+      ),
+    );
+  };
 
   const lastCandle = displayCandles[displayCandles.length - 1];
   const previousDisplayedCandle = displayCandles[displayCandles.length - 2];
@@ -823,7 +853,8 @@ export default function App() {
         showScreener ||
         showEvents ||
         showSystemPanel ||
-        showStrategyTester
+        showStrategyTester ||
+        showIndicatorLab
       ) {
         return;
       }
@@ -861,6 +892,7 @@ export default function App() {
     showEvents,
     showSystemPanel,
     showStrategyTester,
+    showIndicatorLab,
   ]);
 
   const chooseComparison = (symbol: MarketSymbol) => {
@@ -989,7 +1021,10 @@ export default function App() {
         timeframe,
         visibleCandles: displayCandles.slice(-300),
         quote,
-        indicators: activeIndicatorItems.map((item) => item.id),
+        indicators: [
+          ...activeIndicatorItems.map((item) => item.id),
+          ...activeCustomIndicators.map((indicator) => `custom:${indicator.name}`),
+        ],
         userDrawings: drawings
           .filter((drawing) => !drawing.hidden)
           .map((drawing) => {
@@ -1025,8 +1060,12 @@ export default function App() {
       const sma20 = recent.reduce((sum, candle) => sum + candle.close, 0) / recent.length;
       const move = ((last.close - first.open) / first.open) * 100;
       const relativeToSma = last.close >= sma20 ? "فوق" : "تحت";
-      const indicatorText = activeIndicatorItems.length
-        ? activeIndicatorItems.map((item) => item.name).join("، ")
+      const indicatorNames = [
+        ...activeIndicatorItems.map((item) => item.name),
+        ...activeCustomIndicators.map((indicator) => indicator.name),
+      ];
+      const indicatorText = indicatorNames.length
+        ? indicatorNames.join("، ")
         : "بدون مؤشرات إضافية";
 
       setAiResult({
@@ -1106,6 +1145,7 @@ export default function App() {
         timeframe={timeframe}
         chartView={chartView}
         indicators={indicators}
+        customIndicators={customIndicators}
         drawings={drawings}
         drawingTool={drawingTool}
         onDrawingCreated={handleDrawingCreated}
@@ -1159,6 +1199,7 @@ export default function App() {
         timeframe={timeframe}
         chartView={chartView}
         indicators={indicators}
+        customIndicators={customIndicators}
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
@@ -1274,6 +1315,13 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      <IndicatorLab
+        open={showIndicatorLab}
+        indicators={customIndicators}
+        onChange={updateCustomIndicators}
+        onClose={() => setShowIndicatorLab(false)}
+      />
 
       <StrategyTester
         open={showStrategyTester}
@@ -1681,10 +1729,18 @@ export default function App() {
 
               <div className="indicator-menu-wrap">
                 <button
-                  className={activeIndicatorItems.length > 0 ? "selected" : ""}
+                  className={
+                    activeIndicatorItems.length + activeCustomIndicators.length > 0
+                      ? "selected"
+                      : ""
+                  }
                   onClick={() => setShowIndicatorMenu((value) => !value)}
                 >
-                  المؤشرات {activeIndicatorItems.length > 0 ? `(${activeIndicatorItems.length})` : ""}
+                  المؤشرات {
+                    activeIndicatorItems.length + activeCustomIndicators.length > 0
+                      ? `(${activeIndicatorItems.length + activeCustomIndicators.length})`
+                      : ""
+                  }
                 </button>
 
                 {showIndicatorMenu ? (
@@ -1703,6 +1759,36 @@ export default function App() {
                         <b>{indicators[item.id] ? "✓" : "+"}</b>
                       </button>
                     ))}
+
+                    {customIndicators.length > 0 ? (
+                      <>
+                        <div className="indicator-popover-title custom-title">مخصص</div>
+                        {customIndicators.slice(0, 8).map((indicator) => (
+                          <button
+                            key={indicator.id}
+                            className={indicator.enabled ? "indicator-row enabled" : "indicator-row"}
+                            onClick={() => toggleCustomIndicator(indicator.id)}
+                          >
+                            <span>
+                              <strong>{indicator.name}</strong>
+                              <small dir="ltr">{indicator.formula}</small>
+                            </span>
+                            <b>{indicator.enabled ? "✓" : "+"}</b>
+                          </button>
+                        ))}
+                      </>
+                    ) : null}
+
+                    <button
+                      className="indicator-lab-launch"
+                      onClick={() => {
+                        setShowIndicatorMenu(false);
+                        setShowIndicatorLab(true);
+                      }}
+                    >
+                      <span>⚗ معمل المؤشرات</span>
+                      <b>→</b>
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -1901,7 +1987,7 @@ export default function App() {
           <div className="context-grid">
             <div><span>الرمز</span><strong>{active.ticker}</strong></div>
             <div><span>الفريم</span><strong>{timeframe.toUpperCase()}</strong></div>
-            <div><span>المؤشرات</span><strong>{activeIndicatorItems.length}</strong></div>
+            <div><span>المؤشرات</span><strong>{activeIndicatorItems.length + activeCustomIndicators.length}</strong></div>
             <div><span>الرسومات</span><strong>{drawings.length}</strong></div>
             <div><span>المقارنة</span><strong>{comparisonSymbol?.ticker ?? "—"}</strong></div>
             <div><span>التنبيهات</span><strong>{activeAlerts.length}</strong></div>
