@@ -8522,3 +8522,115 @@ body {
   }
 }
 
+/* Web Push V1 -------------------------------------------------------------- */
+.account-push-card {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(124,131,255,.10);
+  border-radius: 9px;
+  background:
+    linear-gradient(135deg, rgba(79,70,229,.07), transparent 54%),
+    rgba(8,13,24,.60);
+}
+
+.account-push-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.account-push-head span,
+.account-push-head strong {
+  display: block;
+}
+
+.account-push-head > div > span {
+  color: #647188;
+  font-size: 7px;
+}
+
+.account-push-head > div > strong {
+  margin-top: 3px;
+  color: #adb8c8;
+  font-size: 9px;
+}
+
+.account-push-status {
+  min-width: 34px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(148,163,184,.06);
+  color: #647188;
+  text-align: center;
+  font-size: 6px;
+  font-weight: 900;
+}
+
+.account-push-status.on {
+  background: rgba(34,201,154,.09);
+  color: #70d2b2;
+}
+
+.account-push-card > p {
+  margin: 8px 0 0;
+  color: #59677c;
+  font-size: 7px;
+  line-height: 1.6;
+}
+
+.account-push-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.account-push-actions button {
+  min-height: 31px;
+  border: 1px solid rgba(148,163,184,.08);
+  border-radius: 7px;
+  padding: 0 10px;
+  background: #090f19;
+  color: #7f8ca0;
+  cursor: pointer;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.account-push-actions button.primary {
+  border-color: rgba(124,131,255,.18);
+  background: rgba(79,70,229,.11);
+  color: #c0c5ff;
+}
+
+.account-push-actions button:disabled {
+  opacity: .36;
+  cursor: default;
+}
+
+.account-push-error {
+  margin-top: 8px;
+  padding: 7px 8px;
+  border: 1px solid rgba(240,93,111,.12);
+  border-radius: 6px;
+  background: rgba(70,20,30,.16);
+  color: #d28a96;
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.account-push-hint {
+  display: block;
+  margin-top: 7px;
+  color: #9b7940;
+  font-size: 6px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .account-push-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
