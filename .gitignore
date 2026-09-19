@@ -8,3 +8,4 @@ coverage/
 local.settings.json
 .DS_Store
 *.log
+artifacts/
