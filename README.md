@@ -49,6 +49,7 @@ This repository is **fully isolated** from every other project:
 - Object Tree for centralized indicator, custom indicator, comparison and drawing management
 - Drawing Alerts bridge for creating live price alerts directly from horizontal chart levels
 - independent pane links for symbol, timeframe, range/zoom and crosshair, persisted in Workspace V5
+- Chart Tabs with per-tab symbol/timeframe/view sessions, Recent Symbols and Cloud Sync
 - Multiple Watchlists with safe legacy migration, named lists, active-list switching and Cloud Sync
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
