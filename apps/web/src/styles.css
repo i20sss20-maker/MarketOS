@@ -12267,3 +12267,132 @@ button.object-tree-row {
   }
 }
 
+
+
+/* Analyst Forecast V2 calibration ----------------------------------------- */
+.analyst-calibration {
+  margin: 10px 0;
+  border: 1px solid rgba(129,140,248,.14);
+  border-radius: 10px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 88% -10%, rgba(99,102,241,.09), transparent 34%),
+    rgba(9,14,24,.72);
+}
+
+.analyst-calibration > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+
+.analyst-calibration > header span,
+.analyst-calibration > header strong {
+  display: block;
+}
+
+.analyst-calibration > header span {
+  color: #7078bd;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.analyst-calibration > header strong {
+  margin-top: 3px;
+  color: #c1c9d8;
+  font-size: 9px;
+}
+
+.analyst-calibration > header b {
+  flex: 0 0 auto;
+  border: 1px solid rgba(129,140,248,.13);
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: rgba(129,140,248,.055);
+  color: #9aa3e9;
+  font-size: 6px;
+}
+
+.analyst-calibration-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 6px;
+}
+
+.analyst-calibration-grid > div {
+  min-width: 0;
+  border: 1px solid rgba(148,163,184,.055);
+  border-radius: 7px;
+  padding: 7px;
+  background: rgba(2,6,15,.28);
+}
+
+.analyst-calibration-grid span,
+.analyst-calibration-grid strong,
+.analyst-calibration-grid small {
+  display: block;
+}
+
+.analyst-calibration-grid span {
+  color: #59677b;
+  font-size: 6px;
+}
+
+.analyst-calibration-grid strong {
+  margin-top: 3px;
+  color: #c2cad8;
+  font-size: 10px;
+}
+
+.analyst-calibration-grid small {
+  margin-top: 2px;
+  color: #536074;
+  font-size: 5.5px;
+}
+
+.analyst-calibration-probabilities {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.analyst-calibration-probabilities > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 6px 7px;
+  background: rgba(148,163,184,.028);
+}
+
+.analyst-calibration-probabilities span {
+  color: #667489;
+  font-size: 6px;
+}
+
+.analyst-calibration-probabilities b {
+  color: #aeb8ca;
+  font-size: 8px;
+}
+
+.analyst-calibration > p {
+  margin: 8px 0 0;
+  color: #606e82;
+  font-size: 6px;
+  line-height: 1.7;
+}
+
+.analyst-calibration > p b {
+  color: #9aa7bb;
+}
+
+@media (max-width: 760px) {
+  .analyst-calibration-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}

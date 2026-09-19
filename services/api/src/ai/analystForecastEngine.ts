@@ -1,5 +1,6 @@
 import type {
   AnalystCatalyst,
+  AnalystForecastCalibration,
   AnalystForecastBias,
   AnalystForecastResponse,
   AnalystForecastScenario,
@@ -21,6 +22,7 @@ type ForecastInput = {
   releases: CompanyRelease[];
   dataProvider: string;
   dataMode: "demo" | "provider";
+  calibration?: AnalystForecastCalibration | null;
 };
 
 const weights: Partial<Record<Timeframe, number>> = {
@@ -100,6 +102,57 @@ function scenarioProbabilities(
   return {
     bull: bullRounded,
     base: baseRounded,
+    bear: bearRounded,
+  };
+}
+
+function blendScenarioProbabilities(
+  base: {
+    bull: number;
+    base: number;
+    bear: number;
+  },
+  calibration?: AnalystForecastCalibration | null,
+) {
+  if (!calibration) {
+    return base;
+  }
+
+  const weight =
+    clamp(
+      calibration.blendWeight,
+      0,
+      0.5,
+    );
+
+  const bull =
+    base.bull * (1 - weight) +
+    calibration.bullProbability * weight;
+  const bear =
+    base.bear * (1 - weight) +
+    calibration.bearProbability * weight;
+  const neutral =
+    base.base * (1 - weight) +
+    calibration.baseProbability * weight;
+
+  const total =
+    bull + bear + neutral;
+
+  const bullRounded =
+    Math.round(
+      (bull / total) * 100,
+    );
+  const bearRounded =
+    Math.round(
+      (bear / total) * 100,
+    );
+
+  return {
+    bull: bullRounded,
+    base:
+      100 -
+      bullRounded -
+      bearRounded,
     bear: bearRounded,
   };
 }
@@ -402,7 +455,7 @@ export function buildAnalystForecast(
         .sidewaysCount,
     ) / items.length;
 
-  const confidence =
+  const baseConfidence =
     Math.round(
       clamp(
         42 +
@@ -420,7 +473,41 @@ export function buildAnalystForecast(
     );
 
   const probabilities =
-    scenarioProbabilities(score);
+    blendScenarioProbabilities(
+      scenarioProbabilities(score),
+      input.calibration,
+    );
+
+  const calibrationAdjustment =
+    input.calibration
+      ? input.calibration.reliability ===
+        "high"
+        ? 3
+        : input.calibration
+              .reliability ===
+            "medium"
+          ? 1
+          : -2
+      : 0;
+
+  const probabilitySeparation =
+    Math.max(
+      probabilities.bull,
+      probabilities.base,
+      probabilities.bear,
+    ) - 33;
+
+  const confidence =
+    Math.round(
+      clamp(
+        baseConfidence +
+          calibrationAdjustment +
+          probabilitySeparation *
+            0.08,
+        35,
+        90,
+      ),
+    );
 
   const bullTargetLow =
     Math.max(
@@ -570,6 +657,12 @@ export function buildAnalystForecast(
     );
   }
 
+  if (input.calibration) {
+    evidence.push(
+      `التحقق التاريخي على ${input.calibration.timeframe.toUpperCase()}: ${input.calibration.sampleSize} حالة مشابهة، تطابق اتجاه ${input.calibration.directionalHitRate}٪، وتشابه ${input.calibration.similarityScore}٪.`,
+    );
+  }
+
   if (input.events.length > 0) {
     evidence.push(
       `يوجد ${input.events.length} حدث سوقي قريب ضمن نافذة التحليل.`,
@@ -590,7 +683,7 @@ export function buildAnalystForecast(
         : "محايد";
 
   return {
-    engine: "marketos-forecast-v1",
+    engine: "marketos-forecast-v2",
     generatedAt:
       Math.floor(Date.now() / 1000),
     symbol: input.symbol,
@@ -631,6 +724,9 @@ export function buildAnalystForecast(
       baseScenario,
       bearScenario,
     ],
+    calibration:
+      input.calibration ??
+      undefined,
     catalysts:
       catalystsFrom(
         input.events,

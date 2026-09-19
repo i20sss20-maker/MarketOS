@@ -58,6 +58,23 @@ function regimeLabel(
   return "نطاق";
 }
 
+function calibrationReliabilityLabel(
+  reliability:
+    NonNullable<
+      AnalystForecastResponse["calibration"]
+    >["reliability"],
+) {
+  if (reliability === "high") {
+    return "موثوقية أعلى";
+  }
+
+  if (reliability === "medium") {
+    return "موثوقية متوسطة";
+  }
+
+  return "عينة محدودة";
+}
+
 export default function AnalystForecastView({
   result,
   loading,
@@ -180,6 +197,110 @@ export default function AnalystForecastView({
                 : "Demo"}
             </small>
           </div>
+
+          {result.calibration ? (
+            <div className="analyst-calibration">
+              <header>
+                <div>
+                  <span>
+                    HISTORICAL ANALOG
+                  </span>
+                  <strong>
+                    تحقق تاريخي للحالات المشابهة
+                  </strong>
+                </div>
+                <b>
+                  {calibrationReliabilityLabel(
+                    result.calibration
+                      .reliability,
+                  )}
+                </b>
+              </header>
+
+              <div className="analyst-calibration-grid">
+                <div>
+                  <span>الفريم</span>
+                  <strong>
+                    {result.calibration.timeframe.toUpperCase()}
+                  </strong>
+                  <small>
+                    أفق {result.calibration.lookaheadBars} شموع
+                  </small>
+                </div>
+                <div>
+                  <span>العينة</span>
+                  <strong>
+                    {result.calibration.sampleSize}
+                  </strong>
+                  <small>
+                    {result.calibration.comparableSamples} تطابق قريب
+                  </small>
+                </div>
+                <div>
+                  <span>تطابق الاتجاه</span>
+                  <strong>
+                    {result.calibration.directionalHitRate}%
+                  </strong>
+                  <small>
+                    للحالات المختارة
+                  </small>
+                </div>
+                <div>
+                  <span>درجة التشابه</span>
+                  <strong>
+                    {result.calibration.similarityScore}%
+                  </strong>
+                  <small>
+                    وزن الدمج {Math.round(
+                      result.calibration.blendWeight * 100,
+                    )}%
+                  </small>
+                </div>
+              </div>
+
+              <div className="analyst-calibration-probabilities">
+                <div>
+                  <span>صاعد</span>
+                  <b>
+                    {result.calibration.bullProbability}%
+                  </b>
+                </div>
+                <div>
+                  <span>محايد</span>
+                  <b>
+                    {result.calibration.baseProbability}%
+                  </b>
+                </div>
+                <div>
+                  <span>هابط</span>
+                  <b>
+                    {result.calibration.bearProbability}%
+                  </b>
+                </div>
+              </div>
+
+              <p>
+                متوسط الحركة اللاحقة{" "}
+                <b>
+                  {result.calibration.averageForwardReturn > 0
+                    ? "+"
+                    : ""}
+                  {result.calibration.averageForwardReturn}%
+                </b>
+                {" · "}
+                الوسيط{" "}
+                <b>
+                  {result.calibration.medianForwardReturn > 0
+                    ? "+"
+                    : ""}
+                  {result.calibration.medianForwardReturn}%
+                </b>
+                {" · "}
+                حد تصنيف الحركة ±
+                {result.calibration.outcomeThresholdPercent}%
+              </p>
+            </div>
+          ) : null}
 
           <div className="analyst-levels">
             <div>

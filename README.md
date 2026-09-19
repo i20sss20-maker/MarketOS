@@ -51,6 +51,7 @@ This repository is **fully isolated** from every other project:
 - independent pane links for symbol, timeframe, range/zoom and crosshair, persisted in Workspace V5
 - Chart Tabs with per-tab symbol/timeframe/view sessions, Recent Symbols and Cloud Sync
 - probabilistic Analyst Forecast with multi-timeframe scoring, EMA/RSI/ATR/MACD evidence, support/resistance, scenarios, catalysts and confidence
+- Historical Analog calibration that measures similar prior setups, forward returns, sample reliability and blends them into scenario probabilities
 - analyst coverage model for stocks, ETFs, indices, forex, crypto, futures and commodities, subject to configured market-data licensing
 - Multiple Watchlists with safe legacy migration, named lists, active-list switching and Cloud Sync
 - Market Screener + Heatmap + breadth
