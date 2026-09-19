@@ -118,6 +118,26 @@ function formatPercent(value?: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
+function formatVolume(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function overviewMatchesFilter(item: MarketOverviewItem, filter: ScreenerFilter) {
+  if (filter === "all") return true;
+  if (filter === "equities") {
+    return item.symbol.assetClass === "stock" ||
+      item.symbol.assetClass === "index" ||
+      item.symbol.assetClass === "etf";
+  }
+  if (filter === "forex") return item.symbol.assetClass === "forex";
+  if (filter === "crypto") return item.symbol.assetClass === "crypto";
+  return item.symbol.assetClass === "future" || item.symbol.assetClass === "commodity";
+}
+
 export default function App() {
   const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
@@ -371,6 +391,51 @@ export default function App() {
     });
   }, []);
 
+  const fallbackOverview = useCallback((symbols: MarketSymbol[]) => {
+    return symbols.slice(0, 25).map((symbol) => {
+      const demoCandles = createDemoCandles(symbol.id, "1m", 2);
+      return {
+        symbol,
+        quote: createDemoQuote(symbol.ticker, symbol.currency, demoCandles),
+      };
+    });
+  }, []);
+
+  const refreshScreener = useCallback(async () => {
+    const symbols = watchlist.slice(0, 25);
+    if (symbols.length === 0) {
+      setOverview([]);
+      setOverviewError(null);
+      return;
+    }
+
+    setOverviewLoading(true);
+    setOverviewError(null);
+
+    try {
+      const response = await getMarketOverview(symbols);
+      const returnedIds = new Set(response.items.map((item) => item.symbol.id));
+      const missing = symbols.filter((symbol) => !returnedIds.has(symbol.id));
+      const items = missing.length > 0
+        ? [...response.items, ...fallbackOverview(missing)]
+        : response.items;
+
+      setOverview(items);
+      setOverviewProvider(response.provider);
+    } catch {
+      setOverview(fallbackOverview(symbols));
+      setOverviewProvider("browser-demo");
+      setOverviewError("تعذر جلب لقطة السوق المباشرة، لذلك تم تشغيل بيانات العرض التجريبية.");
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [watchlist, fallbackOverview]);
+
+  const openScreener = () => {
+    setShowScreener(true);
+    void refreshScreener();
+  };
+
   const toggleActiveWatchlist = () => {
     setWatchlist((current) => {
       const exists = current.some((item) => item.id === active.id);
@@ -621,6 +686,24 @@ export default function App() {
           : drawingTool === "fibonacci"
             ? "Fibonacci: اختر البداية ثم النهاية"
             : null;
+
+  const filteredOverview = useMemo(
+    () => overview.filter((item) => overviewMatchesFilter(item, screenerFilter)),
+    [overview, screenerFilter],
+  );
+
+  const sortedOverview = useMemo(
+    () => [...filteredOverview].sort(
+      (a, b) => (b.quote.percentChange ?? 0) - (a.quote.percentChange ?? 0),
+    ),
+    [filteredOverview],
+  );
+
+  const screenerAdvancers = filteredOverview.filter((item) => (item.quote.percentChange ?? 0) > 0).length;
+  const screenerDecliners = filteredOverview.filter((item) => (item.quote.percentChange ?? 0) < 0).length;
+  const screenerAverageMove = filteredOverview.length
+    ? filteredOverview.reduce((sum, item) => sum + (item.quote.percentChange ?? 0), 0) / filteredOverview.length
+    : 0;
 
   const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
   const replayDateLabel = replayActive && lastCandle
