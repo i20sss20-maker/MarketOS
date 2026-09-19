@@ -37,7 +37,8 @@ This repository is **fully isolated** from every other project:
 - historical Replay with replay-aware AI context
 - watchlists and saved workspaces
 - Instrument Overview with Replay-safe performance, volatility, range and volume statistics
-- local price alerts
+- local and cloud-evaluated advanced alerts
+- scheduled background alert evaluation with a persistent server-owned Alert Inbox
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
 - Market Events / earnings calendar
