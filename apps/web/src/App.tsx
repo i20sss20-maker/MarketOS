@@ -10,6 +10,7 @@ import {
   type ResolvedEntitlement,
 } from "@marketos/entitlements-core";
 import type {
+  AnalystForecastResponse,
   Candle,
   ChartAnalysisResponse,
   CompanyRelease,
@@ -50,7 +51,11 @@ import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
 import PlansPanel from "./components/PlansPanel";
 import SystemPanel from "./components/SystemPanel";
-import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
+import {
+  analyzeChart,
+  analyzeMultipleTimeframes,
+  getAnalystForecast,
+} from "./lib/aiApi";
 import {
   anonymousEntitlement,
   getUserEntitlements,
@@ -702,6 +707,9 @@ export default function App() {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [forecastResult, setForecastResult] = useState<AnalystForecastResponse | null>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError, setForecastError] = useState<string | null>(null);
   const [multiTimeframeLoading, setMultiTimeframeLoading] = useState(false);
   const [multiTimeframeResult, setMultiTimeframeResult] = useState<MultiTimeframeAnalysisResponse | null>(null);
   const [multiTimeframeError, setMultiTimeframeError] = useState<string | null>(null);
@@ -763,6 +771,11 @@ export default function App() {
           active,
         ),
     );
+  }, [active.id]);
+
+  useEffect(() => {
+    setForecastResult(null);
+    setForecastError(null);
   }, [active.id]);
 
   useEffect(() => {
@@ -3973,6 +3986,31 @@ export default function App() {
     });
   };
 
+  const runAnalystForecast = async () => {
+    if (forecastLoading) return;
+
+    setForecastLoading(true);
+    setForecastError(null);
+
+    try {
+      const result =
+        await getAnalystForecast(
+          active,
+        );
+
+      setForecastResult(result);
+    } catch (error) {
+      setForecastResult(null);
+      setForecastError(
+        error instanceof Error
+          ? error.message
+          : "تعذر إنشاء توقع MarketOS Analyst.",
+      );
+    } finally {
+      setForecastLoading(false);
+    }
+  };
+
   const runMultiTimeframeReading = async () => {
     if (
       !requireFeature(
@@ -6531,6 +6569,9 @@ export default function App() {
           open={aiPanelOpen}
           prompt={aiPrompt}
           aiLoading={aiLoading}
+          forecastLoading={forecastLoading}
+          forecastResult={forecastResult}
+          forecastError={forecastError}
           multiTimeframeLoading={multiTimeframeLoading}
           multiTimeframeEnabled={
             canUseFeature(
@@ -6554,6 +6595,7 @@ export default function App() {
           previewMode={providerStatus?.mode === "demo"}
           providerMessage={providerStatus?.message}
           onClose={toggleAiPanel}
+          onForecast={() => void runAnalystForecast()}
           onPromptChange={setAiPrompt}
           onRead={(prompt) => void runChartReading(prompt)}
           onMultiTimeframe={() => void runMultiTimeframeReading()}
