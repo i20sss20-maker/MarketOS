@@ -103,8 +103,8 @@ function setChangeRule(
 }
 
 function parseChange(text: string, rule: SmartScreenerRule, recognized: string[]) {
-  const positiveWord = /(صاعد|صاعدة|رابح|رابحة|مرتفع|ارتفاع|gainers?|up|positive)/i;
-  const negativeWord = /(هابط|هابطة|خاسر|خاسرة|منخفض|انخفاض|losers?|down|negative)/i;
+  const positiveWord = /(صاعد|صاعدة|رابح|رابحة|مرتفع|ارتفاع|gainers?|up\b|positive)/i;
+  const negativeWord = /(هابط|هابطة|خاسر|خاسرة|منخفض|انخفاض|losers?|down\b|negative)/i;
 
   if (positiveWord.test(text) && rule.minChangePercent === undefined) {
     rule.minChangePercent = 0;
@@ -115,33 +115,35 @@ function parseChange(text: string, rule: SmartScreenerRule, recognized: string[]
     recognized.push("change:negative");
   }
 
-  const patterns: Array<[RegExp, "min" | "max", (value: number) => number]> = [
+  const patterns: Array<[RegExp, "min" | "max"]> = [
     [
-      /(?:التغير|التغيير|الحركة|change|move)?s*(?:فوق|أكثر من|اكثر من|اكبر من|أكبر من|above|over|greater than|more than|>=?)s*(-?d+(?:.d+)?)s*%/i,
+      /(?:التغير|التغيير|الحركة|change|move)?\s*(?:فوق|أكثر من|اكثر من|اكبر من|أكبر من|above|over|greater than|more than|>=?)\s*(-?\d+(?:\.\d+)?)\s*%/i,
       "min",
-      (value) => value,
     ],
     [
-      /(?:التغير|التغيير|الحركة|change|move)?s*(?:تحت|أقل من|اقل من|اصغر من|أصغر من|below|under|less than|<=?)s*(-?d+(?:.d+)?)s*%/i,
+      /(?:التغير|التغيير|الحركة|change|move)?\s*(?:تحت|أقل من|اقل من|اصغر من|أصغر من|below|under|less than|<=?)\s*(-?\d+(?:\.\d+)?)\s*%/i,
       "max",
-      (value) => value,
     ],
   ];
 
-  for (const [pattern, operator, transform] of patterns) {
+  for (const [pattern, operator] of patterns) {
     const match = text.match(pattern);
     if (!match) continue;
     const value = Number(match[1]);
-    if (Number.isFinite(value)) setChangeRule(rule, operator, transform(value), recognized);
+    if (Number.isFinite(value)) setChangeRule(rule, operator, value, recognized);
   }
 
-  const simplePositive = text.match(/(?:صاعد|رابح|up|gainer)[^d-]*?(d+(?:.d+)?)s*%/i);
+  const simplePositive = text.match(
+    /(?:صاعد|صاعدة|رابح|رابحة|up|gainer)[^\d-]*?(\d+(?:\.\d+)?)\s*%/i,
+  );
   if (simplePositive) {
     const value = Number(simplePositive[1]);
     if (Number.isFinite(value)) setChangeRule(rule, "min", value, recognized);
   }
 
-  const simpleNegative = text.match(/(?:هابط|خاسر|down|loser)[^d-]*?(-?d+(?:.d+)?)s*%/i);
+  const simpleNegative = text.match(
+    /(?:هابط|هابطة|خاسر|خاسرة|down|loser)[^\d-]*?(-?\d+(?:\.\d+)?)\s*%/i,
+  );
   if (simpleNegative) {
     const raw = Number(simpleNegative[1]);
     if (Number.isFinite(raw)) {
