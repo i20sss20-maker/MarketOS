@@ -13,6 +13,7 @@ import type { StoredUserState } from "../storage/types.js";
 export type ServerAlertTriggered = {
   alertId: string;
   symbol: string;
+  marketSymbol: MarketSymbol;
   timeframe: Timeframe;
   snapshot: unknown;
   conditions: unknown;
@@ -139,6 +140,7 @@ export async function evaluateStoredUserAlerts(
         triggered.push({
           alertId: item.alert.id,
           symbol: item.alert.symbol.ticker,
+          marketSymbol: item.alert.symbol,
           timeframe: item.alert.timeframe,
           snapshot: item.evaluation.snapshot,
           conditions: item.evaluation.conditions,
