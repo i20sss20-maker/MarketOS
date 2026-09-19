@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { getAuthenticatedUser } from "../services/api/dist/src/auth/clientPrincipal.js";
+import { entitlementStore } from "../services/api/dist/src/entitlements/index.js";
 import { userState } from "../services/api/dist/src/functions/userState.js";
 import { userStateStore } from "../services/api/dist/src/storage/index.js";
 import { MemoryUserStateStore } from "../services/api/dist/src/storage/memoryUserStore.js";
@@ -409,11 +410,27 @@ for (
 await userStateStore.delete(
   principal.userId,
 );
+await entitlementStore.delete(
+  principal.userId,
+);
+
+await entitlementStore.set({
+  userId: principal.userId,
+  plan: "elite",
+  status: "active",
+  source: "internal",
+  updatedAt: Date.now(),
+});
+
+const apiState = {
+  ...sanitized,
+  alerts: sanitized.alerts.slice(0, 100),
+};
 
 const apiFirst = await userState(
   apiRequest("PUT", {
     state: {
-      ...sanitized,
+      ...apiState,
       // Browser tries to forge server-owned records.
       alertEvents: [inboxEvent],
       pushSubscriptions: [{
@@ -507,7 +524,7 @@ assert.deepEqual(
 const staleServerPut =
   await userState(
     apiRequest("PUT", {
-      state: sanitized,
+      state: apiState,
       expectedClientRevision: 1,
       expectedServerRevision: 1,
     }),
@@ -537,7 +554,7 @@ const safeMergedPut =
   await userState(
     apiRequest("PUT", {
       state: {
-        ...sanitized,
+        ...apiState,
         alerts:
           afterWorker.jsonBody
             ?.state?.alerts ?? [],
@@ -589,6 +606,10 @@ const deleted =
 assert.equal(
   deleted.status,
   200,
+);
+
+await entitlementStore.delete(
+  principal.userId,
 );
 
 console.log(
