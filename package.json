@@ -23,7 +23,8 @@
     "smoke:multi-timeframe": "node scripts/multi-timeframe-smoke.mjs",
     "smoke:alerts": "node scripts/alerts-smoke.mjs",
     "smoke:correlation": "node scripts/correlation-smoke.mjs",
-    "smoke:cloud-state": "node scripts/cloud-state-smoke.mjs"
+    "smoke:cloud-state": "node scripts/cloud-state-smoke.mjs",
+    "smoke:server-alerts": "node scripts/server-alerts-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
