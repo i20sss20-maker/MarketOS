@@ -75,6 +75,9 @@ jobs:
       - name: Cloud auth/state runtime smoke test
         run: pnpm smoke:cloud-state
 
+      - name: Entitlements and plan limits smoke test
+        run: pnpm smoke:entitlements
+
       - name: Server alerts end-to-end smoke test
         run: pnpm smoke:server-alerts
 
