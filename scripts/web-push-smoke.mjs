@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
-import webpush from "web-push";
+import { createRequire } from "node:module";
+
+const requireApiDependency = createRequire(
+  new URL("../services/api/package.json", import.meta.url),
+);
+const webpush = requireApiDependency("web-push");
 
 const vapid = webpush.generateVAPIDKeys();
 process.env.WEB_PUSH_ENABLED = "true";
