@@ -33,8 +33,8 @@ export type SavedWorkspace = {
   indicators: IndicatorSelection;
   drawings: ChartDrawing[];
 
-  // V2/V3/V4 fields.
-  version?: 2 | 3 | 4;
+  // V2/V3/V4/V5 fields.
+  version?: 2 | 3 | 4 | 5;
   layoutMode?: WorkspaceLayoutMode;
   chartSyncEnabled?: boolean;
   paneLinks?: PaneLinkSettings;
@@ -197,13 +197,15 @@ export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
     indicators: item.indicators,
     drawings: item.drawings,
     version:
-      item.version === 4
-        ? 4
-        : item.version === 3
-          ? 3
-          : item.version === 2
-            ? 2
-            : undefined,
+      item.version === 5
+        ? 5
+        : item.version === 4
+          ? 4
+          : item.version === 3
+            ? 3
+            : item.version === 2
+              ? 2
+              : undefined,
     layoutMode,
     chartSyncEnabled:
       typeof item.chartSyncEnabled === "boolean"
@@ -219,6 +221,7 @@ export function normalizeSavedWorkspace(value: unknown): SavedWorkspace | null {
               : true,
           symbol: false,
           timeframe: false,
+          crosshair: false,
         },
       ),
     chartSettings: item.chartSettings
