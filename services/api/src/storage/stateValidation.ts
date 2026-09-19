@@ -2,6 +2,8 @@ import type { UserCloudState } from "./types.js";
 
 const MAX_STATE_BYTES = 256 * 1024;
 const MAX_WATCHLIST = 80;
+const MAX_WATCHLIST_COLLECTIONS = 20;
+const MAX_WATCHLIST_ITEMS_PER_COLLECTION = 100;
 const MAX_WORKSPACES = 20;
 const MAX_ALERTS = 150;
 const MAX_CUSTOM_INDICATORS = 30;
@@ -32,6 +34,50 @@ function boundedArray(
   return Array.isArray(value)
     ? value.slice(0, maxItems)
     : [];
+}
+
+function boundedWatchlistCollections(
+  value: unknown,
+) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .slice(0, MAX_WATCHLIST_COLLECTIONS)
+    .flatMap((raw) => {
+      if (!isObject(raw)) return [];
+
+      const id =
+        typeof raw.id === "string"
+          ? raw.id.trim().slice(0, 120)
+          : "";
+      const name =
+        typeof raw.name === "string"
+          ? raw.name.trim().slice(0, 60)
+          : "";
+
+      if (!id || !name) return [];
+
+      return [{
+        id,
+        name,
+        symbols: Array.isArray(raw.symbols)
+          ? raw.symbols.slice(
+              0,
+              MAX_WATCHLIST_ITEMS_PER_COLLECTION,
+            )
+          : [],
+        createdAt:
+          typeof raw.createdAt === "number" &&
+          Number.isFinite(raw.createdAt)
+            ? Math.floor(raw.createdAt)
+            : Date.now(),
+        updatedAt:
+          typeof raw.updatedAt === "number" &&
+          Number.isFinite(raw.updatedAt)
+            ? Math.floor(raw.updatedAt)
+            : Date.now(),
+      }];
+    });
 }
 
 function boundedDrawings(
@@ -109,6 +155,10 @@ export function sanitizeUserCloudState(
       value.watchlist,
       MAX_WATCHLIST,
     ),
+    watchlistCollections:
+      boundedWatchlistCollections(
+        value.watchlistCollections,
+      ),
     workspaces: boundedArray(
       value.workspaces,
       MAX_WORKSPACES,
