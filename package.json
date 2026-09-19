@@ -36,6 +36,7 @@
     "smoke:pane-independence": "node scripts/pane-independence-smoke.mjs",
     "smoke:object-tree": "node scripts/object-tree-smoke.mjs",
     "smoke:replay-v2": "node scripts/replay-v2-smoke.mjs",
+    "smoke:pane-linking": "node scripts/pane-linking-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
     "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
     "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",
