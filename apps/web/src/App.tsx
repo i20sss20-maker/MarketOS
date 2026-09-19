@@ -166,6 +166,9 @@ import {
   savePaneLinkSettings,
   type PaneLinkSettings,
 } from "./lib/paneLinks";
+import type {
+  LinkedCrosshairPoint,
+} from "./lib/crosshairLink";
 import {
   createWorkspace,
   loadWorkspaces,
@@ -564,6 +567,10 @@ export default function App() {
   const [paneTimeframeLinkEnabled, setPaneTimeframeLinkEnabled] = useState(
     () => loadPaneLinkSettings().timeframe,
   );
+  const [paneCrosshairLinkEnabled, setPaneCrosshairLinkEnabled] = useState(
+    () => loadPaneLinkSettings().crosshair,
+  );
+  const [linkedCrosshair, setLinkedCrosshair] = useState<LinkedCrosshairPoint | null>(null);
   const [syncedLogicalRange, setSyncedLogicalRange] = useState<LogicalRange | null>(null);
   const [maximizedChartPane, setMaximizedChartPane] = useState<MaximizedChartPane>(null);
   const [replayActive, setReplayActive] = useState(false);
@@ -2221,6 +2228,7 @@ export default function App() {
     setReplayActive(false);
     setReplayPlaying(false);
     setReplayIndex(null);
+    setLinkedCrosshair(null);
 
     if (
       paneSymbolLinkEnabled &&
@@ -2278,6 +2286,7 @@ export default function App() {
     setReplayPlaying(false);
     setReplayIndex(null);
     saveSetting("marketos:timeframe", value);
+    setLinkedCrosshair(null);
 
     if (
       paneTimeframeLinkEnabled &&
@@ -2734,6 +2743,7 @@ export default function App() {
 
     if (mode === "single") {
       setSyncedLogicalRange(null);
+      setLinkedCrosshair(null);
     } else {
       if (paneSymbolLinkEnabled) {
         setComparisonSymbol(active);
@@ -2797,6 +2807,7 @@ export default function App() {
     range: chartSyncEnabled,
     symbol: paneSymbolLinkEnabled,
     timeframe: paneTimeframeLinkEnabled,
+    crosshair: paneCrosshairLinkEnabled,
   };
 
   const updatePaneLinkSettings = (
@@ -2809,10 +2820,17 @@ export default function App() {
     setPaneTimeframeLinkEnabled(
       next.timeframe,
     );
+    setPaneCrosshairLinkEnabled(
+      next.crosshair,
+    );
     savePaneLinkSettings(next);
 
     if (!next.range) {
       setSyncedLogicalRange(null);
+    }
+
+    if (!next.crosshair) {
+      setLinkedCrosshair(null);
     }
 
     if (
@@ -2868,6 +2886,23 @@ export default function App() {
     if (!chartSyncEnabled || !chartSyncCompatible || layoutMode === "single") return;
     setSyncedLogicalRange(range);
   }, [chartSyncEnabled, chartSyncCompatible, layoutMode]);
+
+  const handleLinkedCrosshairChange = useCallback(
+    (point: LinkedCrosshairPoint | null) => {
+      if (
+        !paneCrosshairLinkEnabled ||
+        layoutMode === "single"
+      ) {
+        return;
+      }
+
+      setLinkedCrosshair(point);
+    },
+    [
+      paneCrosshairLinkEnabled,
+      layoutMode,
+    ],
+  );
 
   const toggleMaximizedPane = (pane: Exclude<MaximizedChartPane, null>) => {
     setMaximizedChartPane((current) => current === pane ? null : pane);
@@ -3254,7 +3289,7 @@ export default function App() {
       chartView,
       indicators,
       drawings,
-      version: 4,
+      version: 5,
       layoutMode,
       chartSyncEnabled,
       paneLinks: paneLinkSettings,
@@ -3368,6 +3403,7 @@ export default function App() {
           true,
         symbol: false,
         timeframe: false,
+        crosshair: false,
       };
 
     setLayoutMode(restoredLayout);
@@ -3380,6 +3416,10 @@ export default function App() {
     setPaneTimeframeLinkEnabled(
       restoredPaneLinks.timeframe,
     );
+    setPaneCrosshairLinkEnabled(
+      restoredPaneLinks.crosshair,
+    );
+    setLinkedCrosshair(null);
     savePaneLinkSettings(
       restoredPaneLinks,
     );
@@ -4346,6 +4386,20 @@ export default function App() {
         }),
     },
     {
+      id: "link:crosshair",
+      group: "Panes",
+      label: paneCrosshairLinkEnabled ? "إيقاف ربط Crosshair" : "ربط Crosshair بين Panes",
+      description: "Crosshair Link · نفس الزمن عبر الشارتات",
+      keywords: ["link", "crosshair", "cursor", "panes", "ربط", "مؤشر"],
+      priority: 44.65,
+      badge: paneCrosshairLinkEnabled ? "ON" : undefined,
+      onSelect: () =>
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          crosshair: !paneCrosshairLinkEnabled,
+        }),
+    },
+    {
       id: "link:range",
       group: "Panes",
       label: chartSyncEnabled ? "إيقاف ربط Zoom/Scroll" : "ربط Zoom/Scroll",
@@ -4490,6 +4544,14 @@ export default function App() {
         onDrawingCreated={handleDrawingCreated}
         onTextAnchorRequested={requestTextAnchor}
         onCrosshairCandle={setHoverCandle}
+        paneId="primary"
+        syncedCrosshair={
+          paneCrosshairLinkEnabled &&
+          layoutMode !== "single"
+            ? linkedCrosshair
+            : null
+        }
+        onCrosshairLinkChange={handleLinkedCrosshairChange}
         onSnapshotCaptureReady={registerPrimarySnapshot}
         comparison={
           layoutMode === "single" && comparisonSymbol && displayComparisonCandles.length > 0
@@ -4552,6 +4614,13 @@ export default function App() {
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
+        paneId="secondary"
+        syncedCrosshair={
+          paneCrosshairLinkEnabled
+            ? linkedCrosshair
+            : null
+        }
+        onCrosshairLinkChange={handleLinkedCrosshairChange}
         comparison={null}
         settings={secondaryVisual.chartSettings}
         resetViewKey={chartResetKey}
@@ -4585,6 +4654,13 @@ export default function App() {
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
+        paneId="third"
+        syncedCrosshair={
+          paneCrosshairLinkEnabled
+            ? linkedCrosshair
+            : null
+        }
+        onCrosshairLinkChange={handleLinkedCrosshairChange}
         comparison={null}
         settings={thirdVisual.chartSettings}
         resetViewKey={chartResetKey}
@@ -4618,6 +4694,13 @@ export default function App() {
         drawings={[]}
         drawingTool="cursor"
         onDrawingCreated={ignoreDrawingCreated}
+        paneId="fourth"
+        syncedCrosshair={
+          paneCrosshairLinkEnabled
+            ? linkedCrosshair
+            : null
+        }
+        onCrosshairLinkChange={handleLinkedCrosshairChange}
         comparison={null}
         settings={fourthVisual.chartSettings}
         resetViewKey={chartResetKey}
