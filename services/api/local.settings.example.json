@@ -11,6 +11,8 @@
     "USER_DATA_PROVIDER": "memory",
     "COSMOS_CONNECTION_STRING": "",
     "COSMOS_DATABASE": "marketos",
-    "COSMOS_CONTAINER": "userState"
+    "COSMOS_CONTAINER": "userState",
+    "ALERT_WORKER_ENABLED": "false",
+    "MARKETOS_WORKER_SECRET": ""
   }
 }
