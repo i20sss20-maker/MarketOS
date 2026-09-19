@@ -111,6 +111,7 @@ const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 type ChartLayoutMode = "single" | "split" | "quad";
 type MaximizedChartPane = "primary" | "secondary" | "third" | "fourth" | null;
+type AuxiliaryPane = "secondary" | "third" | "fourth";
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
@@ -145,6 +146,31 @@ function saveSetting(key: string, value: string) {
     window.localStorage.setItem(key, value);
   } catch {
     // Storage may be unavailable in restricted webviews or privacy modes.
+  }
+}
+
+function readSavedPaneSymbol(key: string): MarketSymbol | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as MarketSymbol;
+    return parsed?.id && parsed?.ticker ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function savePaneSymbol(key: string, symbol: MarketSymbol | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!symbol) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    window.localStorage.setItem(key, JSON.stringify(symbol));
+  } catch {
+    // Ignore storage restrictions.
   }
 }
 
@@ -257,11 +283,17 @@ export default function App() {
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showDrawingMenu, setShowDrawingMenu] = useState(false);
   const [showComparisonMenu, setShowComparisonMenu] = useState(false);
-  const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(null);
+  const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(
+    () => readSavedPaneSymbol("marketos:pane-secondary"),
+  );
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
-  const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(null);
+  const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(
+    () => readSavedPaneSymbol("marketos:pane-third"),
+  );
   const [thirdChartCandles, setThirdChartCandles] = useState<Candle[]>([]);
-  const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(null);
+  const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(
+    () => readSavedPaneSymbol("marketos:pane-fourth"),
+  );
   const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
