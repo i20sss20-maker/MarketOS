@@ -1109,6 +1109,7 @@ export default function App() {
         drawings={drawings}
         drawingTool={drawingTool}
         onDrawingCreated={handleDrawingCreated}
+        onTextAnchorRequested={requestTextAnchor}
         onCrosshairCandle={setHoverCandle}
         comparison={
           layoutMode === "single" && comparisonSymbol && displayComparisonCandles.length > 0
@@ -1116,6 +1117,30 @@ export default function App() {
             : null
         }
       />
+      {textAnchor ? (
+        <div className="text-note-composer" dir="rtl">
+          <div className="text-note-title">
+            {editingTextId ? "تعديل الملاحظة" : "ملاحظة جديدة"}
+          </div>
+          <input
+            autoFocus
+            value={textDraft}
+            maxLength={120}
+            onChange={(event) => setTextDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") saveTextDrawing();
+              if (event.key === "Escape") cancelTextDrawing();
+            }}
+            placeholder="اكتب ملاحظتك على الشارت"
+          />
+          <div className="text-note-actions">
+            <button onClick={cancelTextDrawing}>إلغاء</button>
+            <button className="primary" onClick={saveTextDrawing} disabled={!textDraft.trim()}>
+              حفظ
+            </button>
+          </div>
+        </div>
+      ) : null}
       {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
       {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
@@ -1602,12 +1627,51 @@ export default function App() {
                   <div className="drawing-popover" dir="rtl">
                     <div className="indicator-popover-title">إدارة الرسومات</div>
                     {drawings.map((drawing) => (
-                      <div className="drawing-row" key={drawing.id}>
-                        <span>
-                          <strong>{drawingName(drawing)}</strong>
+                      <div
+                        className={[
+                          "drawing-row",
+                          drawing.hidden ? "hidden" : "",
+                          drawing.locked ? "locked" : "",
+                        ].filter(Boolean).join(" ")}
+                        key={drawing.id}
+                      >
+                        <span className="drawing-row-info">
+                          <strong>
+                            {drawingName(drawing)}
+                            {drawing.locked ? " · مقفل" : ""}
+                          </strong>
                           <small>{drawingDetail(drawing)}</small>
                         </span>
-                        <button onClick={() => deleteDrawing(drawing.id)} title="حذف">×</button>
+                        <div className="drawing-row-actions">
+                          <button
+                            onClick={() => toggleDrawingHidden(drawing.id)}
+                            title={drawing.hidden ? "إظهار" : "إخفاء"}
+                          >
+                            {drawing.hidden ? "○" : "◉"}
+                          </button>
+                          <button
+                            onClick={() => toggleDrawingLocked(drawing.id)}
+                            title={drawing.locked ? "فتح القفل" : "قفل"}
+                          >
+                            {drawing.locked ? "🔒" : "🔓"}
+                          </button>
+                          {drawing.type === "text" ? (
+                            <button
+                              onClick={() => editTextDrawing(drawing)}
+                              disabled={drawing.locked}
+                              title="تعديل النص"
+                            >
+                              ✎
+                            </button>
+                          ) : null}
+                          <button
+                            onClick={() => deleteDrawing(drawing.id)}
+                            disabled={drawing.locked}
+                            title={drawing.locked ? "افتح القفل أولًا" : "حذف"}
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                     ))}
                     {drawings.length === 0 ? <div className="workspace-empty">لا توجد رسومات</div> : null}
@@ -1711,22 +1775,37 @@ export default function App() {
           <div className="chart-stage">
             <div className="drawing-rail">
               <button
+                title="تراجع · Ctrl/Cmd+Z"
+                onClick={undoDrawings}
+                disabled={!canUndoDrawings(drawingHistory)}
+              >
+                ↶
+              </button>
+              <button
+                title="إعادة · Ctrl/Cmd+Shift+Z"
+                onClick={redoDrawings}
+                disabled={!canRedoDrawings(drawingHistory)}
+              >
+                ↷
+              </button>
+              <span className="drawing-rail-separator" />
+              <button
                 className={drawingTool === "cursor" ? "selected" : ""}
-                title="المؤشر والتحريك"
+                title="المؤشر والتحريك · V"
                 onClick={() => setDrawingTool("cursor")}
               >
                 ↖
               </button>
               <button
                 className={drawingTool === "trend" ? "selected" : ""}
-                title="خط الاتجاه"
+                title="خط الاتجاه · L"
                 onClick={() => setDrawingTool("trend")}
               >
                 ╱
               </button>
               <button
                 className={drawingTool === "horizontal" ? "selected" : ""}
-                title="خط أفقي"
+                title="خط أفقي · H"
                 onClick={() => setDrawingTool("horizontal")}
               >
                 ―
@@ -1745,7 +1824,28 @@ export default function App() {
               >
                 ƒ
               </button>
-              <button title="مسح الرسومات" onClick={clearDrawings} disabled={drawings.length === 0}>⌫</button>
+              <button
+                className={drawingTool === "measure" ? "selected" : ""}
+                title="قياس · M"
+                onClick={() => setDrawingTool("measure")}
+              >
+                ↕
+              </button>
+              <button
+                className={drawingTool === "text" ? "selected" : ""}
+                title="ملاحظة نصية · N"
+                onClick={() => setDrawingTool("text")}
+              >
+                T
+              </button>
+              <span className="drawing-rail-separator" />
+              <button
+                title="مسح الرسومات غير المقفلة"
+                onClick={clearDrawings}
+                disabled={!drawings.some((drawing) => !drawing.locked)}
+              >
+                ⌫
+              </button>
             </div>
 
             {layoutMode === "split" && secondaryChartNode ? (
