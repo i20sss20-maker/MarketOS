@@ -108,6 +108,9 @@ jobs:
       - name: Object Tree runtime smoke test
         run: pnpm smoke:object-tree
 
+      - name: Replay V2 runtime smoke test
+        run: pnpm smoke:replay-v2
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
