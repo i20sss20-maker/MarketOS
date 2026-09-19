@@ -26,6 +26,7 @@ import MarketChart, {
   type ChartView,
 } from "./components/MarketChart";
 import PaneVisualControls from "./components/PaneVisualControls";
+import PaneLinkControls from "./components/PaneLinkControls";
 import CommercialTopBar from "./components/CommercialTopBar";
 import HomeDashboard from "./components/HomeDashboard";
 import ReplaySetupPanel from "./components/ReplaySetupPanel";
@@ -158,6 +159,11 @@ import {
   savePaneVisualState,
   type PaneVisualState,
 } from "./lib/paneVisualState";
+import {
+  loadPaneLinkSettings,
+  savePaneLinkSettings,
+  type PaneLinkSettings,
+} from "./lib/paneLinks";
 import {
   createWorkspace,
   loadWorkspaces,
@@ -548,7 +554,13 @@ export default function App() {
     readSaved("marketos:chart-layout", "single"),
   );
   const [chartSyncEnabled, setChartSyncEnabled] = useState(
-    () => readSaved<"on" | "off">("marketos:chart-sync", "on") === "on",
+    () => loadPaneLinkSettings().range,
+  );
+  const [paneSymbolLinkEnabled, setPaneSymbolLinkEnabled] = useState(
+    () => loadPaneLinkSettings().symbol,
+  );
+  const [paneTimeframeLinkEnabled, setPaneTimeframeLinkEnabled] = useState(
+    () => loadPaneLinkSettings().timeframe,
   );
   const [syncedLogicalRange, setSyncedLogicalRange] = useState<LogicalRange | null>(null);
   const [maximizedChartPane, setMaximizedChartPane] = useState<MaximizedChartPane>(null);
@@ -1280,7 +1292,13 @@ export default function App() {
   }, [active, timeframe]);
 
   useEffect(() => {
-    if (!comparisonSymbol || comparisonSymbol.id === active.id) {
+    if (
+      !comparisonSymbol ||
+      (
+        layoutMode === "single" &&
+        comparisonSymbol.id === active.id
+      )
+    ) {
       setComparisonCandles([]);
       return;
     }
@@ -1294,7 +1312,12 @@ export default function App() {
       });
 
     return () => controller.abort();
-  }, [comparisonSymbol, active.id, comparisonTimeframe]);
+  }, [
+    comparisonSymbol,
+    active.id,
+    comparisonTimeframe,
+    layoutMode,
+  ]);
 
   useEffect(() => {
     if (layoutMode !== "quad" || !thirdChartSymbol) {
@@ -2197,17 +2220,41 @@ export default function App() {
     setReplayPlaying(false);
     setReplayIndex(null);
 
-    if (comparisonSymbol?.id === symbol.id) {
-      setComparisonSymbol(previousActive);
-      savePaneSymbol("marketos:pane-secondary", previousActive);
-    }
-    if (thirdChartSymbol?.id === symbol.id) {
-      setThirdChartSymbol(previousActive);
-      savePaneSymbol("marketos:pane-third", previousActive);
-    }
-    if (fourthChartSymbol?.id === symbol.id) {
-      setFourthChartSymbol(previousActive);
-      savePaneSymbol("marketos:pane-fourth", previousActive);
+    if (
+      paneSymbolLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      setComparisonSymbol(symbol);
+      savePaneSymbol(
+        "marketos:pane-secondary",
+        symbol,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartSymbol(symbol);
+        savePaneSymbol(
+          "marketos:pane-third",
+          symbol,
+        );
+        setFourthChartSymbol(symbol);
+        savePaneSymbol(
+          "marketos:pane-fourth",
+          symbol,
+        );
+      }
+    } else {
+      if (comparisonSymbol?.id === symbol.id) {
+        setComparisonSymbol(previousActive);
+        savePaneSymbol("marketos:pane-secondary", previousActive);
+      }
+      if (thirdChartSymbol?.id === symbol.id) {
+        setThirdChartSymbol(previousActive);
+        savePaneSymbol("marketos:pane-third", previousActive);
+      }
+      if (fourthChartSymbol?.id === symbol.id) {
+        setFourthChartSymbol(previousActive);
+        savePaneSymbol("marketos:pane-fourth", previousActive);
+      }
     }
 
     addToWatchlist(symbol);
@@ -2229,6 +2276,32 @@ export default function App() {
     setReplayPlaying(false);
     setReplayIndex(null);
     saveSetting("marketos:timeframe", value);
+
+    if (
+      paneTimeframeLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      setComparisonTimeframe(value);
+      saveSetting(
+        "marketos:pane-secondary-timeframe",
+        value,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartTimeframe(value);
+        saveSetting(
+          "marketos:pane-third-timeframe",
+          value,
+        );
+        setFourthChartTimeframe(value);
+        saveSetting(
+          "marketos:pane-fourth-timeframe",
+          value,
+        );
+      }
+    }
+
+    setSyncedLogicalRange(null);
     setDrawingTool("cursor");
     setHoverCandle(null);
     setAiResult(null);
@@ -2659,6 +2732,48 @@ export default function App() {
 
     if (mode === "single") {
       setSyncedLogicalRange(null);
+    } else {
+      if (paneSymbolLinkEnabled) {
+        setComparisonSymbol(active);
+        savePaneSymbol(
+          "marketos:pane-secondary",
+          active,
+        );
+
+        if (mode === "quad") {
+          setThirdChartSymbol(active);
+          savePaneSymbol(
+            "marketos:pane-third",
+            active,
+          );
+          setFourthChartSymbol(active);
+          savePaneSymbol(
+            "marketos:pane-fourth",
+            active,
+          );
+        }
+      }
+
+      if (paneTimeframeLinkEnabled) {
+        setComparisonTimeframe(timeframe);
+        saveSetting(
+          "marketos:pane-secondary-timeframe",
+          timeframe,
+        );
+
+        if (mode === "quad") {
+          setThirdChartTimeframe(timeframe);
+          saveSetting(
+            "marketos:pane-third-timeframe",
+            timeframe,
+          );
+          setFourthChartTimeframe(timeframe);
+          saveSetting(
+            "marketos:pane-fourth-timeframe",
+            timeframe,
+          );
+        }
+      }
     }
 
     saveSetting(
@@ -2676,13 +2791,75 @@ export default function App() {
   const chartSyncCompatible =
     new Set(visiblePaneTimeframes).size <= 1;
 
-  const toggleChartSync = () => {
-    setChartSyncEnabled((current) => {
-      const next = !current;
-      saveSetting("marketos:chart-sync", next ? "on" : "off");
-      if (!next) setSyncedLogicalRange(null);
-      return next;
-    });
+  const paneLinkSettings: PaneLinkSettings = {
+    range: chartSyncEnabled,
+    symbol: paneSymbolLinkEnabled,
+    timeframe: paneTimeframeLinkEnabled,
+  };
+
+  const updatePaneLinkSettings = (
+    next: PaneLinkSettings,
+  ) => {
+    setChartSyncEnabled(next.range);
+    setPaneSymbolLinkEnabled(
+      next.symbol,
+    );
+    setPaneTimeframeLinkEnabled(
+      next.timeframe,
+    );
+    savePaneLinkSettings(next);
+
+    if (!next.range) {
+      setSyncedLogicalRange(null);
+    }
+
+    if (
+      layoutMode !== "single" &&
+      next.symbol
+    ) {
+      setComparisonSymbol(active);
+      savePaneSymbol(
+        "marketos:pane-secondary",
+        active,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartSymbol(active);
+        savePaneSymbol(
+          "marketos:pane-third",
+          active,
+        );
+        setFourthChartSymbol(active);
+        savePaneSymbol(
+          "marketos:pane-fourth",
+          active,
+        );
+      }
+    }
+
+    if (
+      layoutMode !== "single" &&
+      next.timeframe
+    ) {
+      setComparisonTimeframe(timeframe);
+      saveSetting(
+        "marketos:pane-secondary-timeframe",
+        timeframe,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartTimeframe(timeframe);
+        saveSetting(
+          "marketos:pane-third-timeframe",
+          timeframe,
+        );
+        setFourthChartTimeframe(timeframe);
+        saveSetting(
+          "marketos:pane-fourth-timeframe",
+          timeframe,
+        );
+      }
+    }
   };
 
   const handleSynchronizedRangeChange = useCallback((range: LogicalRange | null) => {
@@ -3005,9 +3182,10 @@ export default function App() {
       chartView,
       indicators,
       drawings,
-      version: 3,
+      version: 4,
       layoutMode,
       chartSyncEnabled,
+      paneLinks: paneLinkSettings,
       chartSettings,
       customIndicators,
       panes: {
@@ -3111,8 +3289,28 @@ export default function App() {
     setThirdChartTimeframe(thirdPane?.timeframe ?? primaryPane.timeframe);
     setFourthChartSymbol(fourthPane?.symbol ?? null);
     setFourthChartTimeframe(fourthPane?.timeframe ?? primaryPane.timeframe);
+    const restoredPaneLinks =
+      workspace.paneLinks ?? {
+        range:
+          workspace.chartSyncEnabled ??
+          true,
+        symbol: false,
+        timeframe: false,
+      };
+
     setLayoutMode(restoredLayout);
-    setChartSyncEnabled(workspace.chartSyncEnabled ?? true);
+    setChartSyncEnabled(
+      restoredPaneLinks.range,
+    );
+    setPaneSymbolLinkEnabled(
+      restoredPaneLinks.symbol,
+    );
+    setPaneTimeframeLinkEnabled(
+      restoredPaneLinks.timeframe,
+    );
+    savePaneLinkSettings(
+      restoredPaneLinks,
+    );
     setSyncedLogicalRange(null);
     setMaximizedChartPane(null);
 
@@ -3222,7 +3420,9 @@ export default function App() {
       restoredPrimaryVisual.chartView,
     );
     saveSetting("marketos:chart-layout", restoredLayout);
-    saveSetting("marketos:chart-sync", (workspace.chartSyncEnabled ?? true) ? "on" : "off");
+    savePaneLinkSettings(
+      restoredPaneLinks,
+    );
 
     savePaneSymbol("marketos:pane-secondary", secondaryPane?.symbol ?? null);
     savePaneSymbol("marketos:pane-third", thirdPane?.symbol ?? null);
@@ -3495,6 +3695,14 @@ export default function App() {
     const symbol = multiChartSymbolOptions.find((item) => item.id === symbolId);
     if (!symbol) return;
 
+    if (
+      paneSymbolLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      chooseSymbol(symbol);
+      return;
+    }
+
     if (pane === "primary") {
       chooseSymbol(symbol);
       return;
@@ -3515,6 +3723,14 @@ export default function App() {
     nextTimeframe: Timeframe,
   ) => {
     setSyncedLogicalRange(null);
+
+    if (
+      paneTimeframeLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      chooseTimeframe(nextTimeframe);
+      return;
+    }
 
     if (pane === "primary") {
       chooseTimeframe(nextTimeframe);
@@ -4029,6 +4245,50 @@ export default function App() {
             : undefined,
       onSelect: () => chooseLayoutMode(mode),
     })),
+    {
+      id: "link:symbol",
+      group: "Panes",
+      label: paneSymbolLinkEnabled ? "إيقاف ربط الرموز" : "ربط الرموز بين Panes",
+      description: "Symbol Link",
+      keywords: ["link", "symbol", "panes", "ربط", "رموز"],
+      priority: 44.8,
+      badge: paneSymbolLinkEnabled ? "ON" : undefined,
+      onSelect: () =>
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          symbol: !paneSymbolLinkEnabled,
+        }),
+    },
+    {
+      id: "link:timeframe",
+      group: "Panes",
+      label: paneTimeframeLinkEnabled ? "إيقاف ربط الفريمات" : "ربط الفريمات بين Panes",
+      description: "Timeframe Link",
+      keywords: ["link", "timeframe", "frame", "panes", "ربط", "فريم"],
+      priority: 44.7,
+      badge: paneTimeframeLinkEnabled ? "ON" : undefined,
+      onSelect: () =>
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          timeframe: !paneTimeframeLinkEnabled,
+        }),
+    },
+    {
+      id: "link:range",
+      group: "Panes",
+      label: chartSyncEnabled ? "إيقاف ربط Zoom/Scroll" : "ربط Zoom/Scroll",
+      description: chartSyncCompatible ? "Range Link" : "يتطلب نفس الفريم",
+      keywords: ["link", "range", "zoom", "scroll", "panes", "ربط"],
+      priority: 44.6,
+      badge: chartSyncEnabled && chartSyncCompatible ? "ON" : undefined,
+      onSelect: () => {
+        if (!chartSyncCompatible) return;
+        updatePaneLinkSettings({
+          ...paneLinkSettings,
+          range: !chartSyncEnabled,
+        });
+      },
+    },
     {
       id: "replay:toggle",
       group: "الشارت",
@@ -5382,20 +5642,12 @@ export default function App() {
                 </button>
               </div>
 
-              <button
-                className={chartSyncEnabled && layoutMode !== "single" && chartSyncCompatible ? "chart-sync-toggle active" : "chart-sync-toggle"}
-                onClick={toggleChartSync}
-                disabled={layoutMode === "single" || !chartSyncCompatible}
-                title={
-                  !chartSyncCompatible
-                    ? "المزامنة تتطلب نفس الفريم في Panes الظاهرة"
-                    : layoutMode === "quad"
-                      ? "مزامنة Zoom/Scroll بين الأربع شارتات"
-                      : "مزامنة Zoom/Scroll بين الشارتين"
-                }
-              >
-                Sync
-              </button>
+              <PaneLinkControls
+                disabled={layoutMode === "single"}
+                rangeCompatible={chartSyncCompatible}
+                settings={paneLinkSettings}
+                onChange={updatePaneLinkSettings}
+              />
             </div>
 
             {replayActive ? (
