@@ -18,7 +18,8 @@ The API resolves the authenticated user's plan from the entitlement store. If no
 
 The following are enforced both in the UI and by MarketOS API cloud-state validation:
 
-- Watchlist items
+- Watchlist collections
+- Total Watchlist symbols across collections
 - Saved workspaces
 - Advanced alerts
 - Custom indicators
