@@ -1,6 +1,8 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { canUseFeature } from "@marketos/entitlements-core";
 import { appendAlertInboxEvents } from "../alerts/alertInbox.js";
 import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
+import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { hasValidWorkerSecret } from "../auth/workerSecret.js";
 import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
@@ -49,8 +51,23 @@ export async function internalAlertSweep(
     let triggeredCount = 0;
     let failureCount = 0;
     let cappedUsers = 0;
+    let skippedPlanUsers = 0;
 
     for (const stored of batch.items) {
+      const entitlement =
+        await getResolvedUserEntitlement(
+          stored.userId,
+        );
+
+      if (
+        !canUseFeature(
+          entitlement,
+          "backgroundAlerts",
+        )
+      ) {
+        skippedPlanUsers += 1;
+        continue;
+      }
       const result = await evaluateStoredUserAlerts(
         stored,
         {
@@ -86,6 +103,7 @@ export async function internalAlertSweep(
       triggeredCount,
       failureCount,
       cappedUsers,
+      skippedPlanUsers,
       nextContinuationToken:
         batch.continuationToken ?? null,
     });
