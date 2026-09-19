@@ -17,6 +17,7 @@ function publicCloudState(
     version: state.version,
     updatedAt: state.updatedAt,
     watchlist: state.watchlist,
+    watchlistCollections: state.watchlistCollections ?? [],
     workspaces: state.workspaces,
     alerts: state.alerts,
     alertEvents: state.alertEvents ?? [],
@@ -105,11 +106,46 @@ export async function userState(
           user.userId,
         );
 
+      const collections =
+        state.watchlistCollections ?? [];
+
+      const watchlistItems =
+        collections.length > 0
+          ? collections.reduce(
+              (sum, raw) => {
+                if (
+                  !raw ||
+                  typeof raw !== "object"
+                ) {
+                  return sum;
+                }
+
+                const symbols =
+                  (raw as {
+                    symbols?: unknown;
+                  }).symbols;
+
+                return sum +
+                  (
+                    Array.isArray(symbols)
+                      ? symbols.length
+                      : 0
+                  );
+              },
+              0,
+            )
+          : state.watchlist.length;
+
+      const watchlists =
+        collections.length > 0
+          ? collections.length
+          : 1;
+
       const violations =
         cloudStateViolations(
           {
-            watchlistItems:
-              state.watchlist.length,
+            watchlists,
+            watchlistItems,
             savedWorkspaces:
               state.workspaces.length,
             alerts:
