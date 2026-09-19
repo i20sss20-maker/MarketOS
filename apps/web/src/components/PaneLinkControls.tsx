@@ -50,6 +50,7 @@ export default function PaneLinkControls({
   const activeCount =
     Number(settings.symbol) +
     Number(settings.timeframe) +
+    Number(settings.crosshair) +
     Number(
       settings.range &&
       rangeCompatible,
@@ -142,6 +143,33 @@ export default function PaneLinkControls({
             </span>
             <b>
               {settings.timeframe
+                ? "ON"
+                : "OFF"}
+            </b>
+          </button>
+
+          <button
+            className={
+              settings.crosshair
+                ? "pane-link-row active"
+                : "pane-link-row"
+            }
+            onClick={() =>
+              onChange({
+                ...settings,
+                crosshair:
+                  !settings.crosshair,
+              })
+            }
+          >
+            <span>
+              <strong>Crosshair</strong>
+              <small>
+                نفس الزمن يظهر على كل Pane مع سعر محلي مناسب
+              </small>
+            </span>
+            <b>
+              {settings.crosshair
                 ? "ON"
                 : "OFF"}
             </b>
