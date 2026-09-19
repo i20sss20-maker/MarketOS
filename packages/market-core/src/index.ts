@@ -65,11 +65,17 @@ export type MarketDataStatus = {
   message?: string;
 };
 
+export type MarketOverviewItem = {
+  symbol: MarketSymbol;
+  quote: Quote;
+};
+
 export interface MarketDataProvider {
   readonly id: string;
   searchSymbols(query: string): Promise<MarketSymbol[]>;
   getCandles(symbol: MarketSymbol, timeframe: Timeframe, limit?: number): Promise<Candle[]>;
   getQuote(symbol: MarketSymbol): Promise<Quote>;
+  getQuotes(symbols: MarketSymbol[]): Promise<MarketOverviewItem[]>;
   getStatus(): MarketDataStatus;
 }
 
