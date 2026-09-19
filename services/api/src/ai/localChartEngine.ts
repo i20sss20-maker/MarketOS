@@ -107,7 +107,11 @@ function sanitizeDrawing(value: unknown): ChartDrawingContext | null {
     return { type: "horizontal", price: input.price };
   }
 
-  if (input.type === "trend" && Array.isArray(input.points) && input.points.length === 2) {
+  if (
+    (input.type === "trend" || input.type === "zone" || input.type === "fibonacci") &&
+    Array.isArray(input.points) &&
+    input.points.length === 2
+  ) {
     const points = input.points.map((point) => {
       if (!point || typeof point !== "object") return null;
       const record = point as Record<string, unknown>;
@@ -117,7 +121,7 @@ function sanitizeDrawing(value: unknown): ChartDrawingContext | null {
 
     if (points[0] && points[1]) {
       return {
-        type: "trend",
+        type: input.type,
         points: [points[0], points[1]],
       };
     }
@@ -243,6 +247,16 @@ export function analyzeChartContext(context: ChartContext): ChartAnalysisRespons
   const trendLines = context.userDrawings.filter((drawing) => drawing.type === "trend");
   if (trendLines.length > 0) {
     observations.push(`يوجد ${trendLines.length} خط اتجاه مرسوم ضمن سياق المستخدم.`);
+  }
+
+  const zones = context.userDrawings.filter((drawing) => drawing.type === "zone");
+  if (zones.length > 0) {
+    observations.push(`يوجد ${zones.length} منطقة سعر محددة ضمن سياق المستخدم.`);
+  }
+
+  const fibonacciDrawings = context.userDrawings.filter((drawing) => drawing.type === "fibonacci");
+  if (fibonacciDrawings.length > 0) {
+    observations.push(`يوجد ${fibonacciDrawings.length} رسم Fibonacci ضمن سياق المستخدم.`);
   }
 
   if (context.indicators.length > 0) {
