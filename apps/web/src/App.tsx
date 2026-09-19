@@ -11,7 +11,19 @@ import MarketChart, { type ChartView } from "./components/MarketChart";
 import { analyzeChart } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import type { ChartDrawing, DrawingTool } from "./lib/drawings";
-import { loadDrawings, saveDrawings } from "./lib/drawings";
+import {
+  drawingDetail,
+  drawingName,
+  loadDrawings,
+  saveDrawings,
+} from "./lib/drawings";
+import type { AlertCondition, PriceAlert } from "./lib/alerts";
+import {
+  createPriceAlert,
+  evaluateAlerts,
+  loadAlerts,
+  saveAlerts,
+} from "./lib/alerts";
 import type { IndicatorId, IndicatorSelection } from "./lib/indicators";
 import {
   indicatorCatalog,
@@ -109,7 +121,17 @@ export default function App() {
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [savedWorkspaces, setSavedWorkspaces] = useState<SavedWorkspace[]>(() => loadWorkspaces());
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
+  const [showDrawingMenu, setShowDrawingMenu] = useState(false);
+  const [showComparisonMenu, setShowComparisonMenu] = useState(false);
+  const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(null);
+  const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
   const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
+
+  const [alerts, setAlerts] = useState<PriceAlert[]>(() => loadAlerts());
+  const [showAlertMenu, setShowAlertMenu] = useState(false);
+  const [alertCondition, setAlertCondition] = useState<AlertCondition>("above");
+  const [alertPrice, setAlertPrice] = useState("");
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [aiResult, setAiResult] = useState<Pick<ChartAnalysisResponse, "summary" | "observations" | "engine"> | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("اقرأ الحركة الحالية ووضح أهم ما يظهر في الشارت");
@@ -179,6 +201,41 @@ export default function App() {
 
     return () => controller.abort();
   }, [active, timeframe]);
+
+  useEffect(() => {
+    if (!comparisonSymbol || comparisonSymbol.id === active.id) {
+      setComparisonCandles([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    getMarketCandles(comparisonSymbol, timeframe, 300, controller.signal)
+      .then((response) => setComparisonCandles(response.candles))
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setComparisonCandles([]);
+      });
+
+    return () => controller.abort();
+  }, [comparisonSymbol, active.id, timeframe]);
+
+  useEffect(() => {
+    const price = quote?.price ?? candles[candles.length - 1]?.close;
+    if (!Number.isFinite(price)) return;
+
+    const result = evaluateAlerts(alerts, active, price as number);
+    if (result.triggered.length === 0) return;
+
+    setAlerts(result.alerts);
+    saveAlerts(result.alerts);
+    const latest = result.triggered[result.triggered.length - 1];
+    setAlertMessage(
+      `تنبيه ${latest.symbol.ticker}: السعر ${latest.condition === "above" ? "وصل أو تجاوز" : "وصل أو نزل تحت"} ${formatPrice(latest.price)}`,
+    );
+
+    const timer = window.setTimeout(() => setAlertMessage(null), 7000);
+    return () => window.clearTimeout(timer);
+  }, [quote?.price, candles, active]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -260,6 +317,10 @@ export default function App() {
 
   const chooseSymbol = (symbol: MarketSymbol) => {
     setActive(symbol);
+    if (comparisonSymbol?.id === symbol.id) {
+      setComparisonSymbol(null);
+      setComparisonCandles([]);
+    }
     addToWatchlist(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
@@ -299,10 +360,45 @@ export default function App() {
     });
   }, [active.id]);
 
+  const deleteDrawing = (id: string) => {
+    setDrawings((current) => {
+      const next = current.filter((drawing) => drawing.id !== id);
+      saveDrawings(active.id, next);
+      return next;
+    });
+  };
+
   const clearDrawings = () => {
     setDrawings([]);
     saveDrawings(active.id, []);
     setDrawingTool("cursor");
+  };
+
+  const chooseComparison = (symbol: MarketSymbol) => {
+    if (symbol.id === active.id) return;
+    setComparisonSymbol(symbol);
+    setShowComparisonMenu(false);
+  };
+
+  const addAlert = () => {
+    const price = Number(alertPrice);
+    if (!Number.isFinite(price) || price <= 0) return;
+
+    const alert = createPriceAlert(active, alertCondition, price);
+    setAlerts((current) => {
+      const next = [alert, ...current].slice(0, 100);
+      saveAlerts(next);
+      return next;
+    });
+    setAlertPrice("");
+  };
+
+  const deleteAlert = (id: string) => {
+    setAlerts((current) => {
+      const next = current.filter((alert) => alert.id !== id);
+      saveAlerts(next);
+      return next;
+    });
   };
 
   const saveCurrentWorkspace = () => {
@@ -419,7 +515,14 @@ export default function App() {
       ? "أداة الترند: انقر نقطتين على الشارت"
       : drawingTool === "horizontal"
         ? "الخط الأفقي: انقر على مستوى السعر"
-        : null;
+        : drawingTool === "zone"
+          ? "منطقة السعر: انقر زاويتين للمستطيل"
+          : drawingTool === "fibonacci"
+            ? "Fibonacci: اختر البداية ثم النهاية"
+            : null;
+
+  const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
+  const triggeredAlerts = alerts.filter((alert) => Boolean(alert.triggeredAt));
 
   return (
     <main className="shell">
@@ -432,6 +535,54 @@ export default function App() {
           <div className="status-pill" title={providerStatus?.message}>
             <span className={`status-dot ${dataState}`} />
             {providerLabel}
+          </div>
+
+          <div className="alert-menu-wrap">
+            <button className="ghost-button" onClick={() => setShowAlertMenu((value) => !value)}>
+              التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
+            </button>
+
+            {showAlertMenu ? (
+              <div className="alert-popover" dir="rtl">
+                <div className="alert-title">تنبيه سعر لـ {active.ticker}</div>
+                <div className="alert-condition">
+                  <button
+                    className={alertCondition === "above" ? "selected" : ""}
+                    onClick={() => setAlertCondition("above")}
+                  >
+                    أعلى من
+                  </button>
+                  <button
+                    className={alertCondition === "below" ? "selected" : ""}
+                    onClick={() => setAlertCondition("below")}
+                  >
+                    أقل من
+                  </button>
+                </div>
+                <div className="alert-create">
+                  <input
+                    inputMode="decimal"
+                    value={alertPrice}
+                    onChange={(event) => setAlertPrice(event.target.value)}
+                    placeholder={formatPrice(displayedPrice)}
+                  />
+                  <button onClick={addAlert}>إضافة</button>
+                </div>
+                <div className="alert-note">يتم فحص التنبيه أثناء فتح MarketOS وعند تحديث السعر.</div>
+                <div className="alert-list">
+                  {alerts.slice(0, 12).map((alert) => (
+                    <div className={alert.triggeredAt ? "alert-row triggered" : "alert-row"} key={alert.id}>
+                      <span>
+                        <strong>{alert.symbol.ticker} · {alert.condition === "above" ? "≥" : "≤"} {formatPrice(alert.price)}</strong>
+                        <small>{alert.triggeredAt ? "تم التفعيل" : "نشط"}</small>
+                      </span>
+                      <button onClick={() => deleteAlert(alert.id)} title="حذف">×</button>
+                    </div>
+                  ))}
+                  {alerts.length === 0 ? <div className="workspace-empty">لا توجد تنبيهات</div> : null}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="workspace-menu-wrap">
@@ -463,6 +614,8 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {alertMessage ? <div className="alert-toast">{alertMessage}</div> : null}
 
       <section className="market-strip" dir="ltr">
         <span>MARKET DATA <b>{providerStatus?.provider ?? "detecting"}</b></span>
@@ -553,6 +706,63 @@ export default function App() {
               <button className={chartView === "line" ? "selected" : ""} onClick={() => chooseChartView("line")}>خط</button>
               <button className={chartView === "area" ? "selected" : ""} onClick={() => chooseChartView("area")}>مساحة</button>
 
+              <div className="compare-menu-wrap">
+                <button
+                  className={comparisonSymbol ? "selected comparison-button" : "comparison-button"}
+                  onClick={() => setShowComparisonMenu((value) => !value)}
+                >
+                  {comparisonSymbol ? `مقارنة: ${comparisonSymbol.ticker}` : "مقارنة"}
+                </button>
+                {comparisonSymbol ? (
+                  <button className="comparison-clear" onClick={() => {
+                    setComparisonSymbol(null);
+                    setComparisonCandles([]);
+                  }}>×</button>
+                ) : null}
+
+                {showComparisonMenu ? (
+                  <div className="compare-popover" dir="rtl">
+                    <div className="indicator-popover-title">قارن مع</div>
+                    {watchlist
+                      .filter((symbol) => symbol.id !== active.id)
+                      .slice(0, 12)
+                      .map((symbol) => (
+                        <button className="indicator-row" key={symbol.id} onClick={() => chooseComparison(symbol)}>
+                          <span>
+                            <strong>{symbol.ticker}</strong>
+                            <small>{symbol.name}</small>
+                          </span>
+                          <b>+</b>
+                        </button>
+                      ))}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="drawing-menu-wrap">
+                <button
+                  className={drawings.length > 0 ? "selected" : ""}
+                  onClick={() => setShowDrawingMenu((value) => !value)}
+                >
+                  الرسومات {drawings.length > 0 ? `(${drawings.length})` : ""}
+                </button>
+                {showDrawingMenu ? (
+                  <div className="drawing-popover" dir="rtl">
+                    <div className="indicator-popover-title">إدارة الرسومات</div>
+                    {drawings.map((drawing) => (
+                      <div className="drawing-row" key={drawing.id}>
+                        <span>
+                          <strong>{drawingName(drawing)}</strong>
+                          <small>{drawingDetail(drawing)}</small>
+                        </span>
+                        <button onClick={() => deleteDrawing(drawing.id)} title="حذف">×</button>
+                      </div>
+                    ))}
+                    {drawings.length === 0 ? <div className="workspace-empty">لا توجد رسومات</div> : null}
+                  </div>
+                ) : null}
+              </div>
+
               <div className="indicator-menu-wrap">
                 <button
                   className={activeIndicatorItems.length > 0 ? "selected" : ""}
@@ -606,8 +816,20 @@ export default function App() {
               >
                 ―
               </button>
-              <button className="disabled-tool" title="فيبوناتشي — قريبًا" disabled>≋</button>
-              <button className="disabled-tool" title="نص — قريبًا" disabled>T</button>
+              <button
+                className={drawingTool === "zone" ? "selected" : ""}
+                title="منطقة سعر"
+                onClick={() => setDrawingTool("zone")}
+              >
+                ▭
+              </button>
+              <button
+                className={drawingTool === "fibonacci" ? "selected" : ""}
+                title="Fibonacci"
+                onClick={() => setDrawingTool("fibonacci")}
+              >
+                ƒ
+              </button>
               <button title="مسح الرسومات" onClick={clearDrawings} disabled={drawings.length === 0}>⌫</button>
             </div>
 
@@ -632,6 +854,11 @@ export default function App() {
                 drawingTool={drawingTool}
                 onDrawingCreated={handleDrawingCreated}
                 onCrosshairCandle={setHoverCandle}
+                comparison={
+                  comparisonSymbol && comparisonCandles.length > 0
+                    ? { symbol: comparisonSymbol, candles: comparisonCandles }
+                    : null
+                }
               />
               {dataState === "loading" ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
               {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
@@ -686,6 +913,8 @@ export default function App() {
             <div><span>الفريم</span><strong>{timeframe.toUpperCase()}</strong></div>
             <div><span>المؤشرات</span><strong>{activeIndicatorItems.length}</strong></div>
             <div><span>الرسومات</span><strong>{drawings.length}</strong></div>
+            <div><span>المقارنة</span><strong>{comparisonSymbol?.ticker ?? "—"}</strong></div>
+            <div><span>التنبيهات</span><strong>{activeAlerts.length}</strong></div>
             <div><span>الشموع</span><strong>{candles.length}</strong></div>
             <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
           </div>
