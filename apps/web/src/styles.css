@@ -5357,3 +5357,304 @@ input:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Chart Settings V1 */
+.chart-settings-launch {
+  border-color: rgba(148,163,184,.08) !important;
+}
+
+.chart-settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 134;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.chart-settings-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(2,6,14,.80);
+  backdrop-filter: blur(5px);
+}
+
+.chart-settings-panel {
+  position: relative;
+  z-index: 1;
+  width: min(520px,94vw);
+  max-height: min(820px,92vh);
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 72% 0%, rgba(129,140,248,.09), transparent 32%),
+    #070c16;
+  box-shadow: 0 34px 110px rgba(0,0,0,.58);
+  overflow: hidden;
+}
+
+.chart-settings-header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid rgba(148,163,184,.08);
+}
+
+.chart-settings-header h2 {
+  margin: 2px 0;
+  color: #e5eaf3;
+  font-size: 18px;
+}
+
+.chart-settings-header p {
+  margin: 0;
+  color: #647389;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.chart-settings-eyebrow {
+  color: #a5b4fc;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: .08em;
+}
+
+.chart-settings-close {
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(148,163,184,.10);
+  border-radius: 7px;
+  background: #0a101c;
+  color: #9ba8ba;
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.chart-settings-content {
+  max-height: calc(92vh - 76px);
+  padding: 13px;
+  overflow-y: auto;
+}
+
+.chart-settings-group + .chart-settings-group {
+  margin-top: 11px;
+}
+
+.chart-settings-group-title {
+  margin: 0 2px 6px;
+  color: #647389;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.chart-setting-segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgba(148,163,184,.07);
+  border-radius: 8px;
+  background: #080d17;
+}
+
+.chart-setting-segmented button {
+  min-height: 31px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #66758a;
+  cursor: pointer;
+  font-size: 8px;
+}
+
+.chart-setting-segmented button:hover {
+  color: #aab6c7;
+  background: rgba(148,163,184,.04);
+}
+
+.chart-setting-segmented button.selected {
+  background: rgba(99,102,241,.14);
+  color: #c2c8ff;
+}
+
+.chart-settings-toggles {
+  display: grid;
+  gap: 5px;
+}
+
+.chart-setting-toggle {
+  position: relative;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 1fr 34px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(148,163,184,.065);
+  border-radius: 8px;
+  background: rgba(9,14,25,.66);
+  cursor: pointer;
+}
+
+.chart-setting-toggle span strong,
+.chart-setting-toggle span small {
+  display: block;
+}
+
+.chart-setting-toggle span strong {
+  color: #b8c3d3;
+  font-size: 8px;
+}
+
+.chart-setting-toggle span small {
+  margin-top: 3px;
+  color: #536176;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
+.chart-setting-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chart-setting-toggle i {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: #252e3e;
+  transition: background 120ms ease;
+}
+
+.chart-setting-toggle i::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #718096;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.chart-setting-toggle input:checked + i {
+  background: rgba(79,70,229,.60);
+}
+
+.chart-setting-toggle input:checked + i::after {
+  transform: translateX(-14px);
+  background: #e0e4ff;
+}
+
+.chart-settings-sliders {
+  display: grid;
+  gap: 8px;
+}
+
+.chart-settings-sliders label {
+  padding: 9px 10px;
+  border: 1px solid rgba(148,163,184,.065);
+  border-radius: 8px;
+  background: rgba(9,14,25,.66);
+}
+
+.chart-settings-sliders label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chart-settings-sliders strong {
+  color: #aeb9c9;
+  font-size: 8px;
+}
+
+.chart-settings-sliders b {
+  color: #717f95;
+  font-size: 7px;
+  font-weight: 700;
+  direction: ltr;
+}
+
+.chart-settings-sliders input[type="range"] {
+  width: 100%;
+  margin-top: 9px;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.chart-settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.chart-settings-actions button {
+  min-height: 34px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.chart-settings-reset-view {
+  border: 1px solid rgba(99,102,241,.17);
+  background: rgba(79,70,229,.11);
+  color: #bdc4ff;
+}
+
+.chart-settings-reset-all {
+  border: 1px solid rgba(148,163,184,.09);
+  background: #080d17;
+  color: #748298;
+}
+
+.chart-settings-note {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148,163,184,.055);
+  color: #536176;
+  font-size: 7px;
+  line-height: 1.55;
+}
+
+@media (max-width: 760px) {
+  .chart-settings-overlay {
+    padding: 8px;
+  }
+
+  .chart-settings-panel {
+    width: 100%;
+    max-height: calc(100vh - 16px);
+  }
+
+  .chart-settings-header {
+    min-height: 64px;
+    padding: 10px;
+  }
+
+  .chart-settings-header h2 {
+    font-size: 15px;
+  }
+
+  .chart-settings-content {
+    padding: 10px;
+  }
+
+  .chart-setting-segmented {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+}
