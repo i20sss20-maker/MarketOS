@@ -6,6 +6,7 @@ export type UserCloudState = {
   alerts: unknown[];
   chartSettings: Record<string, unknown> | null;
   customIndicators: unknown[];
+  drawings: Record<string, unknown[]>;
   ui: Record<string, unknown>;
 };
 
