@@ -179,7 +179,7 @@ export function loadWorkspaces(): SavedWorkspace[] {
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .map(normalizeWorkspace)
+      .map(normalizeSavedWorkspace)
       .filter((item): item is SavedWorkspace => item !== null)
       .slice(0, MAX_WORKSPACES);
   } catch {
@@ -196,7 +196,7 @@ export function saveWorkspaces(workspaces: SavedWorkspace[]) {
       WORKSPACES_KEY,
       JSON.stringify(
         workspaces
-          .map(normalizeWorkspace)
+          .map(normalizeSavedWorkspace)
           .filter((item): item is SavedWorkspace => item !== null)
           .slice(0, MAX_WORKSPACES),
       ),
