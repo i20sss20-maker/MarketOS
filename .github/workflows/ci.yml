@@ -60,6 +60,9 @@ jobs:
       - name: Smart Screener runtime smoke test
         run: pnpm smoke:screener
 
+      - name: Correlation Matrix runtime smoke test
+        run: pnpm smoke:correlation
+
       - name: Company Feed demo runtime smoke test
         run: pnpm smoke:feed
 
