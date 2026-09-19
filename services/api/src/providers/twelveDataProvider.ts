@@ -3,6 +3,7 @@ import type {
   Candle,
   MarketDataProvider,
   MarketDataStatus,
+  MarketOverviewItem,
   MarketSymbol,
   Quote,
   Timeframe,
@@ -102,6 +103,34 @@ function timestampFromDateTime(value?: string): number | undefined {
 
 function requestSymbol(symbol: MarketSymbol) {
   return symbol.providerSymbol ?? symbol.ticker;
+}
+
+function quoteFromPayload(payload: QuoteResponse, symbol: MarketSymbol, source: string): Quote {
+  const price = numberOrUndefined(payload.close);
+  if (price === undefined) {
+    throw new Error(`Market data provider did not return a valid quote price for ${symbol.ticker}.`);
+  }
+
+  return {
+    symbol: payload.symbol || symbol.ticker,
+    price,
+    open: numberOrUndefined(payload.open),
+    high: numberOrUndefined(payload.high),
+    low: numberOrUndefined(payload.low),
+    previousClose: numberOrUndefined(payload.previous_close),
+    change: numberOrUndefined(payload.change),
+    percentChange: numberOrUndefined(payload.percent_change),
+    volume: numberOrUndefined(payload.volume),
+    currency: payload.currency || symbol.currency,
+    timestamp: payload.timestamp ?? Math.floor(Date.now() / 1000),
+    isMarketOpen: payload.is_market_open,
+    isExtendedHours: payload.is_extended_hours,
+    source,
+  };
+}
+
+function normalizedSymbol(value: string) {
+  return value.replace(/:[^:]+$/, "").replace(/\s+/g, "").toUpperCase();
 }
 
 export class TwelveDataMarketDataProvider implements MarketDataProvider {
@@ -208,27 +237,51 @@ export class TwelveDataMarketDataProvider implements MarketDataProvider {
       exchange: symbol.micCode ? undefined : symbol.exchange,
     });
 
-    const price = numberOrUndefined(payload.close);
-    if (price === undefined) {
-      throw new Error("Market data provider did not return a valid quote price.");
+    return quoteFromPayload(payload, symbol, this.id);
+  }
+
+  async getQuotes(symbols: MarketSymbol[]): Promise<MarketOverviewItem[]> {
+    const requested = symbols.slice(0, 25);
+    if (requested.length === 0) return [];
+    if (requested.length === 1) {
+      return [{ symbol: requested[0], quote: await this.getQuote(requested[0]) }];
     }
 
-    return {
-      symbol: payload.symbol || symbol.ticker,
-      price,
-      open: numberOrUndefined(payload.open),
-      high: numberOrUndefined(payload.high),
-      low: numberOrUndefined(payload.low),
-      previousClose: numberOrUndefined(payload.previous_close),
-      change: numberOrUndefined(payload.change),
-      percentChange: numberOrUndefined(payload.percent_change),
-      volume: numberOrUndefined(payload.volume),
-      currency: payload.currency || symbol.currency,
-      timestamp: payload.timestamp ?? Math.floor(Date.now() / 1000),
-      isMarketOpen: payload.is_market_open,
-      isExtendedHours: payload.is_extended_hours,
-      source: this.id,
-    };
+    const payload = await this.request<Record<string, QuoteResponse> & ApiError>("/quote", {
+      symbol: requested.map(requestSymbol).join(","),
+    });
+
+    const entries = Object.entries(payload)
+      .filter(([key, value]) =>
+        key !== "status" &&
+        key !== "code" &&
+        key !== "message" &&
+        value &&
+        typeof value === "object",
+      ) as Array<[string, QuoteResponse]>;
+
+    const output: MarketOverviewItem[] = [];
+
+    for (const symbol of requested) {
+      const wanted = normalizedSymbol(requestSymbol(symbol));
+      const match = entries.find(([key, value]) => {
+        const responseSymbol = value.symbol ? normalizedSymbol(value.symbol) : "";
+        return normalizedSymbol(key) === wanted || responseSymbol === wanted;
+      });
+
+      if (!match || match[1].status === "error") continue;
+
+      try {
+        output.push({
+          symbol,
+          quote: quoteFromPayload(match[1], symbol, this.id),
+        });
+      } catch {
+        // Keep partial batch results when one symbol has no accessible quote.
+      }
+    }
+
+    return output;
   }
 
   getStatus(): MarketDataStatus {

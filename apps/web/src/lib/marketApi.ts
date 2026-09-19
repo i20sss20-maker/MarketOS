@@ -1,6 +1,7 @@
 import type {
   Candle,
   MarketDataStatus,
+  MarketOverviewItem,
   MarketSymbol,
   Quote,
   Timeframe,
@@ -27,6 +28,29 @@ type QuoteResponse = {
 async function fetchJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { Accept: "application/json" },
+    signal,
+  });
+
+  const payload = await response.json().catch(() => null) as ({ error?: string } & T) | null;
+  if (!response.ok || !payload) {
+    throw new Error(payload?.error || `MarketOS API request failed (${response.status}).`);
+  }
+  if (payload.error) throw new Error(payload.error);
+  return payload;
+}
+
+async function postJson<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -77,4 +101,21 @@ export function getMarketCandles(
 export function getMarketQuote(symbol: MarketSymbol, signal?: AbortSignal) {
   const params = symbolQuery(symbol);
   return fetchJson<QuoteResponse>(`/market/quote?${params.toString()}`, signal);
+}
+
+export type MarketOverviewResponse = {
+  ok: boolean;
+  provider: string;
+  generatedAt: number;
+  requested: number;
+  returned: number;
+  items: MarketOverviewItem[];
+};
+
+export function getMarketOverview(symbols: MarketSymbol[], signal?: AbortSignal) {
+  return postJson<MarketOverviewResponse>(
+    "/market/overview",
+    { symbols: symbols.slice(0, 25) },
+    signal,
+  );
 }

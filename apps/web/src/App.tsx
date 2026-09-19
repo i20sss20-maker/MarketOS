@@ -3,6 +3,7 @@ import type {
   Candle,
   ChartAnalysisResponse,
   MarketDataStatus,
+  MarketOverviewItem,
   MarketSymbol,
   Quote,
   Timeframe,
@@ -40,6 +41,7 @@ import {
 } from "./lib/workspace";
 import {
   getMarketCandles,
+  getMarketOverview,
   getMarketQuote,
   getMarketStatus,
   searchMarketSymbols,
@@ -59,6 +61,8 @@ const initialSymbols: MarketSymbol[] = [
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 type ChartLayoutMode = "single" | "split";
+type ScreenerMode = "heatmap" | "table";
+type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -114,6 +118,26 @@ function formatPercent(value?: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`;
 }
 
+function formatVolume(value?: number) {
+  if (value === undefined || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function overviewMatchesFilter(item: MarketOverviewItem, filter: ScreenerFilter) {
+  if (filter === "all") return true;
+  if (filter === "equities") {
+    return item.symbol.assetClass === "stock" ||
+      item.symbol.assetClass === "index" ||
+      item.symbol.assetClass === "etf";
+  }
+  if (filter === "forex") return item.symbol.assetClass === "forex";
+  if (filter === "crypto") return item.symbol.assetClass === "crypto";
+  return item.symbol.assetClass === "future" || item.symbol.assetClass === "commodity";
+}
+
 export default function App() {
   const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
@@ -121,6 +145,13 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [showScreener, setShowScreener] = useState(false);
+  const [screenerMode, setScreenerMode] = useState<ScreenerMode>("heatmap");
+  const [screenerFilter, setScreenerFilter] = useState<ScreenerFilter>("all");
+  const [overview, setOverview] = useState<MarketOverviewItem[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [overviewProvider, setOverviewProvider] = useState("demo");
   const [savedWorkspaces, setSavedWorkspaces] = useState<SavedWorkspace[]>(() => loadWorkspaces());
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [showDrawingMenu, setShowDrawingMenu] = useState(false);
@@ -359,6 +390,51 @@ export default function App() {
       return next;
     });
   }, []);
+
+  const fallbackOverview = useCallback((symbols: MarketSymbol[]) => {
+    return symbols.slice(0, 25).map((symbol) => {
+      const demoCandles = createDemoCandles(symbol.id, "1m", 2);
+      return {
+        symbol,
+        quote: createDemoQuote(symbol.ticker, symbol.currency, demoCandles),
+      };
+    });
+  }, []);
+
+  const refreshScreener = useCallback(async () => {
+    const symbols = watchlist.slice(0, 25);
+    if (symbols.length === 0) {
+      setOverview([]);
+      setOverviewError(null);
+      return;
+    }
+
+    setOverviewLoading(true);
+    setOverviewError(null);
+
+    try {
+      const response = await getMarketOverview(symbols);
+      const returnedIds = new Set(response.items.map((item) => item.symbol.id));
+      const missing = symbols.filter((symbol) => !returnedIds.has(symbol.id));
+      const items = missing.length > 0
+        ? [...response.items, ...fallbackOverview(missing)]
+        : response.items;
+
+      setOverview(items);
+      setOverviewProvider(response.provider);
+    } catch {
+      setOverview(fallbackOverview(symbols));
+      setOverviewProvider("browser-demo");
+      setOverviewError("تعذر جلب لقطة السوق المباشرة، لذلك تم تشغيل بيانات العرض التجريبية.");
+    } finally {
+      setOverviewLoading(false);
+    }
+  }, [watchlist, fallbackOverview]);
+
+  const openScreener = () => {
+    setShowScreener(true);
+    void refreshScreener();
+  };
 
   const toggleActiveWatchlist = () => {
     setWatchlist((current) => {
@@ -611,6 +687,24 @@ export default function App() {
             ? "Fibonacci: اختر البداية ثم النهاية"
             : null;
 
+  const filteredOverview = useMemo(
+    () => overview.filter((item) => overviewMatchesFilter(item, screenerFilter)),
+    [overview, screenerFilter],
+  );
+
+  const sortedOverview = useMemo(
+    () => [...filteredOverview].sort(
+      (a, b) => (b.quote.percentChange ?? 0) - (a.quote.percentChange ?? 0),
+    ),
+    [filteredOverview],
+  );
+
+  const screenerAdvancers = filteredOverview.filter((item) => (item.quote.percentChange ?? 0) > 0).length;
+  const screenerDecliners = filteredOverview.filter((item) => (item.quote.percentChange ?? 0) < 0).length;
+  const screenerAverageMove = filteredOverview.length
+    ? filteredOverview.reduce((sum, item) => sum + (item.quote.percentChange ?? 0), 0) / filteredOverview.length
+    : 0;
+
   const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
   const replayDateLabel = replayActive && lastCandle
     ? new Date(lastCandle.time * 1000).toLocaleString("ar-SA", {
@@ -691,6 +785,10 @@ export default function App() {
             {providerLabel}
           </div>
 
+          <button className="ghost-button market-button" onClick={openScreener}>
+            السوق
+          </button>
+
           <div className="alert-menu-wrap">
             <button className="ghost-button" onClick={() => setShowAlertMenu((value) => !value)}>
               التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
@@ -768,6 +866,166 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {showScreener ? (
+        <div className="scanner-overlay" role="dialog" aria-modal="true" aria-label="Market Screener">
+          <button
+            className="scanner-backdrop"
+            aria-label="إغلاق"
+            onClick={() => setShowScreener(false)}
+          />
+          <section className="scanner-panel" dir="rtl">
+            <header className="scanner-header">
+              <div>
+                <span className="scanner-eyebrow">MARKETOS SCREENER</span>
+                <h2>خريطة السوق</h2>
+                <p>لقطة مجمعة من قائمة متابعتك · المصدر: {overviewProvider}</p>
+              </div>
+              <div className="scanner-header-actions">
+                <button onClick={() => void refreshScreener()} disabled={overviewLoading}>
+                  {overviewLoading ? "تحديث…" : "تحديث"}
+                </button>
+                <button className="scanner-close" onClick={() => setShowScreener(false)}>×</button>
+              </div>
+            </header>
+
+            <div className="scanner-controls">
+              <div className="scanner-filter-row">
+                {([
+                  ["all", "الكل"],
+                  ["equities", "الأسهم"],
+                  ["forex", "فوركس"],
+                  ["crypto", "كريبتو"],
+                  ["futures", "عقود وسلع"],
+                ] as Array<[ScreenerFilter, string]>).map(([id, label]) => (
+                  <button
+                    className={screenerFilter === id ? "selected" : ""}
+                    key={id}
+                    onClick={() => setScreenerFilter(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="scanner-mode-toggle">
+                <button
+                  className={screenerMode === "heatmap" ? "selected" : ""}
+                  onClick={() => setScreenerMode("heatmap")}
+                >
+                  Heatmap
+                </button>
+                <button
+                  className={screenerMode === "table" ? "selected" : ""}
+                  onClick={() => setScreenerMode("table")}
+                >
+                  جدول
+                </button>
+              </div>
+            </div>
+
+            <div className="scanner-breadth">
+              <div>
+                <span>المتابعة</span>
+                <strong>{filteredOverview.length}</strong>
+              </div>
+              <div>
+                <span>صاعد</span>
+                <strong className="positive">{screenerAdvancers}</strong>
+              </div>
+              <div>
+                <span>هابط</span>
+                <strong className="negative">{screenerDecliners}</strong>
+              </div>
+              <div>
+                <span>متوسط الحركة</span>
+                <strong className={screenerAverageMove >= 0 ? "positive" : "negative"}>
+                  {formatPercent(screenerAverageMove)}
+                </strong>
+              </div>
+            </div>
+
+            {overviewError ? <div className="scanner-warning">{overviewError}</div> : null}
+
+            <div className="scanner-content">
+              {overviewLoading && overview.length === 0 ? (
+                <div className="scanner-loading">جاري قراءة السوق…</div>
+              ) : screenerMode === "heatmap" ? (
+                <div className="heatmap-grid">
+                  {sortedOverview.map((item) => {
+                    const movement = item.quote.percentChange ?? 0;
+                    const intensity =
+                      Math.abs(movement) >= 3
+                        ? "strong"
+                        : Math.abs(movement) >= 1
+                          ? "medium"
+                          : "soft";
+                    const direction = movement > 0 ? "gain" : movement < 0 ? "loss" : "flat";
+
+                    return (
+                      <button
+                        className={`heatmap-tile ${direction} ${intensity}`}
+                        key={item.symbol.id}
+                        onClick={() => {
+                          chooseSymbol(item.symbol);
+                          setShowScreener(false);
+                        }}
+                      >
+                        <span className="heatmap-symbol">{item.symbol.ticker}</span>
+                        <span className="heatmap-price">{formatPrice(item.quote.price)}</span>
+                        <strong>{formatPercent(movement)}</strong>
+                        <small>{item.symbol.exchange}</small>
+                      </button>
+                    );
+                  })}
+                  {sortedOverview.length === 0 ? (
+                    <div className="scanner-empty">لا توجد رموز لهذا الفلتر.</div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="scanner-table-wrap">
+                  <table className="scanner-table">
+                    <thead>
+                      <tr>
+                        <th>الرمز</th>
+                        <th>السوق</th>
+                        <th>السعر</th>
+                        <th>التغير</th>
+                        <th>الحجم</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedOverview.map((item) => {
+                        const movement = item.quote.percentChange ?? 0;
+                        return (
+                          <tr
+                            key={item.symbol.id}
+                            onClick={() => {
+                              chooseSymbol(item.symbol);
+                              setShowScreener(false);
+                            }}
+                          >
+                            <td>
+                              <strong>{item.symbol.ticker}</strong>
+                              <small>{item.symbol.name}</small>
+                            </td>
+                            <td>{item.symbol.exchange}</td>
+                            <td dir="ltr">{formatPrice(item.quote.price)}</td>
+                            <td className={movement >= 0 ? "positive" : "negative"} dir="ltr">
+                              {formatPercent(movement)}
+                            </td>
+                            <td dir="ltr">{formatVolume(item.quote.volume)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {alertMessage ? <div className="alert-toast">{alertMessage}</div> : null}
 
