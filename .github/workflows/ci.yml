@@ -90,6 +90,9 @@ jobs:
       - name: Export and Share runtime smoke test
         run: pnpm smoke:export-share
 
+      - name: Command Palette ranking smoke test
+        run: pnpm smoke:command-palette
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
