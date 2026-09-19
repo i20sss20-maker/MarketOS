@@ -99,6 +99,9 @@ jobs:
       - name: Chart Templates source smoke test
         run: pnpm smoke:chart-templates
 
+      - name: Multiple Watchlists migration smoke test
+        run: pnpm smoke:multiple-watchlists
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
