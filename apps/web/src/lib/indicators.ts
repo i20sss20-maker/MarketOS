@@ -5,7 +5,10 @@ export type IndicatorId =
   | "ema20"
   | "ema50"
   | "bollinger20"
-  | "rsi14";
+  | "rsi14"
+  | "macd"
+  | "atr14"
+  | "stochastic14";
 
 export type IndicatorSelection = Record<IndicatorId, boolean>;
 
@@ -25,6 +28,9 @@ export const indicatorCatalog: Array<{
   { id: "ema50", name: "EMA 50", description: "Medium trend", pane: "price" },
   { id: "bollinger20", name: "Bollinger 20", description: "20 periods · 2σ", pane: "price" },
   { id: "rsi14", name: "RSI 14", description: "Relative Strength Index", pane: "oscillator" },
+  { id: "macd", name: "MACD", description: "12 · 26 · 9", pane: "oscillator" },
+  { id: "atr14", name: "ATR 14", description: "Average True Range", pane: "oscillator" },
+  { id: "stochastic14", name: "Stochastic", description: "14 · 3 · 3", pane: "oscillator" },
 ];
 
 export const defaultIndicators: IndicatorSelection = {
@@ -33,6 +39,9 @@ export const defaultIndicators: IndicatorSelection = {
   ema50: false,
   bollinger20: false,
   rsi14: false,
+  macd: false,
+  atr14: false,
+  stochastic14: false,
 };
 
 function safeStorage() {
@@ -58,6 +67,9 @@ export function loadIndicatorSelection(): IndicatorSelection {
       ema50: parsed.ema50 ?? defaultIndicators.ema50,
       bollinger20: parsed.bollinger20 ?? defaultIndicators.bollinger20,
       rsi14: parsed.rsi14 ?? defaultIndicators.rsi14,
+      macd: parsed.macd ?? defaultIndicators.macd,
+      atr14: parsed.atr14 ?? defaultIndicators.atr14,
+      stochastic14: parsed.stochastic14 ?? defaultIndicators.stochastic14,
     };
   } catch {
     return defaultIndicators;
@@ -176,4 +188,116 @@ export function calculateRsi(candles: Candle[], period = 14): IndicatorPoint[] {
   }
 
   return output;
+}
+
+function emaValues(values: Array<{ time: number; value: number }>, period: number): IndicatorPoint[] {
+  if (period <= 0 || values.length < period) return [];
+  const seed = values.slice(0, period).reduce((sum, item) => sum + item.value, 0) / period;
+  const multiplier = 2 / (period + 1);
+  const output: IndicatorPoint[] = [{ time: values[period - 1].time, value: seed }];
+  let previous = seed;
+
+  for (let index = period; index < values.length; index += 1) {
+    const value = (values[index].value - previous) * multiplier + previous;
+    output.push({ time: values[index].time, value });
+    previous = value;
+  }
+  return output;
+}
+
+export function calculateMacd(candles: Candle[], fast = 12, slow = 26, signal = 9) {
+  if (candles.length < slow + signal) {
+    return {
+      macd: [] as IndicatorPoint[],
+      signal: [] as IndicatorPoint[],
+      histogram: [] as IndicatorPoint[],
+    };
+  }
+
+  const fastSeries = calculateEma(candles, fast);
+  const slowSeries = calculateEma(candles, slow);
+  const fastMap = new Map(fastSeries.map((point) => [point.time, point.value]));
+  const macd: IndicatorPoint[] = [];
+
+  for (const slowPoint of slowSeries) {
+    const fastValue = fastMap.get(slowPoint.time);
+    if (fastValue === undefined) continue;
+    macd.push({ time: slowPoint.time, value: fastValue - slowPoint.value });
+  }
+
+  const signalSeries = emaValues(macd, signal);
+  const signalMap = new Map(signalSeries.map((point) => [point.time, point.value]));
+  const histogram = macd.flatMap((point) => {
+    const signalValue = signalMap.get(point.time);
+    if (signalValue === undefined) return [];
+    return [{ time: point.time, value: point.value - signalValue }];
+  });
+
+  return { macd, signal: signalSeries, histogram };
+}
+
+export function calculateAtr(candles: Candle[], period = 14): IndicatorPoint[] {
+  if (period <= 0 || candles.length <= period) return [];
+
+  const trueRanges: Array<{ time: number; value: number }> = [];
+  for (let index = 1; index < candles.length; index += 1) {
+    const current = candles[index];
+    const previous = candles[index - 1];
+    const trueRange = Math.max(
+      current.high - current.low,
+      Math.abs(current.high - previous.close),
+      Math.abs(current.low - previous.close),
+    );
+    trueRanges.push({ time: current.time, value: trueRange });
+  }
+
+  if (trueRanges.length < period) return [];
+  const output: IndicatorPoint[] = [];
+  let atr = trueRanges.slice(0, period).reduce((sum, item) => sum + item.value, 0) / period;
+  output.push({ time: trueRanges[period - 1].time, value: atr });
+
+  for (let index = period; index < trueRanges.length; index += 1) {
+    atr = ((atr * (period - 1)) + trueRanges[index].value) / period;
+    output.push({ time: trueRanges[index].time, value: atr });
+  }
+
+  return output;
+}
+
+export function calculateStochastic(
+  candles: Candle[],
+  period = 14,
+  smoothK = 3,
+  smoothD = 3,
+) {
+  if (candles.length < period + smoothK + smoothD) {
+    return { k: [] as IndicatorPoint[], d: [] as IndicatorPoint[] };
+  }
+
+  const rawK: IndicatorPoint[] = [];
+  for (let index = period - 1; index < candles.length; index += 1) {
+    const window = candles.slice(index - period + 1, index + 1);
+    const lowest = Math.min(...window.map((candle) => candle.low));
+    const highest = Math.max(...window.map((candle) => candle.high));
+    const denominator = highest - lowest;
+    const value = denominator === 0 ? 50 : ((candles[index].close - lowest) / denominator) * 100;
+    rawK.push({ time: candles[index].time, value });
+  }
+
+  const smooth = (input: IndicatorPoint[], window: number): IndicatorPoint[] => {
+    if (input.length < window) return [];
+    const output: IndicatorPoint[] = [];
+    for (let index = window - 1; index < input.length; index += 1) {
+      const slice = input.slice(index - window + 1, index + 1);
+      output.push({
+        time: input[index].time,
+        value: slice.reduce((sum, point) => sum + point.value, 0) / window,
+      });
+    }
+    return output;
+  };
+
+  const k = smooth(rawK, smoothK);
+  const d = smooth(k, smoothD);
+  return { k, d };
 }
