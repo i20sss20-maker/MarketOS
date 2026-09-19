@@ -70,6 +70,40 @@ export type MarketOverviewItem = {
   quote: Quote;
 };
 
+export type MarketEventType =
+  | "earnings"
+  | "dividend"
+  | "ipo"
+  | "economic";
+
+export type MarketEvent = {
+  id: string;
+  type: MarketEventType;
+  date: string;
+  time?: string;
+  title: string;
+  symbol?: string;
+  name?: string;
+  exchange?: string;
+  micCode?: string;
+  country?: string;
+  currency?: string;
+  epsEstimate?: number;
+  epsActual?: number;
+  surprisePercent?: number;
+  importance?: "low" | "medium" | "high";
+  source: string;
+};
+
+export type MarketEventsResult = {
+  provider: string;
+  generatedAt: number;
+  startDate: string;
+  endDate: string;
+  events: MarketEvent[];
+  cached?: boolean;
+};
+
 export interface MarketDataProvider {
   readonly id: string;
   searchSymbols(query: string): Promise<MarketSymbol[]>;
