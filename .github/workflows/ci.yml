@@ -45,6 +45,9 @@ jobs:
       - name: Strategy Tester runtime smoke test
         run: pnpm smoke:backtest
 
+      - name: Paper Trading accounting smoke test
+        run: pnpm smoke:paper
+
       - name: Custom indicator formula smoke test
         run: pnpm smoke:formula
 
