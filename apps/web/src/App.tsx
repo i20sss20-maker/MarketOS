@@ -682,25 +682,70 @@ export default function App() {
     getAuthPrincipal()
       .then(async (user) => {
         if (cancelled) return;
+
         setAuthUser(user);
         setAuthChecked(true);
 
         if (!user) {
           setCloudState(null);
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementLoading(false);
+          setEntitlementError(null);
           return;
         }
 
-        try {
-          const response = await getCloudState();
-          if (!cancelled) setCloudState(response);
-        } catch {
-          // Account can still be used even if cloud storage is not configured yet.
+        setEntitlementLoading(true);
+        setEntitlementError(null);
+
+        const [
+          cloudResult,
+          entitlementResult,
+        ] = await Promise.allSettled([
+          getCloudState(),
+          getUserEntitlements(),
+        ]);
+
+        if (cancelled) return;
+
+        if (
+          cloudResult.status ===
+          "fulfilled"
+        ) {
+          setCloudState(
+            cloudResult.value,
+          );
         }
+
+        if (
+          entitlementResult.status ===
+          "fulfilled"
+        ) {
+          setEntitlement(
+            entitlementResult.value
+              .entitlement,
+          );
+        } else {
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementError(
+            "تعذر قراءة الخطة من MarketOS API؛ تم تطبيق حدود Free مؤقتًا.",
+          );
+        }
+
+        setEntitlementLoading(false);
       })
       .catch(() => {
         if (!cancelled) {
           setAuthUser(null);
           setAuthChecked(true);
+          setCloudState(null);
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementLoading(false);
         }
       });
 
