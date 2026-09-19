@@ -12,7 +12,8 @@
     "@marketos/market-core": "workspace:*",
     "lightweight-charts": "^5.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@marketos/strategy-core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",
