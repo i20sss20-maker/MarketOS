@@ -103,6 +103,8 @@ const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 type ChartLayoutMode = "single" | "split";
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
+type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
+type WatchlistSort = "manual" | "change-desc" | "change-asc" | "symbol";
 
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -178,6 +180,21 @@ function overviewMatchesFilter(item: MarketOverviewItem, filter: ScreenerFilter)
   return item.symbol.assetClass === "future" || item.symbol.assetClass === "commodity";
 }
 
+function watchlistMatchesFilter(
+  symbol: MarketSymbol,
+  filter: WatchlistFilter,
+) {
+  if (filter === "all") return true;
+  if (filter === "equities") {
+    return symbol.assetClass === "stock" ||
+      symbol.assetClass === "index" ||
+      symbol.assetClass === "etf";
+  }
+  if (filter === "forex") return symbol.assetClass === "forex";
+  if (filter === "crypto") return symbol.assetClass === "crypto";
+  return symbol.assetClass === "future" || symbol.assetClass === "commodity";
+}
+
 export default function App() {
   const [active, setActive] = useState<MarketSymbol>(() => readSavedSymbol());
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
@@ -185,6 +202,18 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [watchlistOverview, setWatchlistOverview] = useState<MarketOverviewItem[]>([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [watchlistError, setWatchlistError] = useState<string | null>(null);
+  const [watchlistProvider, setWatchlistProvider] = useState("demo");
+  const [watchlistUpdatedAt, setWatchlistUpdatedAt] = useState<number | null>(null);
+  const [watchlistFilter, setWatchlistFilter] = useState<WatchlistFilter>(
+    () => readSaved<WatchlistFilter>("marketos:watchlist-filter", "all"),
+  );
+  const [watchlistSort, setWatchlistSort] = useState<WatchlistSort>(
+    () => readSaved<WatchlistSort>("marketos:watchlist-sort", "manual"),
+  );
+  const watchlistInitialLoadRef = useRef(false);
   const [showScreener, setShowScreener] = useState(false);
   const [showCompanyFeed, setShowCompanyFeed] = useState(false);
   const [companyReleases, setCompanyReleases] = useState<CompanyRelease[]>([]);
