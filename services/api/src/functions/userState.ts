@@ -29,7 +29,12 @@ export async function userState(
           userDetails: user.userDetails,
         },
         storageMode: userStateStore.mode,
-        state: stored?.payload ?? null,
+        state: stored
+          ? {
+              ...stored.payload,
+              alertEvents: stored.payload.alertEvents ?? [],
+            }
+          : null,
         updatedAt: stored?.updatedAt ?? null,
       });
     }
@@ -37,9 +42,14 @@ export async function userState(
     if (request.method === "PUT") {
       const payload = await request.json();
       const state = sanitizeUserCloudState(payload);
+      const existing = await userStateStore.get(user.userId);
       const stored = await userStateStore.put(
         user.userId,
-        state,
+        {
+          ...state,
+          // The browser owns preferences; the server owns alert-delivery history.
+          alertEvents: existing?.payload.alertEvents ?? [],
+        },
       );
 
       return json(200, {

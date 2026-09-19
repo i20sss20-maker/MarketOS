@@ -48,6 +48,7 @@ const sanitized = sanitizeUserCloudState({
   watchlist: Array.from({ length: 100 }, (_, index) => ({ id: index })),
   workspaces: Array.from({ length: 30 }, (_, index) => ({ id: index })),
   alerts: Array.from({ length: 200 }, (_, index) => ({ id: index })),
+  alertEvents: [{ id: "forged-alert-event" }],
   chartSettings: { showGrid: true },
   customIndicators: Array.from({ length: 40 }, (_, index) => ({ id: index })),
   ui: Object.fromEntries(
@@ -59,6 +60,7 @@ assert.equal(sanitized.version, 1);
 assert.equal(sanitized.watchlist.length, 80);
 assert.equal(sanitized.workspaces.length, 20);
 assert.equal(sanitized.alerts.length, 150);
+assert.deepEqual(sanitized.alertEvents, []);
 assert.equal(sanitized.customIndicators.length, 30);
 assert.equal(Object.keys(sanitized.ui).length, 50);
 

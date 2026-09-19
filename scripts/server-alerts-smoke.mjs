@@ -83,6 +83,10 @@ assert.ok(
   typeof storedAlert.lastCheckedAt === "number",
   "Server check must persist lastCheckedAt",
 );
+assert.equal(stored.payload.alertEvents?.length, 1);
+assert.equal(stored.payload.alertEvents?.[0].alertId, alert.id);
+assert.equal(stored.payload.alertEvents?.[0].source, "manual-cloud");
+assert.equal(stored.payload.alertEvents?.[0].symbol.id, alert.symbol.id);
 
 const anonymousResponse = await userAlertCheck({
   method: "POST",

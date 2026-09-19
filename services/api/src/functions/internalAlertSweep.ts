@@ -1,4 +1,5 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { appendAlertInboxEvents } from "../alerts/alertInbox.js";
 import { evaluateStoredUserAlerts } from "../alerts/serverAlertService.js";
 import { hasValidWorkerSecret } from "../auth/workerSecret.js";
 import { json } from "../http/responses.js";
@@ -69,6 +70,11 @@ export async function internalAlertSweep(
           {
             ...stored.payload,
             alerts: result.alerts,
+            alertEvents: appendAlertInboxEvents(
+              stored.payload.alertEvents,
+              result.triggered,
+              "background",
+            ),
             updatedAt: Date.now(),
           },
         );

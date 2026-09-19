@@ -5,6 +5,7 @@ type Props = {
   connected: boolean;
   sessionLabel: string;
   alertCount: number;
+  alertInboxCount: number;
   eventCount: number;
   companyCount: number;
   watchlistOpen: boolean;
@@ -13,6 +14,7 @@ type Props = {
   onToggleAi: () => void;
   onMarket: () => void;
   onAlerts: () => void;
+  onAlertInbox: () => void;
   onOverview: () => void;
   onCorrelation: () => void;
   onEvents: () => void;
@@ -91,6 +93,7 @@ export default function CommercialTopBar({
   connected,
   sessionLabel,
   alertCount,
+  alertInboxCount,
   eventCount,
   companyCount,
   watchlistOpen,
@@ -99,6 +102,7 @@ export default function CommercialTopBar({
   onToggleAi,
   onMarket,
   onAlerts,
+  onAlertInbox,
   onOverview,
   onCorrelation,
   onEvents,
@@ -176,6 +180,11 @@ export default function CommercialTopBar({
               <button onClick={() => { onOverview(); setMoreOpen(false); }}>
                 <Icon name="overview" />
                 <span>تفاصيل الأصل</span>
+              </button>
+              <button onClick={() => { onAlertInbox(); setMoreOpen(false); }}>
+                <Icon name="alert" />
+                <span>سجل التنبيهات</span>
+                {alertInboxCount > 0 ? <b>{alertInboxCount}</b> : null}
               </button>
               <button onClick={() => { onCorrelation(); setMoreOpen(false); }}>
                 <Icon name="correlation" />
