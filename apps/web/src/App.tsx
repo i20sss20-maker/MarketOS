@@ -1237,13 +1237,70 @@ export default function App() {
   const chooseComparison = (symbol: MarketSymbol) => {
     if (symbol.id === active.id) return;
     setComparisonSymbol(symbol);
+    savePaneSymbol("marketos:pane-secondary", symbol);
     setShowComparisonMenu(false);
     setMaximizedChartPane(null);
     setSyncedLogicalRange(null);
   };
 
+  const chooseAuxiliaryPaneSymbol = (
+    pane: AuxiliaryPane,
+    symbol: MarketSymbol,
+  ) => {
+    if (pane === "secondary") {
+      setComparisonSymbol(symbol);
+      savePaneSymbol("marketos:pane-secondary", symbol);
+    } else if (pane === "third") {
+      setThirdChartSymbol(symbol);
+      savePaneSymbol("marketos:pane-third", symbol);
+    } else {
+      setFourthChartSymbol(symbol);
+      savePaneSymbol("marketos:pane-fourth", symbol);
+    }
+    setMaximizedChartPane(null);
+    setSyncedLogicalRange(null);
+  };
+
+  const ensureMultiChartSymbols = (mode: ChartLayoutMode) => {
+    if (mode === "single") return;
+
+    const candidates = [
+      ...watchlist,
+      ...initialSymbols,
+    ].filter(
+      (symbol, index, list) =>
+        symbol.id !== active.id &&
+        list.findIndex((item) => item.id === symbol.id) === index,
+    );
+
+    let secondary = comparisonSymbol;
+    if (!secondary) {
+      secondary = candidates[0] ?? null;
+      setComparisonSymbol(secondary);
+      savePaneSymbol("marketos:pane-secondary", secondary);
+    }
+
+    if (mode !== "quad") return;
+
+    const used = new Set([active.id, secondary?.id].filter(Boolean));
+    let third = thirdChartSymbol;
+    if (!third || used.has(third.id)) {
+      third = candidates.find((symbol) => !used.has(symbol.id)) ?? candidates[0] ?? null;
+      setThirdChartSymbol(third);
+      savePaneSymbol("marketos:pane-third", third);
+    }
+    if (third) used.add(third.id);
+
+    let fourth = fourthChartSymbol;
+    if (!fourth || used.has(fourth.id)) {
+      fourth = candidates.find((symbol) => !used.has(symbol.id)) ?? candidates[1] ?? candidates[0] ?? null;
+      setFourthChartSymbol(fourth);
+      savePaneSymbol("marketos:pane-fourth", fourth);
+    }
+  };
+
   const chooseLayoutMode = (mode: ChartLayoutMode) => {
-    if (mode === "split" && !comparisonSymbol) return;
+    ensureMultiChartSymbols(mode);
     setLayoutMode(mode);
     setMaximizedChartPane(null);
     if (mode === "single") setSyncedLogicalRange(null);
@@ -1259,13 +1316,8 @@ export default function App() {
     });
   };
 
-  const handlePrimaryRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode !== "split") return;
-    setSyncedLogicalRange(range);
-  }, [chartSyncEnabled, layoutMode]);
-
-  const handleSecondaryRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode !== "split") return;
+  const handleSynchronizedRangeChange = useCallback((range: LogicalRange | null) => {
+    if (!chartSyncEnabled || layoutMode === "single") return;
     setSyncedLogicalRange(range);
   }, [chartSyncEnabled, layoutMode]);
 
@@ -1728,7 +1780,7 @@ export default function App() {
         settings={chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
-        onVisibleLogicalRangeChange={handlePrimaryRangeChange}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {textAnchor ? (
         <div className="text-note-composer" dir="rtl">
@@ -1788,7 +1840,7 @@ export default function App() {
         settings={chartSettings}
         resetViewKey={chartResetKey}
         syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
-        onVisibleLogicalRangeChange={handleSecondaryRangeChange}
+        onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
