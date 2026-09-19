@@ -31,7 +31,8 @@ export async function userState(
         },
         storageMode: userStateStore.mode,
         state: stored?.payload ?? null,
-        updatedAt: stored?.updatedAt ?? null,
+        updatedAt: stored?.clientUpdatedAt ?? null,
+        serverUpdatedAt: stored?.updatedAt ?? null,
         clientRevision: stored?.clientRevision ?? null,
       });
     }
@@ -65,7 +66,8 @@ export async function userState(
       return json(200, {
         ok: true,
         storageMode: userStateStore.mode,
-        updatedAt: stored.updatedAt,
+        updatedAt: stored.clientUpdatedAt,
+        serverUpdatedAt: stored.updatedAt,
         clientRevision: stored.clientRevision,
         state: stored.payload,
       });
