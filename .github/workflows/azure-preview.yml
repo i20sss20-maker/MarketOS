@@ -1,0 +1,84 @@
+name: Azure Preview Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - production
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify MarketOS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Market data smoke
+        run: pnpm smoke:market
+
+      - name: AI chart smoke
+        run: pnpm smoke:ai-chart
+
+      - name: Market events smoke
+        run: pnpm smoke:events
+
+  deploy:
+    name: Deploy Azure Static Web App
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: azure-preview
+    env:
+      AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require deployment token
+        shell: bash
+        run: |
+          if [ -z "$AZURE_STATIC_WEB_APPS_API_TOKEN" ]; then
+            echo "::error::Missing AZURE_STATIC_WEB_APPS_API_TOKEN in the azure-preview GitHub environment."
+            exit 1
+          fi
+
+      - name: Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: "/"
+          api_location: "services/api"
+          output_location: "apps/web/dist"
+          app_build_command: "pnpm --filter @marketos/market-core build && pnpm --filter @marketos/web build"
+          api_build_command: "pnpm --filter @marketos/api build"
