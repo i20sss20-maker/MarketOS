@@ -3,6 +3,7 @@ import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { json, preflight } from "../http/responses.js";
 import { sanitizeUserCloudState } from "../storage/stateValidation.js";
 import { userStateStore } from "../storage/index.js";
+import { UserStateConflictError } from "../storage/types.js";
 
 export async function userState(
   request: HttpRequest,
@@ -31,21 +32,41 @@ export async function userState(
         storageMode: userStateStore.mode,
         state: stored?.payload ?? null,
         updatedAt: stored?.updatedAt ?? null,
+        clientRevision: stored?.clientRevision ?? null,
       });
     }
 
     if (request.method === "PUT") {
-      const payload = await request.json();
-      const state = sanitizeUserCloudState(payload);
+      const payload = await request.json() as {
+        state?: unknown;
+        expectedClientRevision?: unknown;
+      };
+
+      const state = sanitizeUserCloudState(
+        payload?.state ?? payload,
+      );
+
+      const expectedClientRevision =
+        payload?.expectedClientRevision === null
+          ? null
+          : typeof payload?.expectedClientRevision === "number" &&
+              Number.isFinite(payload.expectedClientRevision)
+            ? Math.floor(payload.expectedClientRevision)
+            : undefined;
+
       const stored = await userStateStore.put(
         user.userId,
         state,
+        {
+          expectedClientRevision,
+        },
       );
 
       return json(200, {
         ok: true,
         storageMode: userStateStore.mode,
         updatedAt: stored.updatedAt,
+        clientRevision: stored.clientRevision,
         state: stored.payload,
       });
     }
@@ -65,6 +86,16 @@ export async function userState(
       error: "Method not allowed.",
     });
   } catch (error) {
+    if (error instanceof UserStateConflictError) {
+      return json(409, {
+        ok: false,
+        error: error.message,
+        conflict: true,
+        currentClientRevision:
+          error.currentClientRevision,
+      });
+    }
+
     const message =
       error instanceof Error
         ? error.message
