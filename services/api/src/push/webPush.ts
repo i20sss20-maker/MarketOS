@@ -11,6 +11,7 @@ export type WebPushDeliverySummary = {
   sent: number;
   stale: number;
   failed: number;
+  staleEndpoints: string[];
 };
 
 const MAX_PUSH_SUBSCRIPTIONS = 5;
@@ -145,8 +146,16 @@ export function removePushSubscription(
   current: unknown,
   endpoint: string,
 ) {
+  return removePushSubscriptions(current, [endpoint]);
+}
+
+export function removePushSubscriptions(
+  current: unknown,
+  endpoints: string[],
+) {
+  const removed = new Set(endpoints);
   return sanitizePushSubscriptions(current)
-    .filter((item) => item.endpoint !== endpoint);
+    .filter((item) => !removed.has(item.endpoint));
 }
 
 function isStalePushError(error: unknown) {
@@ -199,14 +208,26 @@ export async function sendBackgroundAlertPushes(
       sent: 0,
       stale: 0,
       failed: 0,
+      staleEndpoints: [],
     };
   }
 
-  webpush.setVapidDetails(
-    configuration.subject,
-    configuration.publicKey,
-    configuration.privateKey,
-  );
+  try {
+    webpush.setVapidDetails(
+      configuration.subject,
+      configuration.publicKey,
+      configuration.privateKey,
+    );
+  } catch {
+    return {
+      subscriptions,
+      attempted: 0,
+      sent: 0,
+      stale: 0,
+      failed: subscriptions.length,
+      staleEndpoints: [],
+    };
+  }
 
   const payload = buildPayload(triggered);
   const staleEndpoints = new Set<string>();
@@ -249,5 +270,6 @@ export async function sendBackgroundAlertPushes(
     sent,
     stale,
     failed,
+    staleEndpoints: [...staleEndpoints],
   };
 }
