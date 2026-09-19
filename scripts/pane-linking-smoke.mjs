@@ -81,9 +81,10 @@ const app = readFileSync(
   "utf8",
 );
 
-assert.match(
-  workspace,
-  /version\\?: 2 \\| 3 \\| 4 \\| 5/,
+assert.ok(
+  workspace.includes(
+    "version?: 2 | 3 | 4 | 5",
+  ),
 );
 assert.match(
   workspace,
@@ -96,6 +97,10 @@ assert.match(
 assert.match(
   app,
   /paneTimeframeLinkEnabled/,
+);
+assert.match(
+  app,
+  /paneCrosshairLinkEnabled/,
 );
 
 console.log(
