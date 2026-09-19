@@ -2895,7 +2895,7 @@ export default function App() {
       chartView,
       indicators,
       drawings,
-      version: 2,
+      version: 3,
       layoutMode,
       chartSyncEnabled,
       chartSettings,
@@ -2904,23 +2904,27 @@ export default function App() {
         primary: {
           symbol: active,
           timeframe,
+          visual: primaryPaneVisual,
         },
         secondary: comparisonSymbol
           ? {
               symbol: comparisonSymbol,
               timeframe: comparisonTimeframe,
+              visual: secondaryVisual,
             }
           : null,
         third: thirdChartSymbol
           ? {
               symbol: thirdChartSymbol,
               timeframe: thirdChartTimeframe,
+              visual: thirdVisual,
             }
           : null,
         fourth: fourthChartSymbol
           ? {
               symbol: fourthChartSymbol,
               timeframe: fourthChartTimeframe,
+              visual: fourthVisual,
             }
           : null,
       },
@@ -2942,6 +2946,24 @@ export default function App() {
     const secondaryPane = workspace.panes?.secondary ?? null;
     const thirdPane = workspace.panes?.third ?? null;
     const fourthPane = workspace.panes?.fourth ?? null;
+
+    const restoredPrimaryVisual =
+      primaryPane.visual ?? {
+        chartView: workspace.chartView,
+        indicators: workspace.indicators,
+        chartSettings:
+          workspace.chartSettings ??
+          chartSettings,
+      };
+    const restoredSecondaryVisual =
+      secondaryPane?.visual ??
+      restoredPrimaryVisual;
+    const restoredThirdVisual =
+      thirdPane?.visual ??
+      restoredPrimaryVisual;
+    const restoredFourthVisual =
+      fourthPane?.visual ??
+      restoredPrimaryVisual;
 
     const requestedLayout = workspace.layoutMode ?? "single";
     const requestedRestoredLayout: ChartLayoutMode =
@@ -2984,14 +3006,44 @@ export default function App() {
     setSyncedLogicalRange(null);
     setMaximizedChartPane(null);
 
-    setChartView(workspace.chartView);
-    setIndicators(workspace.indicators);
+    setChartView(
+      restoredPrimaryVisual.chartView,
+    );
+    setIndicators(
+      restoredPrimaryVisual.indicators,
+    );
+    setChartSettings(
+      restoredPrimaryVisual.chartSettings,
+    );
+    setSecondaryVisual(
+      restoredSecondaryVisual,
+    );
+    setThirdVisual(
+      restoredThirdVisual,
+    );
+    setFourthVisual(
+      restoredFourthVisual,
+    );
+    setChartResetKey(
+      (current) => current + 1,
+    );
     setDrawingHistory(createDrawingHistory(workspace.drawings));
 
-    if (workspace.chartSettings) {
-      setChartSettings(workspace.chartSettings);
-      saveChartSettings(workspace.chartSettings);
-    }
+    saveChartSettings(
+      restoredPrimaryVisual.chartSettings,
+    );
+    savePaneVisualState(
+      "secondary",
+      restoredSecondaryVisual,
+    );
+    savePaneVisualState(
+      "third",
+      restoredThirdVisual,
+    );
+    savePaneVisualState(
+      "fourth",
+      restoredFourthVisual,
+    );
 
     if (workspace.customIndicators) {
       setCustomIndicators(workspace.customIndicators);
@@ -3055,7 +3107,10 @@ export default function App() {
     saveSetting("marketos:symbol", primaryPane.symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
     saveSetting("marketos:timeframe", primaryPane.timeframe);
-    saveSetting("marketos:chart-view", workspace.chartView);
+    saveSetting(
+      "marketos:chart-view",
+      restoredPrimaryVisual.chartView,
+    );
     saveSetting("marketos:chart-layout", restoredLayout);
     saveSetting("marketos:chart-sync", (workspace.chartSyncEnabled ?? true) ? "on" : "off");
 
@@ -3076,7 +3131,9 @@ export default function App() {
       fourthPane?.timeframe ?? primaryPane.timeframe,
     );
 
-    saveIndicatorSelection(workspace.indicators);
+    saveIndicatorSelection(
+      restoredPrimaryVisual.indicators,
+    );
     saveDrawings(primaryPane.symbol.id, workspace.drawings);
     setShowWorkspaceMenu(false);
   };
