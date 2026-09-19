@@ -18,6 +18,7 @@ import type {
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
+import AccountPanel from "./components/AccountPanel";
 import CommercialAiPanel from "./components/CommercialAiPanel";
 import CommercialWatchlistPanel from "./components/CommercialWatchlistPanel";
 import DrawingToolIcon from "./components/DrawingToolIcon";
@@ -30,6 +31,16 @@ import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
+import {
+  applyCloudStateToLocal,
+  collectLocalCloudState,
+  deleteCloudState,
+  getAuthPrincipal,
+  getCloudState,
+  putCloudState,
+  type AuthPrincipal,
+  type CloudStateResponse,
+} from "./lib/cloudState";
 import { buildDataWindowSnapshot } from "./lib/dataWindow";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoFeed } from "./lib/demoFeed";
@@ -247,6 +258,13 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [showAccountPanel, setShowAccountPanel] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthPrincipal | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [cloudState, setCloudState] = useState<CloudStateResponse | null>(null);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  const [cloudMessage, setCloudMessage] = useState<string | null>(null);
   const [watchlistOpen, setWatchlistOpen] = useState(
     () => readSaved<"on" | "off">("marketos:ui-watchlist", "on") === "on",
   );
@@ -368,6 +386,120 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
 
+  const refreshCloudState = useCallback(async () => {
+    if (!authUser) {
+      setCloudState(null);
+      return;
+    }
+
+    setCloudBusy(true);
+    setCloudError(null);
+    try {
+      const response = await getCloudState();
+      setCloudState(response);
+    } catch (error) {
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : "تعذر قراءة النسخة السحابية.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  }, [authUser]);
+
+  const uploadCurrentDeviceToCloud = async () => {
+    if (!authUser) return;
+    setCloudBusy(true);
+    setCloudError(null);
+    setCloudMessage(null);
+
+    try {
+      const response = await putCloudState(
+        collectLocalCloudState(),
+      );
+      setCloudState(response);
+      setCloudMessage("تم حفظ بيانات هذا الجهاز في السحابة.");
+    } catch (error) {
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : "تعذر رفع بيانات الجهاز.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const restoreCloudToThisDevice = async () => {
+    if (!authUser) return;
+
+    setCloudBusy(true);
+    setCloudError(null);
+    setCloudMessage(null);
+
+    try {
+      const response = cloudState ?? await getCloudState();
+      setCloudState(response);
+
+      if (!response.state) {
+        setCloudError("لا توجد نسخة سحابية للاسترجاع.");
+        return;
+      }
+
+      const confirmed = window.confirm(
+        "سيتم استبدال بيانات MarketOS المحلية على هذا الجهاز بالنسخة السحابية ثم إعادة تحميل الصفحة. هل تريد المتابعة؟",
+      );
+      if (!confirmed) return;
+
+      applyCloudStateToLocal(response.state);
+      window.location.reload();
+    } catch (error) {
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : "تعذر استرجاع النسخة السحابية.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const removeCloudCopy = async () => {
+    if (!authUser) return;
+
+    const confirmed = window.confirm(
+      "سيتم حذف نسخة MarketOS السحابية فقط. بيانات هذا الجهاز لن تُحذف. هل تريد المتابعة؟",
+    );
+    if (!confirmed) return;
+
+    setCloudBusy(true);
+    setCloudError(null);
+    setCloudMessage(null);
+
+    try {
+      await deleteCloudState();
+      setCloudState((current) =>
+        current
+          ? {
+              ...current,
+              state: null,
+              updatedAt: null,
+            }
+          : null,
+      );
+      setCloudMessage("تم حذف النسخة السحابية.");
+    } catch (error) {
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : "تعذر حذف النسخة السحابية.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
   const refreshQuote = useCallback(async (showLoading = false) => {
     if (replayActive) return;
 
@@ -382,6 +514,39 @@ export default function App() {
       if (showLoading) setQuoteRefreshing(false);
     }
   }, [active, replayActive]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getAuthPrincipal()
+      .then(async (user) => {
+        if (cancelled) return;
+        setAuthUser(user);
+        setAuthChecked(true);
+
+        if (!user) {
+          setCloudState(null);
+          return;
+        }
+
+        try {
+          const response = await getCloudState();
+          if (!cancelled) setCloudState(response);
+        } catch {
+          // Account can still be used even if cloud storage is not configured yet.
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAuthUser(null);
+          setAuthChecked(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -2190,6 +2355,23 @@ export default function App() {
         onCompanyFeed={openCompanyFeed}
         onStrategy={() => setShowStrategyTester(true)}
         onSystem={openSystemPanel}
+        accountSlot={
+          <button
+            className={authUser ? "commercial-account-button signed-in" : "commercial-account-button"}
+            onClick={() => {
+              setShowAccountPanel(true);
+              setCloudError(null);
+              setCloudMessage(null);
+              if (authUser) void refreshCloudState();
+            }}
+            title={authUser ? "الحساب والمزامنة" : "تسجيل الدخول"}
+          >
+            <span className="commercial-account-avatar">
+              {(authUser?.userDetails || "M").slice(0, 1).toUpperCase()}
+            </span>
+            <span>{authUser ? "الحساب" : "دخول"}</span>
+          </button>
+        }
         workspaceSlot={
           <div className="workspace-menu-wrap commercial-workspace-wrap">
             <button
@@ -2237,6 +2419,21 @@ export default function App() {
             ) : null}
           </div>
         }
+      />
+
+      <AccountPanel
+        open={showAccountPanel}
+        user={authUser}
+        checked={authChecked}
+        cloud={cloudState}
+        busy={cloudBusy}
+        error={cloudError}
+        message={cloudMessage}
+        onClose={() => setShowAccountPanel(false)}
+        onRefresh={() => void refreshCloudState()}
+        onUpload={() => void uploadCurrentDeviceToCloud()}
+        onRestore={() => void restoreCloudToThisDevice()}
+        onDeleteCloud={() => void removeCloudCopy()}
       />
 
       <IndicatorLab
