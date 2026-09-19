@@ -13,7 +13,12 @@ import {
 import type { Candle, MarketSymbol, Timeframe } from "@marketos/market-core";
 import type { ChartDrawing, DrawingPoint, DrawingTool } from "../lib/drawings";
 import { createDrawingId } from "../lib/drawings";
-import { FibonacciPrimitive, ZonePrimitive } from "../lib/drawingPrimitives";
+import {
+  FibonacciPrimitive,
+  MeasurePrimitive,
+  TextPrimitive,
+  ZonePrimitive,
+} from "../lib/drawingPrimitives";
 import type { IndicatorSelection } from "../lib/indicators";
 import {
   calculateAtr,
@@ -40,6 +45,7 @@ type Props = {
   drawings: ChartDrawing[];
   drawingTool: DrawingTool;
   onDrawingCreated: (drawing: ChartDrawing) => void;
+  onTextAnchorRequested?: (point: DrawingPoint) => void;
   onCrosshairCandle?: (candle: Candle | null) => void;
   comparison?: ComparisonData | null;
 };
@@ -59,6 +65,7 @@ export default function MarketChart({
   drawings,
   drawingTool,
   onDrawingCreated,
+  onTextAnchorRequested,
   onCrosshairCandle,
   comparison,
 }: Props) {
@@ -118,6 +125,7 @@ export default function MarketChart({
     });
 
     const candleByTime = new Map(candles.map((candle) => [candle.time, candle]));
+    const candleIndexByTime = new Map(candles.map((candle, index) => [candle.time, index]));
 
     const candleData = candles.map((point) => ({
       time: point.time as UTCTimestamp,
@@ -425,14 +433,16 @@ export default function MarketChart({
     }
 
     for (const drawing of drawings) {
+      if (drawing.hidden) continue;
+
       if (drawing.type === "horizontal") {
         interactionSeries.createPriceLine({
           price: drawing.price,
-          color: "#818cf8",
+          color: drawing.locked ? "rgba(129,140,248,.52)" : "#818cf8",
           lineWidth: 1,
           lineStyle: LineStyle.Dashed,
           axisLabelVisible: true,
-          title: "H",
+          title: drawing.locked ? "H 🔒" : "H",
         });
         continue;
       }
@@ -451,9 +461,36 @@ export default function MarketChart({
         continue;
       }
 
+      if (drawing.type === "text") {
+        interactionSeries.attachPrimitive(
+          new TextPrimitive(chart, interactionSeries, drawing.point, drawing.text),
+        );
+        continue;
+      }
+
+      if (drawing.type === "measure") {
+        const firstIndex = candleIndexByTime.get(drawing.points[0].time);
+        const secondIndex = candleIndexByTime.get(drawing.points[1].time);
+        const bars =
+          firstIndex === undefined || secondIndex === undefined
+            ? 0
+            : Math.abs(secondIndex - firstIndex);
+
+        interactionSeries.attachPrimitive(
+          new MeasurePrimitive(
+            chart,
+            interactionSeries,
+            drawing.points[0],
+            drawing.points[1],
+            bars,
+          ),
+        );
+        continue;
+      }
+
       const [firstPoint, secondPoint] = [...drawing.points].sort((a, b) => a.time - b.time);
       const trendSeries = chart.addSeries(LineSeries, {
-        color: "#c084fc",
+        color: drawing.locked ? "rgba(192,132,252,.55)" : "#c084fc",
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -484,6 +521,11 @@ export default function MarketChart({
           type: "horizontal",
           price,
         });
+        return;
+      }
+
+      if (drawingTool === "text") {
+        onTextAnchorRequested?.(point);
         return;
       }
 
@@ -539,6 +581,7 @@ export default function MarketChart({
     drawings,
     drawingTool,
     onDrawingCreated,
+    onTextAnchorRequested,
     onCrosshairCandle,
     comparison,
   ]);
