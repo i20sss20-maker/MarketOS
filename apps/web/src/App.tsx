@@ -4,6 +4,11 @@ import {
   applySmartScreener,
   parseSmartScreenerQuery,
 } from "@marketos/screener-core";
+import {
+  canUseFeature,
+  type FeatureId,
+  type ResolvedEntitlement,
+} from "@marketos/entitlements-core";
 import type {
   Candle,
   ChartAnalysisResponse,
@@ -31,8 +36,13 @@ import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
+import PlansPanel from "./components/PlansPanel";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
+import {
+  anonymousEntitlement,
+  getUserEntitlements,
+} from "./lib/entitlementsApi";
 import {
   applyCloudStateToLocal,
   collectLocalCloudState,
@@ -276,6 +286,13 @@ export default function App() {
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [authUser, setAuthUser] = useState<AuthPrincipal | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [entitlement, setEntitlement] = useState<ResolvedEntitlement>(
+    () => anonymousEntitlement(),
+  );
+  const [entitlementLoading, setEntitlementLoading] = useState(false);
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [showPlansPanel, setShowPlansPanel] = useState(false);
+  const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [cloudState, setCloudState] = useState<CloudStateResponse | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
@@ -415,6 +432,75 @@ export default function App() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const refreshEntitlement = useCallback(async () => {
+    if (!authUser) {
+      setEntitlement(
+        anonymousEntitlement(),
+      );
+      setEntitlementError(null);
+      return;
+    }
+
+    setEntitlementLoading(true);
+    setEntitlementError(null);
+
+    try {
+      const response =
+        await getUserEntitlements();
+
+      setEntitlement(
+        response.entitlement,
+      );
+    } catch (error) {
+      setEntitlement(
+        anonymousEntitlement(),
+      );
+      setEntitlementError(
+        error instanceof Error
+          ? error.message
+          : "تعذر قراءة خطة MarketOS.",
+      );
+    } finally {
+      setEntitlementLoading(false);
+    }
+  }, [authUser]);
+
+  const showPlanRequirement = useCallback(
+    (message: string) => {
+      setPlanMessage(message);
+      setShowPlansPanel(true);
+    },
+    [],
+  );
+
+  const requireFeature = useCallback(
+    (
+      feature: FeatureId,
+      label: string,
+    ) => {
+      if (
+        canUseFeature(
+          entitlement,
+          feature,
+        )
+      ) {
+        return true;
+      }
+
+      showPlanRequirement(
+        `${label} تتطلب خطة أعلى من ${entitlement.definition.name}.`,
+      );
+      return false;
+    },
+    [
+      entitlement,
+      showPlanRequirement,
+    ],
+  );
+
+  const planLimits =
+    entitlement.definition.limits;
 
   const refreshCloudState = useCallback(async () => {
     if (!authUser) {
@@ -759,25 +845,70 @@ export default function App() {
     getAuthPrincipal()
       .then(async (user) => {
         if (cancelled) return;
+
         setAuthUser(user);
         setAuthChecked(true);
 
         if (!user) {
           setCloudState(null);
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementLoading(false);
+          setEntitlementError(null);
           return;
         }
 
-        try {
-          const response = await getCloudState();
-          if (!cancelled) setCloudState(response);
-        } catch {
-          // Account can still be used even if cloud storage is not configured yet.
+        setEntitlementLoading(true);
+        setEntitlementError(null);
+
+        const [
+          cloudResult,
+          entitlementResult,
+        ] = await Promise.allSettled([
+          getCloudState(),
+          getUserEntitlements(),
+        ]);
+
+        if (cancelled) return;
+
+        if (
+          cloudResult.status ===
+          "fulfilled"
+        ) {
+          setCloudState(
+            cloudResult.value,
+          );
         }
+
+        if (
+          entitlementResult.status ===
+          "fulfilled"
+        ) {
+          setEntitlement(
+            entitlementResult.value
+              .entitlement,
+          );
+        } else {
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementError(
+            "تعذر قراءة الخطة من MarketOS API؛ تم تطبيق حدود Free مؤقتًا.",
+          );
+        }
+
+        setEntitlementLoading(false);
       })
       .catch(() => {
         if (!cancelled) {
           setAuthUser(null);
           setAuthChecked(true);
+          setCloudState(null);
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementLoading(false);
         }
       });
 
