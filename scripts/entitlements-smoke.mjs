@@ -55,6 +55,14 @@ assert.equal(
   PLAN_DEFINITIONS.elite.limits.alerts,
   100,
 );
+assert.equal(
+  PLAN_DEFINITIONS.free.limits.chartTemplates,
+  2,
+);
+assert.equal(
+  PLAN_DEFINITIONS.pro.limits.chartTemplates,
+  10,
+);
 
 const expired = resolveEntitlement({
   userId: "expired-user",
@@ -82,11 +90,17 @@ const violations = cloudStateViolations(
     savedWorkspaces: 3,
     alerts: 4,
     customIndicators: 2,
+    chartTemplates: 3,
   },
   free,
 );
 
-assert.equal(violations.length, 4);
+assert.equal(violations.length, 5);
+assert.ok(
+  violations.some(
+    (item) => item.key === "chartTemplates",
+  ),
+);
 
 const principal = {
   identityProvider: "aad",
@@ -198,6 +212,10 @@ const overFreeState = {
   alerts: [],
   chartSettings: null,
   customIndicators: [],
+  chartTemplates: Array.from(
+    { length: 3 },
+    (_, index) => ({ id: `template-${index}` }),
+  ),
   drawings: {},
   ui: {},
 };
@@ -224,6 +242,13 @@ assert.ok(
     ?.some(
       (item) =>
         item.key === "watchlistItems",
+    ),
+);
+assert.ok(
+  rejected.jsonBody?.violations
+    ?.some(
+      (item) =>
+        item.key === "chartTemplates",
     ),
 );
 

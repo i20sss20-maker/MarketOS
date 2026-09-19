@@ -38,6 +38,7 @@ export type UserCloudState = {
   pushSubscriptions?: PushSubscriptionRecord[];
   chartSettings: Record<string, unknown> | null;
   customIndicators: unknown[];
+  chartTemplates: unknown[];
   drawings: Record<string, unknown[]>;
   ui: Record<string, unknown>;
 };

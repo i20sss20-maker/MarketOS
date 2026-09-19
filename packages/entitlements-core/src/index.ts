@@ -34,6 +34,7 @@ export type PlanLimits = {
   savedWorkspaces: number;
   alerts: number;
   customIndicators: number;
+  chartTemplates: number;
   chartPanes: number;
   aiQueriesPerDay: number;
   multiTimeframeQueriesPerDay: number;
@@ -88,6 +89,7 @@ export const PLAN_DEFINITIONS: Record<
       savedWorkspaces: 2,
       alerts: 3,
       customIndicators: 1,
+      chartTemplates: 2,
       chartPanes: 2,
       aiQueriesPerDay: 10,
       multiTimeframeQueriesPerDay: 0,
@@ -117,6 +119,7 @@ export const PLAN_DEFINITIONS: Record<
       savedWorkspaces: 12,
       alerts: 25,
       customIndicators: 10,
+      chartTemplates: 10,
       chartPanes: 4,
       aiQueriesPerDay: 100,
       multiTimeframeQueriesPerDay: 25,
@@ -146,6 +149,7 @@ export const PLAN_DEFINITIONS: Record<
       savedWorkspaces: 30,
       alerts: 100,
       customIndicators: 30,
+      chartTemplates: 30,
       chartPanes: 4,
       aiQueriesPerDay: 500,
       multiTimeframeQueriesPerDay: 100,
@@ -234,6 +238,7 @@ export type CloudStateCounts = {
   savedWorkspaces: number;
   alerts: number;
   customIndicators: number;
+  chartTemplates: number;
 };
 
 export type PlanLimitViolation = {
@@ -275,6 +280,11 @@ export function cloudStateViolations(
       "customIndicators",
       counts.customIndicators,
       limits.customIndicators,
+    ],
+    [
+      "chartTemplates",
+      counts.chartTemplates,
+      limits.chartTemplates,
     ],
   ];
 

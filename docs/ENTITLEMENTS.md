@@ -22,6 +22,7 @@ The following are enforced both in the UI and by MarketOS API cloud-state valida
 - Saved workspaces
 - Advanced alerts
 - Custom indicators
+- Chart templates
 
 The following features are plan-gated:
 

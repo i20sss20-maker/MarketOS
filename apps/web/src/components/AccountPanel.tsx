@@ -83,7 +83,7 @@ export default function AccountPanel({
           <div>
             <span className="account-eyebrow">MARKETOS ACCOUNT</span>
             <h2>الحساب والمزامنة</h2>
-            <p>حفظ Watchlist وLayouts والتنبيهات والإعدادات بين أجهزتك.</p>
+            <p>حفظ Watchlist وLayouts والتنبيهات والقوالب والإعدادات بين أجهزتك.</p>
           </div>
           <button className="account-close" onClick={onClose}>×</button>
         </header>
@@ -144,6 +144,7 @@ export default function AccountPanel({
                   <span>Layouts<b>{entitlement.definition.limits.savedWorkspaces}</b></span>
                   <span>Alerts<b>{entitlement.definition.limits.alerts}</b></span>
                   <span>Custom<b>{entitlement.definition.limits.customIndicators}</b></span>
+                  <span>Templates<b>{entitlement.definition.limits.chartTemplates}</b></span>
                 </div>
 
                 {entitlementError ? (

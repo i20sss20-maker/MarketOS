@@ -96,6 +96,9 @@ jobs:
       - name: Home Dashboard model smoke test
         run: pnpm smoke:home-dashboard
 
+      - name: Chart Templates source smoke test
+        run: pnpm smoke:chart-templates
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 

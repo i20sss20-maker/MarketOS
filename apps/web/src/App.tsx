@@ -37,6 +37,7 @@ import AlertInboxPanel from "./components/AlertInboxPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
+import ChartTemplatesPanel from "./components/ChartTemplatesPanel";
 import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import ExportPanel from "./components/ExportPanel";
 import IndicatorLab from "./components/IndicatorLab";
@@ -83,6 +84,14 @@ import {
   saveCustomIndicators,
   type CustomIndicatorDefinition,
 } from "./lib/customIndicators";
+import {
+  createChartTemplate,
+  loadChartTemplates,
+  mergeTemplateCustomIndicators,
+  saveChartTemplates,
+  type ChartTemplateDefinition,
+  type SavedChartTemplate,
+} from "./lib/chartTemplates";
 import type { ChartDrawing, DrawingPoint, DrawingTool } from "./lib/drawings";
 import {
   createDrawingId,
@@ -359,6 +368,9 @@ export default function App() {
   );
   const [chartSettings, setChartSettings] = useState<ChartSettings>(() => loadChartSettings());
   const [showChartSettings, setShowChartSettings] = useState(false);
+  const [chartTemplates, setChartTemplates] = useState<SavedChartTemplate[]>(() => loadChartTemplates());
+  const [showChartTemplates, setShowChartTemplates] = useState(false);
+  const [chartTemplateMessage, setChartTemplateMessage] = useState<string | null>(null);
   const [chartResetKey, setChartResetKey] = useState(0);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -1931,6 +1943,114 @@ export default function App() {
     setChartResetKey((current) => current + 1);
   };
 
+  const saveCurrentChartTemplate = (name: string) => {
+    if (
+      chartTemplates.length >=
+      planLimits.chartTemplates
+    ) {
+      showPlanRequirement(
+        `وصلت حد قوالب الشارت في خطة ${entitlement.definition.name}: ${planLimits.chartTemplates} قالب.`,
+      );
+      return;
+    }
+
+    try {
+      const template = createChartTemplate(
+        name,
+        {
+          chartView,
+          chartSettings,
+          indicators,
+          customIndicators,
+        },
+      );
+
+      const next = [
+        template,
+        ...chartTemplates,
+      ].slice(
+        0,
+        planLimits.chartTemplates,
+      );
+
+      setChartTemplates(next);
+      saveChartTemplates(next);
+      setChartTemplateMessage(
+        `تم حفظ قالب "${template.name}".`,
+      );
+    } catch (error) {
+      setChartTemplateMessage(
+        error instanceof Error
+          ? error.message
+          : "تعذر حفظ القالب.",
+      );
+    }
+  };
+
+  const deleteChartTemplate = (id: string) => {
+    const next =
+      chartTemplates.filter(
+        (template) =>
+          template.id !== id,
+      );
+
+    setChartTemplates(next);
+    saveChartTemplates(next);
+    setChartTemplateMessage(
+      "تم حذف القالب.",
+    );
+  };
+
+  const applyChartTemplate = (
+    template: ChartTemplateDefinition,
+  ) => {
+    setChartView(
+      template.chartView,
+    );
+    saveSetting(
+      "marketos:chart-view",
+      template.chartView,
+    );
+
+    setChartSettings(
+      template.chartSettings,
+    );
+    saveChartSettings(
+      template.chartSettings,
+    );
+
+    setIndicators(
+      template.indicators,
+    );
+    saveIndicatorSelection(
+      template.indicators,
+    );
+
+    const merged =
+      mergeTemplateCustomIndicators(
+        customIndicators,
+        template.customIndicators,
+        planLimits.customIndicators,
+      );
+
+    setCustomIndicators(
+      merged.indicators,
+    );
+    saveCustomIndicators(
+      merged.indicators,
+    );
+
+    setChartResetKey(
+      (current) => current + 1,
+    );
+
+    setChartTemplateMessage(
+      merged.skipped > 0
+        ? `تم تطبيق القالب، وتعذر إضافة ${merged.skipped} مؤشر مخصص بسبب حد الخطة.`
+        : `تم تطبيق قالب "${template.name}".`,
+    );
+  };
+
   const resetChartView = () => {
     setChartResetKey((current) => current + 1);
   };
@@ -3196,6 +3316,18 @@ export default function App() {
       onSelect: () => setShowChartSettings(true),
     },
     {
+      id: "panel:chart-templates",
+      group: "الشارت",
+      label: "قوالب الشارت",
+      description: `${chartTemplates.length} / ${planLimits.chartTemplates} محفوظ`,
+      keywords: ["templates", "preset", "قوالب", "اعدادات", "مؤشرات"],
+      priority: 54.5,
+      onSelect: () => {
+        setChartTemplateMessage(null);
+        setShowChartTemplates(true);
+      },
+    },
+    {
       id: "panel:plans",
       group: "الحساب",
       label: "الخطط والحدود",
@@ -3864,6 +3996,23 @@ export default function App() {
         onClose={() => setShowExportPanel(false)}
       />
 
+      <ChartTemplatesPanel
+        open={showChartTemplates}
+        templates={chartTemplates}
+        limit={planLimits.chartTemplates}
+        currentChartView={chartView}
+        currentIndicatorCount={activeIndicatorItems.length}
+        currentCustomCount={activeCustomIndicators.length}
+        message={chartTemplateMessage}
+        onClose={() => {
+          setShowChartTemplates(false);
+          setChartTemplateMessage(null);
+        }}
+        onSaveCurrent={saveCurrentChartTemplate}
+        onApply={applyChartTemplate}
+        onDelete={deleteChartTemplate}
+      />
+
       <ChartSettingsPanel
         open={showChartSettings}
         settings={chartSettings}
@@ -4289,6 +4438,17 @@ export default function App() {
                 title="إعدادات عرض الشارت"
               >
                 ⚙ إعدادات
+              </button>
+
+              <button
+                className="chart-templates-launch"
+                onClick={() => {
+                  setChartTemplateMessage(null);
+                  setShowChartTemplates(true);
+                }}
+                title="حفظ أو تطبيق قالب شارت"
+              >
+                ◫ قوالب
               </button>
 
               <div className="compare-menu-wrap">

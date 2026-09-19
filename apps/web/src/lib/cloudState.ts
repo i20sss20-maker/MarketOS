@@ -13,6 +13,7 @@ export type CloudStatePayload = {
   alerts: unknown[];
   chartSettings: Record<string, unknown> | null;
   customIndicators: unknown[];
+  chartTemplates: unknown[];
   drawings: Record<string, unknown[]>;
   ui: Record<string, unknown>;
 };
@@ -37,6 +38,7 @@ const JSON_KEYS = {
   alerts: "marketos:alerts-v2",
   chartSettings: "marketos:chart-settings",
   customIndicators: "marketos:custom-indicators",
+  chartTemplates: "marketos:chart-templates",
 } as const;
 
 const UI_KEYS = [
@@ -101,6 +103,10 @@ export function collectLocalCloudState(): CloudStatePayload {
     storage.getItem(JSON_KEYS.customIndicators),
     [],
   );
+  const chartTemplates = parseJson(
+    storage.getItem(JSON_KEYS.chartTemplates),
+    [],
+  );
 
   const drawings: Record<string, unknown[]> = {};
   for (let index = 0; index < storage.length; index += 1) {
@@ -137,6 +143,7 @@ export function collectLocalCloudState(): CloudStatePayload {
         ? chartSettings as Record<string, unknown>
         : null,
     customIndicators: Array.isArray(customIndicators) ? customIndicators : [],
+    chartTemplates: Array.isArray(chartTemplates) ? chartTemplates : [],
     drawings,
     ui,
   };
@@ -159,6 +166,11 @@ export function applyCloudStateToLocal(state: CloudStatePayload) {
   storage.setItem(
     JSON_KEYS.customIndicators,
     JSON.stringify(state.customIndicators),
+  );
+
+  storage.setItem(
+    JSON_KEYS.chartTemplates,
+    JSON.stringify(state.chartTemplates ?? []),
   );
 
   for (

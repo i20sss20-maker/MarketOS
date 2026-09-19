@@ -5,6 +5,7 @@ const MAX_WATCHLIST = 80;
 const MAX_WORKSPACES = 20;
 const MAX_ALERTS = 150;
 const MAX_CUSTOM_INDICATORS = 30;
+const MAX_CHART_TEMPLATES = 30;
 const MAX_DRAWING_SYMBOLS = 80;
 const MAX_DRAWINGS_PER_SYMBOL = 150;
 const MAX_UI_KEYS = 50;
@@ -130,6 +131,11 @@ export function sanitizeUserCloudState(
     customIndicators: boundedArray(
       value.customIndicators,
       MAX_CUSTOM_INDICATORS,
+    ),
+
+    chartTemplates: boundedArray(
+      value.chartTemplates,
+      MAX_CHART_TEMPLATES,
     ),
 
     drawings:
