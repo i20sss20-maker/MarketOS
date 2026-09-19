@@ -39,6 +39,7 @@ import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
 import ChartTemplatesPanel from "./components/ChartTemplatesPanel";
+import ObjectTreePanel, { type ObjectTreePaneId } from "./components/ObjectTreePanel";
 import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import ExportPanel from "./components/ExportPanel";
 import IndicatorLab from "./components/IndicatorLab";
@@ -402,6 +403,8 @@ export default function App() {
   const [chartTemplates, setChartTemplates] = useState<SavedChartTemplate[]>(() => loadChartTemplates());
   const [showChartTemplates, setShowChartTemplates] = useState(false);
   const [chartTemplateMessage, setChartTemplateMessage] = useState<string | null>(null);
+  const [showObjectTree, setShowObjectTree] = useState(false);
+  const [objectTreePane, setObjectTreePane] = useState<ObjectTreePaneId>("primary");
   const [chartResetKey, setChartResetKey] = useState(0);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -2462,7 +2465,8 @@ export default function App() {
         showSystemPanel ||
         showStrategyTester ||
         showIndicatorLab ||
-        showCompanyFeed
+        showCompanyFeed ||
+        showObjectTree
       ) {
         return;
       }
@@ -2502,7 +2506,27 @@ export default function App() {
     showStrategyTester,
     showIndicatorLab,
     showCompanyFeed,
+    showObjectTree,
   ]);
+
+  const clearComparison = () => {
+    setComparisonSymbol(null);
+    setComparisonCandles([]);
+    setLayoutMode("single");
+    setMaximizedChartPane(null);
+    setSyncedLogicalRange(null);
+    savePaneSymbol(
+      "marketos:pane-secondary",
+      null,
+    );
+    saveSetting(
+      "marketos:chart-layout",
+      "single",
+    );
+    if (objectTreePane !== "primary") {
+      setObjectTreePane("primary");
+    }
+  };
 
   const chooseComparison = (symbol: MarketSymbol) => {
     if (symbol.id === active.id) return;
@@ -3489,6 +3513,80 @@ export default function App() {
     );
   };
 
+  const objectTreePaneOptions: Array<{
+    id: ObjectTreePaneId;
+    label: string;
+  }> = [
+    {
+      id: "primary",
+      label: "Pane 1 · " + active.ticker,
+    },
+    ...(layoutMode !== "single" && comparisonSymbol
+      ? [{
+          id: "secondary" as const,
+          label: "Pane 2 · " + comparisonSymbol.ticker,
+        }]
+      : []),
+    ...(layoutMode === "quad" && thirdChartSymbol
+      ? [{
+          id: "third" as const,
+          label: "Pane 3 · " + thirdChartSymbol.ticker,
+        }]
+      : []),
+    ...(layoutMode === "quad" && fourthChartSymbol
+      ? [{
+          id: "fourth" as const,
+          label: "Pane 4 · " + fourthChartSymbol.ticker,
+        }]
+      : []),
+  ];
+
+  const objectTreeSymbol =
+    objectTreePane === "secondary"
+      ? comparisonSymbol ?? active
+      : objectTreePane === "third"
+        ? thirdChartSymbol ?? active
+        : objectTreePane === "fourth"
+          ? fourthChartSymbol ?? active
+          : active;
+
+  const objectTreeVisual =
+    paneVisual(objectTreePane);
+
+  const toggleObjectTreeIndicator = (
+    id: IndicatorId,
+  ) => {
+    changePaneVisual(
+      objectTreePane,
+      {
+        ...objectTreeVisual,
+        indicators: {
+          ...objectTreeVisual.indicators,
+          [id]:
+            !objectTreeVisual.indicators[id],
+        },
+      },
+    );
+  };
+
+  useEffect(() => {
+    const stillAvailable =
+      objectTreePaneOptions.some(
+        (pane) =>
+          pane.id === objectTreePane,
+      );
+
+    if (!stillAvailable) {
+      setObjectTreePane("primary");
+    }
+  }, [
+    objectTreePane,
+    layoutMode,
+    comparisonSymbol?.id,
+    thirdChartSymbol?.id,
+    fourthChartSymbol?.id,
+  ]);
+
   const commandSymbolOptions = [
     ...new Map(
       [
@@ -3742,6 +3840,18 @@ export default function App() {
       onSelect: () => {
         setChartTemplateMessage(null);
         setShowChartTemplates(true);
+      },
+    },
+    {
+      id: "panel:object-tree",
+      group: "الشارت",
+      label: "شجرة العناصر",
+      description: `${drawings.length} رسم · ${activeIndicatorItems.length + activeCustomIndicators.length} مؤشر`,
+      keywords: ["object tree", "objects", "عناصر", "شجرة", "رسومات", "مؤشرات"],
+      priority: 54.25,
+      onSelect: () => {
+        setObjectTreePane("primary");
+        setShowObjectTree(true);
       },
     },
     {
@@ -4441,6 +4551,37 @@ export default function App() {
         onClose={() => setShowExportPanel(false)}
       />
 
+      <ObjectTreePanel
+        open={showObjectTree}
+        symbol={objectTreeSymbol}
+        paneId={objectTreePane}
+        paneOptions={objectTreePaneOptions}
+        indicators={objectTreeVisual.indicators}
+        customIndicators={customIndicators}
+        drawings={
+          objectTreePane === "primary"
+            ? drawings
+            : []
+        }
+        comparisonSymbol={
+          objectTreePane === "primary"
+            ? comparisonSymbol
+            : null
+        }
+        onPaneChange={setObjectTreePane}
+        onClose={() => setShowObjectTree(false)}
+        onToggleIndicator={toggleObjectTreeIndicator}
+        onToggleCustom={toggleCustomIndicator}
+        onToggleDrawingHidden={toggleDrawingHidden}
+        onToggleDrawingLocked={toggleDrawingLocked}
+        onDeleteDrawing={deleteDrawing}
+        onEditDrawing={(drawing) => {
+          setShowObjectTree(false);
+          editTextDrawing(drawing);
+        }}
+        onRemoveComparison={clearComparison}
+      />
+
       <ChartTemplatesPanel
         open={showChartTemplates}
         templates={chartTemplates}
@@ -4907,6 +5048,17 @@ export default function App() {
                 ◫ قوالب
               </button>
 
+              <button
+                className="object-tree-launch"
+                onClick={() => {
+                  setObjectTreePane("primary");
+                  setShowObjectTree(true);
+                }}
+                title="إدارة عناصر الشارت والـPanes"
+              >
+                ☷ العناصر
+              </button>
+
               <div className="compare-menu-wrap">
                 <button
                   className={comparisonSymbol ? "selected comparison-button" : "comparison-button"}
@@ -4915,14 +5067,7 @@ export default function App() {
                   {comparisonSymbol ? `مقارنة: ${comparisonSymbol.ticker}` : "مقارنة"}
                 </button>
                 {comparisonSymbol ? (
-                  <button className="comparison-clear" onClick={() => {
-                    setComparisonSymbol(null);
-                    setComparisonCandles([]);
-                    setLayoutMode("single");
-                    setMaximizedChartPane(null);
-                    setSyncedLogicalRange(null);
-                    saveSetting("marketos:chart-layout", "single");
-                  }}>×</button>
+                  <button className="comparison-clear" onClick={clearComparison}>×</button>
                 ) : null}
 
                 {showComparisonMenu ? (
