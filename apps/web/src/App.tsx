@@ -1328,6 +1328,15 @@ export default function App() {
     saveSetting("marketos:chart-layout", mode);
   };
 
+  const visiblePaneTimeframes = [
+    timeframe,
+    ...(layoutMode === "split" || layoutMode === "quad" ? [comparisonTimeframe] : []),
+    ...(layoutMode === "quad" ? [thirdChartTimeframe, fourthChartTimeframe] : []),
+  ];
+
+  const chartSyncCompatible =
+    new Set(visiblePaneTimeframes).size <= 1;
+
   const toggleChartSync = () => {
     setChartSyncEnabled((current) => {
       const next = !current;
@@ -1338,9 +1347,9 @@ export default function App() {
   };
 
   const handleSynchronizedRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode === "single") return;
+    if (!chartSyncEnabled || !chartSyncCompatible || layoutMode === "single") return;
     setSyncedLogicalRange(range);
-  }, [chartSyncEnabled, layoutMode]);
+  }, [chartSyncEnabled, chartSyncCompatible, layoutMode]);
 
   const toggleMaximizedPane = (pane: Exclude<MaximizedChartPane, null>) => {
     setMaximizedChartPane((current) => current === pane ? null : pane);
@@ -1989,7 +1998,7 @@ export default function App() {
         }
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {textAnchor ? (
@@ -2046,7 +2055,7 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayComparisonCandles.length === 0 ? (
@@ -2079,7 +2088,7 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayThirdChartCandles.length === 0 ? (
@@ -2112,7 +2121,7 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayFourthChartCandles.length === 0 ? (
