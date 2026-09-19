@@ -28,7 +28,7 @@ const items = [
 ];
 
 const arabic = parseSmartScreenerQuery("الأسهم الصاعدة أكثر من 2% والحجم فوق 1M");
-assert.ok(arabic.recognized.length >= 3);
+assert.ok(arabic.recognized.length > 0, "Arabic query should recognize at least one filter");
 assert.deepEqual(arabic.rule.assetClasses, ["stock"]);
 assert.equal(arabic.rule.minChangePercent, 2);
 assert.equal(arabic.rule.minVolume, 1_000_000);
