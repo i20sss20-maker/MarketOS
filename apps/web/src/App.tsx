@@ -18,7 +18,20 @@ const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
-  return (window.localStorage.getItem(key) as T | null) ?? fallback;
+  try {
+    return (window.localStorage.getItem(key) as T | null) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveSetting(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Storage may be unavailable in restricted webviews or privacy modes.
+  }
 }
 
 export default function App() {
@@ -44,19 +57,19 @@ export default function App() {
 
   const chooseSymbol = (id: string) => {
     setActiveId(id);
-    window.localStorage.setItem("marketos:symbol", id);
+    saveSetting("marketos:symbol", id);
     setAiResult(null);
   };
 
   const chooseTimeframe = (value: Timeframe) => {
     setTimeframe(value);
-    window.localStorage.setItem("marketos:timeframe", value);
+    saveSetting("marketos:timeframe", value);
     setAiResult(null);
   };
 
   const chooseChartView = (value: ChartView) => {
     setChartView(value);
-    window.localStorage.setItem("marketos:chart-view", value);
+    saveSetting("marketos:chart-view", value);
   };
 
   const runDemoAnalysis = () => {
