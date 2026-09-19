@@ -29,6 +29,17 @@ assert.ok(
   config?.routes?.some((route) => route?.route === "/login/github"),
   "Static Web Apps config must expose the GitHub login shortcut",
 );
+const workerRoute = config?.routes?.find((route) => route?.route === "/sw.js");
+assert.equal(
+  workerRoute?.headers?.["Cache-Control"],
+  "no-cache",
+  "Service worker must not be pinned by static caching",
+);
+assert.ok(existsSync("apps/web/dist/sw.js"), "Web build must include the Push service worker");
+assert.ok(
+  existsSync("apps/web/dist/manifest.webmanifest"),
+  "Web build must include the web app manifest",
+);
 
 const apiDist = "artifacts/azure-api/dist";
 assert.ok(existsSync(apiDist), "Standalone Azure API dist folder must exist after staging");
@@ -51,6 +62,11 @@ assert.equal(
   stagedPackage?.dependencies?.["@marketos/alert-core"],
   "file:vendor/alert-core",
   "Standalone Azure API must vendor the shared alert engine",
+);
+assert.equal(
+  stagedPackage?.dependencies?.["web-push"],
+  "^3.6.7",
+  "Standalone Azure API must include the Web Push runtime",
 );
 assert.ok(
   existsSync("artifacts/azure-api/vendor/alert-core/dist/index.js"),
@@ -104,6 +120,11 @@ const cosmosBootstrap = readFileSync("infrastructure/azure/bootstrap-cosmos.ps1"
 assert.ok(cosmosBootstrap.includes("--enable-free-tier true"), "Cosmos bootstrap must request Free Tier");
 assert.ok(cosmosBootstrap.includes("--partition-key-path \"/userId\""), "Cosmos user state must partition by /userId");
 assert.ok(!cosmosBootstrap.includes("Write-Host $connectionString"), "Cosmos connection string must never be printed");
+
+const webPushBootstrap = readFileSync("infrastructure/azure/bootstrap-web-push.ps1", "utf8");
+assert.ok(webPushBootstrap.includes("generate-vapid-keys"), "Web Push bootstrap must generate VAPID keys");
+assert.ok(webPushBootstrap.includes("USER_DATA_PROVIDER"), "Web Push bootstrap must require persistent user storage");
+assert.ok(!webPushBootstrap.includes("Write-Host $privateKey"), "VAPID private key must never be printed");
 
 console.log(
   `Azure preview smoke test passed: ${javascriptFiles.length} staged API JS files, Node ${config.platform.apiRuntime}`,
