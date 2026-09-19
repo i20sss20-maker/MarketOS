@@ -72,6 +72,9 @@ jobs:
       - name: Cloud auth/state runtime smoke test
         run: pnpm smoke:cloud-state
 
+      - name: Server alerts end-to-end smoke test
+        run: pnpm smoke:server-alerts
+
       - name: Prepare Azure API bundle
         run: pnpm prepare:azure-api
 
