@@ -465,6 +465,40 @@ export default function App() {
   }, [comparisonSymbol, active.id, timeframe]);
 
   useEffect(() => {
+    if (layoutMode !== "quad" || !thirdChartSymbol) {
+      setThirdChartCandles([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    getMarketCandles(thirdChartSymbol, timeframe, 300, controller.signal)
+      .then((response) => setThirdChartCandles(response.candles))
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, timeframe, 300));
+      });
+
+    return () => controller.abort();
+  }, [layoutMode, thirdChartSymbol, timeframe]);
+
+  useEffect(() => {
+    if (layoutMode !== "quad" || !fourthChartSymbol) {
+      setFourthChartCandles([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    getMarketCandles(fourthChartSymbol, timeframe, 300, controller.signal)
+      .then((response) => setFourthChartCandles(response.candles))
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "AbortError") return;
+        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, timeframe, 300));
+      });
+
+    return () => controller.abort();
+  }, [layoutMode, fourthChartSymbol, timeframe]);
+
+  useEffect(() => {
     if (replayActive) return;
 
     const hasRelevantAlert = alerts.some(
@@ -619,6 +653,22 @@ export default function App() {
         ? comparisonCandles.filter((candle) => candle.time <= replayCutoff)
         : comparisonCandles,
     [comparisonCandles, replayActive, replayCutoff],
+  );
+
+  const displayThirdChartCandles = useMemo(
+    () =>
+      replayActive && replayCutoff !== undefined
+        ? thirdChartCandles.filter((candle) => candle.time <= replayCutoff)
+        : thirdChartCandles,
+    [thirdChartCandles, replayActive, replayCutoff],
+  );
+
+  const displayFourthChartCandles = useMemo(
+    () =>
+      replayActive && replayCutoff !== undefined
+        ? fourthChartCandles.filter((candle) => candle.time <= replayCutoff)
+        : fourthChartCandles,
+    [fourthChartCandles, replayActive, replayCutoff],
   );
 
   const activeIndicatorItems = useMemo(
