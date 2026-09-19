@@ -6583,6 +6583,8 @@ export default function App() {
           multiTimeframeResult={multiTimeframeResult}
           multiTimeframeError={multiTimeframeError}
           ticker={active.ticker}
+          activeSymbol={active}
+          radarSymbols={watchlist}
           timeframe={timeframe}
           indicatorCount={activeIndicatorItems.length + activeCustomIndicators.length}
           drawingCount={drawings.length}
@@ -6596,6 +6598,7 @@ export default function App() {
           providerMessage={providerStatus?.message}
           onClose={toggleAiPanel}
           onForecast={() => void runAnalystForecast()}
+          onRadarSelect={chooseSymbol}
           onPromptChange={setAiPrompt}
           onRead={(prompt) => void runChartReading(prompt)}
           onMultiTimeframe={() => void runMultiTimeframeReading()}
