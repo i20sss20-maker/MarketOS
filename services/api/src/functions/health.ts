@@ -1,5 +1,6 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { marketEventsProvider } from "../events/index.js";
+import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -10,13 +11,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   const environment = (process.env.MARKETOS_ENVIRONMENT ?? "local").trim() || "local";
   const buildSha = (process.env.MARKETOS_BUILD_SHA ?? process.env.GITHUB_SHA ?? "dev").trim();
 
-  return {
-    status: 200,
-    headers: {
-      "Cache-Control": "no-store",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    jsonBody: {
+  return json(200, {
       ok: true,
       service: "marketos-api",
       version: "0.3.0",
@@ -28,12 +23,11 @@ export async function health(_request: HttpRequest, context: InvocationContext):
         provider: marketEventsProvider.id,
         mode: marketEventsProvider.id.includes("demo") ? "demo" : "provider",
       },
-      ai: {
-        provider: aiProvider,
-        mode: aiProvider === "local-chart-engine" ? "local" : "provider",
-      },
+    ai: {
+      provider: aiProvider,
+      mode: aiProvider === "local-chart-engine" ? "local" : "provider",
     },
-  };
+  });
 }
 
 app.http("health", {
