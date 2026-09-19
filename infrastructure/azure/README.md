@@ -136,6 +136,14 @@ V1 sync includes:
 - advanced Alerts
 - Chart Settings
 - custom indicators
+- per-symbol chart drawings
 - selected UI/workspace preferences
 
 Provider keys and Azure secrets are never part of the user-state payload.
+
+
+### Sync conflict safety
+
+Cloud uploads use the last cloud version that the current device read. If another device uploads a newer copy first, MarketOS returns a conflict instead of silently overwriting the newer state. Refresh the account status before uploading again.
+
+Local data is never automatically replaced in V1. Restore remains an explicit user action and requires confirmation.
