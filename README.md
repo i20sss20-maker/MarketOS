@@ -39,6 +39,7 @@ This repository is **fully isolated** from every other project:
 - Instrument Overview with Replay-safe performance, volatility, range and volume statistics
 - local and cloud-evaluated advanced alerts
 - scheduled background alert evaluation with a persistent server-owned Alert Inbox
+- opt-in VAPID Web Push notifications that deep-link back to the Alert Inbox
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
 - Market Events / earnings calendar
