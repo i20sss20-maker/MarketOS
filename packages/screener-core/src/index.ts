@@ -214,7 +214,7 @@ function parseSortAndLimit(text: string, rule: SmartScreenerRule, recognized: st
     rule.sortBy = "change";
     rule.sortDirection = "desc";
     if (topMatch[1]) rule.limit = Math.min(100, Math.max(1, Number(topMatch[1])));
-    recognized.push(\`sort:change:desc\${rule.limit ? \`:\${rule.limit}\` : ""}\`);
+    recognized.push(`sort:change:desc${rule.limit ? `:${rule.limit}` : ""}`);
   }
 
   const bottomMatch = text.match(/(?:أدنى|ادنى|أسوأ|اسوء|bottom|lowest|worst)\s*(\d{1,3})?/i);
@@ -222,7 +222,7 @@ function parseSortAndLimit(text: string, rule: SmartScreenerRule, recognized: st
     rule.sortBy = "change";
     rule.sortDirection = "asc";
     if (bottomMatch[1]) rule.limit = Math.min(100, Math.max(1, Number(bottomMatch[1])));
-    recognized.push(\`sort:change:asc\${rule.limit ? \`:\${rule.limit}\` : ""}\`);
+    recognized.push(`sort:change:asc${rule.limit ? `:${rule.limit}` : ""}`);
   }
 
   if (/(أعلى حجم|اعلى حجم|highest volume|most volume)/i.test(text)) {
@@ -240,7 +240,7 @@ function parseSortAndLimit(text: string, rule: SmartScreenerRule, recognized: st
   const limitMatch = text.match(/(?:أول|اول|اعرض|show|limit)\s*(\d{1,3})/i);
   if (limitMatch) {
     rule.limit = Math.min(100, Math.max(1, Number(limitMatch[1])));
-    recognized.push(\`limit:\${rule.limit}\`);
+    recognized.push(`limit:${rule.limit}`);
   }
 }
 
