@@ -1171,7 +1171,9 @@ export default function App() {
     ) => {
       if (
         next.length >
-        planLimits.customIndicators
+          customIndicators.length &&
+        next.length >
+          planLimits.customIndicators
       ) {
         showPlanRequirement(
           `خطة ${entitlement.definition.name} تسمح بـ ${planLimits.customIndicators} مؤشر مخصص.`,
@@ -1183,6 +1185,7 @@ export default function App() {
       saveCustomIndicators(next);
     },
     [
+      customIndicators.length,
       planLimits.customIndicators,
       entitlement.definition.name,
       showPlanRequirement,
@@ -1541,14 +1544,43 @@ export default function App() {
   };
 
   const toggleActiveWatchlist = () => {
-    setWatchlist((current) => {
-      const exists = current.some((item) => item.id === active.id);
-      const next = exists
-        ? current.filter((item) => item.id !== active.id)
-        : [active, ...current].slice(0, 50);
+    const exists =
+      watchlist.some(
+        (item) => item.id === active.id,
+      );
+
+    if (exists) {
+      const next =
+        watchlist.filter(
+          (item) =>
+            item.id !== active.id,
+        );
+
+      setWatchlist(next);
       saveWatchlist(next);
-      return next;
-    });
+      return;
+    }
+
+    if (
+      watchlist.length >=
+      planLimits.watchlistItems
+    ) {
+      showPlanRequirement(
+        `وصلت حد قائمة المتابعة في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز.`,
+      );
+      return;
+    }
+
+    const next = [
+      active,
+      ...watchlist,
+    ].slice(
+      0,
+      planLimits.watchlistItems,
+    );
+
+    setWatchlist(next);
+    saveWatchlist(next);
   };
 
   const chooseSymbol = (symbol: MarketSymbol) => {
@@ -2317,7 +2349,43 @@ export default function App() {
       fourthPane?.symbol,
     ].filter((symbol): symbol is MarketSymbol => Boolean(symbol));
 
-    for (const symbol of restoredSymbols) addToWatchlist(symbol);
+    setWatchlist((current) => {
+      const merged =
+        new Map<string, MarketSymbol>(
+          current.map((symbol) => [
+            symbol.id,
+            symbol,
+          ]),
+        );
+
+      for (
+        const symbol
+        of restoredSymbols
+      ) {
+        if (
+          merged.size >=
+            planLimits.watchlistItems &&
+          !merged.has(symbol.id)
+        ) {
+          break;
+        }
+
+        merged.set(
+          symbol.id,
+          symbol,
+        );
+      }
+
+      const next = [
+        ...merged.values(),
+      ].slice(
+        0,
+        planLimits.watchlistItems,
+      );
+
+      saveWatchlist(next);
+      return next;
+    });
 
     saveSetting("marketos:symbol", primaryPane.symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
