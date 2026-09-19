@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   Candle,
   MarketDataStatus,
@@ -8,6 +8,14 @@ import type {
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
+import type { ChartDrawing, DrawingTool } from "./lib/drawings";
+import { loadDrawings, saveDrawings } from "./lib/drawings";
+import type { IndicatorId, IndicatorSelection } from "./lib/indicators";
+import {
+  indicatorCatalog,
+  loadIndicatorSelection,
+  saveIndicatorSelection,
+} from "./lib/indicators";
 import {
   getMarketCandles,
   getMarketQuote,
@@ -87,8 +95,12 @@ export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>(() => readSaved("marketos:timeframe", "1h"));
   const [chartView, setChartView] = useState<ChartView>(() => readSaved("marketos:chart-view", "candles"));
   const [query, setQuery] = useState("");
-  const [showSma, setShowSma] = useState(true);
   const [aiResult, setAiResult] = useState<string | null>(null);
+
+  const [indicators, setIndicators] = useState<IndicatorSelection>(() => loadIndicatorSelection());
+  const [showIndicatorMenu, setShowIndicatorMenu] = useState(false);
+  const [drawingTool, setDrawingTool] = useState<DrawingTool>("cursor");
+  const [drawings, setDrawings] = useState<ChartDrawing[]>(() => loadDrawings(active.id));
 
   const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -192,6 +204,11 @@ export default function App() {
     [query, searchResults],
   );
 
+  const activeIndicatorItems = useMemo(
+    () => indicatorCatalog.filter((item) => indicators[item.id]),
+    [indicators],
+  );
+
   const lastCandle = candles[candles.length - 1];
   const displayedPrice = quote?.price ?? lastCandle?.close;
   const displayedPercent = quote?.percentChange;
@@ -206,6 +223,8 @@ export default function App() {
     setActive(symbol);
     saveSetting("marketos:symbol", symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(symbol));
+    setDrawings(loadDrawings(symbol.id));
+    setDrawingTool("cursor");
     setQuery("");
     setAiResult(null);
   };
@@ -213,12 +232,35 @@ export default function App() {
   const chooseTimeframe = (value: Timeframe) => {
     setTimeframe(value);
     saveSetting("marketos:timeframe", value);
+    setDrawingTool("cursor");
     setAiResult(null);
   };
 
   const chooseChartView = (value: ChartView) => {
     setChartView(value);
     saveSetting("marketos:chart-view", value);
+  };
+
+  const toggleIndicator = (id: IndicatorId) => {
+    setIndicators((current) => {
+      const next = { ...current, [id]: !current[id] };
+      saveIndicatorSelection(next);
+      return next;
+    });
+  };
+
+  const handleDrawingCreated = useCallback((drawing: ChartDrawing) => {
+    setDrawings((current) => {
+      const next = [...current, drawing];
+      saveDrawings(active.id, next);
+      return next;
+    });
+  }, [active.id]);
+
+  const clearDrawings = () => {
+    setDrawings([]);
+    saveDrawings(active.id, []);
+    setDrawingTool("cursor");
   };
 
   const runChartReading = () => {
@@ -235,11 +277,21 @@ export default function App() {
     const sma20 = recent.reduce((sum, candle) => sum + candle.close, 0) / recent.length;
     const move = ((last.close - first.open) / first.open) * 100;
     const relativeToSma = last.close >= sma20 ? "فوق" : "تحت";
+    const indicatorText = activeIndicatorItems.length
+      ? activeIndicatorItems.map((item) => item.name).join("، ")
+      : "بدون مؤشرات إضافية";
 
     setAiResult(
-      `قراءة وصفية لـ ${active.ticker} على ${timeframe.toUpperCase()}: آخر سعر ${formatPrice(last.close)}، حركة آخر 20 شمعة ${formatPercent(move)}، والنطاق ${formatPrice(low)} – ${formatPrice(high)}. السعر حاليًا ${relativeToSma} متوسط SMA20. طبقة AI الكاملة ستستخدم نفس سياق الشارت مع الأخبار والمؤشرات لاحقًا.`,
+      `قراءة وصفية لـ ${active.ticker} على ${timeframe.toUpperCase()}: آخر سعر ${formatPrice(last.close)}، حركة آخر 20 شمعة ${formatPercent(move)}، والنطاق ${formatPrice(low)} – ${formatPrice(high)}. السعر حاليًا ${relativeToSma} متوسط 20 شمعة. المؤشرات النشطة: ${indicatorText}. الرسومات المحفوظة: ${drawings.length}.`,
     );
   };
+
+  const drawingHint =
+    drawingTool === "trend"
+      ? "أداة الترند: انقر نقطتين على الشارت"
+      : drawingTool === "horizontal"
+        ? "الخط الأفقي: انقر على مستوى السعر"
+        : null;
 
   return (
     <main className="shell">
@@ -337,28 +389,78 @@ export default function App() {
               <button className={chartView === "candles" ? "selected" : ""} onClick={() => chooseChartView("candles")}>شموع</button>
               <button className={chartView === "line" ? "selected" : ""} onClick={() => chooseChartView("line")}>خط</button>
               <button className={chartView === "area" ? "selected" : ""} onClick={() => chooseChartView("area")}>مساحة</button>
-              <button className={showSma ? "selected" : ""} onClick={() => setShowSma((value) => !value)}>SMA 20</button>
+
+              <div className="indicator-menu-wrap">
+                <button
+                  className={activeIndicatorItems.length > 0 ? "selected" : ""}
+                  onClick={() => setShowIndicatorMenu((value) => !value)}
+                >
+                  المؤشرات {activeIndicatorItems.length > 0 ? `(${activeIndicatorItems.length})` : ""}
+                </button>
+
+                {showIndicatorMenu ? (
+                  <div className="indicator-popover" dir="rtl">
+                    <div className="indicator-popover-title">المؤشرات</div>
+                    {indicatorCatalog.map((item) => (
+                      <button
+                        key={item.id}
+                        className={indicators[item.id] ? "indicator-row enabled" : "indicator-row"}
+                        onClick={() => toggleIndicator(item.id)}
+                      >
+                        <span>
+                          <strong>{item.name}</strong>
+                          <small>{item.description}</small>
+                        </span>
+                        <b>{indicators[item.id] ? "✓" : "+"}</b>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
 
           <div className="chart-stage">
             <div className="drawing-rail">
-              <button title="المؤشر">＋</button>
-              <button title="خط الاتجاه">╱</button>
-              <button title="خط أفقي">―</button>
-              <button title="فيبوناتشي">≋</button>
-              <button title="نص">T</button>
-              <button title="قياس">↕</button>
+              <button
+                className={drawingTool === "cursor" ? "selected" : ""}
+                title="المؤشر والتحريك"
+                onClick={() => setDrawingTool("cursor")}
+              >
+                ↖
+              </button>
+              <button
+                className={drawingTool === "trend" ? "selected" : ""}
+                title="خط الاتجاه"
+                onClick={() => setDrawingTool("trend")}
+              >
+                ╱
+              </button>
+              <button
+                className={drawingTool === "horizontal" ? "selected" : ""}
+                title="خط أفقي"
+                onClick={() => setDrawingTool("horizontal")}
+              >
+                ―
+              </button>
+              <button className="disabled-tool" title="فيبوناتشي — قريبًا" disabled>≋</button>
+              <button className="disabled-tool" title="نص — قريبًا" disabled>T</button>
+              <button title="مسح الرسومات" onClick={clearDrawings} disabled={drawings.length === 0}>⌫</button>
             </div>
+
             <div className="chart-host">
               <MarketChart
                 candles={candles}
                 timeframe={timeframe}
                 chartView={chartView}
-                showSma={showSma}
+                indicators={indicators}
+                drawings={drawings}
+                drawingTool={drawingTool}
+                onDrawingCreated={handleDrawingCreated}
               />
               {dataState === "loading" ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
               {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
+              {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
             </div>
           </div>
         </section>
@@ -369,7 +471,7 @@ export default function App() {
             <span className="eyebrow">CHART CONTEXT</span>
             <h2>اسأل الشارت</h2>
             <p>
-              سياق الشارت الآن يأتي من طبقة Market Data: الرمز، الفريم، OHLCV، ونوع العرض. المرحلة القادمة تضيف المؤشرات والأخبار للـAI.
+              سياق الشارت يشمل OHLCV والفريم والمؤشرات النشطة والرسومات المحفوظة. هذي نفس الطبقة اللي بنوصلها بمحرك AI الفعلي.
             </p>
           </div>
 
@@ -389,6 +491,8 @@ export default function App() {
           <div className="context-grid">
             <div><span>الرمز</span><strong>{active.ticker}</strong></div>
             <div><span>الفريم</span><strong>{timeframe.toUpperCase()}</strong></div>
+            <div><span>المؤشرات</span><strong>{activeIndicatorItems.length}</strong></div>
+            <div><span>الرسومات</span><strong>{drawings.length}</strong></div>
             <div><span>الشموع</span><strong>{candles.length}</strong></div>
             <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
           </div>
@@ -397,6 +501,13 @@ export default function App() {
             {dataError
               ? `تعذر الوصول للـAPI وتم تشغيل Demo fallback: ${dataError}`
               : providerStatus?.message ?? "Market Data V1 active."}
+          </div>
+
+          <div className="chart-attribution">
+            Charts powered by{" "}
+            <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">
+              TradingView Lightweight Charts™
+            </a>
           </div>
         </aside>
       </section>

@@ -5,11 +5,20 @@ import {
   ColorType,
   HistogramSeries,
   LineSeries,
+  LineStyle,
   createChart,
   type UTCTimestamp,
 } from "lightweight-charts";
 import type { Candle, Timeframe } from "@marketos/market-core";
-import { createSma } from "../lib/demoData";
+import type { ChartDrawing, DrawingPoint, DrawingTool } from "../lib/drawings";
+import { createDrawingId } from "../lib/drawings";
+import type { IndicatorSelection } from "../lib/indicators";
+import {
+  calculateBollinger,
+  calculateEma,
+  calculateRsi,
+  calculateSma,
+} from "../lib/indicators";
 
 export type ChartView = "candles" | "line" | "area";
 
@@ -17,10 +26,28 @@ type Props = {
   candles: Candle[];
   timeframe: Timeframe;
   chartView: ChartView;
-  showSma: boolean;
+  indicators: IndicatorSelection;
+  drawings: ChartDrawing[];
+  drawingTool: DrawingTool;
+  onDrawingCreated: (drawing: ChartDrawing) => void;
 };
 
-export default function MarketChart({ candles, timeframe, chartView, showSma }: Props) {
+function lineData(points: Array<{ time: number; value: number }>) {
+  return points.map((point) => ({
+    time: point.time as UTCTimestamp,
+    value: point.value,
+  }));
+}
+
+export default function MarketChart({
+  candles,
+  timeframe,
+  chartView,
+  indicators,
+  drawings,
+  drawingTool,
+  onDrawingCreated,
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -43,7 +70,7 @@ export default function MarketChart({ candles, timeframe, chartView, showSma }: 
         borderColor: "rgba(148,163,184,0.14)",
         scaleMargins: {
           top: 0.06,
-          bottom: 0.24,
+          bottom: 0.08,
         },
       },
       timeScale: {
@@ -63,8 +90,8 @@ export default function MarketChart({ candles, timeframe, chartView, showSma }: 
           labelBackgroundColor: "#312e81",
         },
       },
-      handleScroll: true,
-      handleScale: true,
+      handleScroll: drawingTool === "cursor",
+      handleScale: drawingTool === "cursor",
     });
 
     const candleData = candles.map((point) => ({
@@ -112,20 +139,73 @@ export default function MarketChart({ candles, timeframe, chartView, showSma }: 
       );
     }
 
-    if (showSma && candles.length >= 20) {
-      const smaSeries = chart.addSeries(LineSeries, {
+    const interactionSeries = chart.addSeries(LineSeries, {
+      color: "rgba(0,0,0,0)",
+      lineWidth: 1,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+    });
+    interactionSeries.setData(
+      candles.map((point) => ({
+        time: point.time as UTCTimestamp,
+        value: point.close,
+      })),
+    );
+
+    if (indicators.sma20 && candles.length >= 20) {
+      const series = chart.addSeries(LineSeries, {
         color: "#f59e0b",
         lineWidth: 1,
         priceLineVisible: false,
         lastValueVisible: false,
-        crosshairMarkerVisible: false,
       });
-      smaSeries.setData(
-        createSma(candles, 20).map((point) => ({
-          time: point.time as UTCTimestamp,
-          value: point.value,
-        })),
-      );
+      series.setData(lineData(calculateSma(candles, 20)));
+    }
+
+    if (indicators.ema20 && candles.length >= 20) {
+      const series = chart.addSeries(LineSeries, {
+        color: "#38bdf8",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      series.setData(lineData(calculateEma(candles, 20)));
+    }
+
+    if (indicators.ema50 && candles.length >= 50) {
+      const series = chart.addSeries(LineSeries, {
+        color: "#a78bfa",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      series.setData(lineData(calculateEma(candles, 50)));
+    }
+
+    if (indicators.bollinger20 && candles.length >= 20) {
+      const bands = calculateBollinger(candles, 20, 2);
+      const upper = chart.addSeries(LineSeries, {
+        color: "rgba(129,140,248,.62)",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      const middle = chart.addSeries(LineSeries, {
+        color: "rgba(129,140,248,.30)",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      const lower = chart.addSeries(LineSeries, {
+        color: "rgba(129,140,248,.62)",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      upper.setData(lineData(bands.upper));
+      middle.setData(lineData(bands.middle));
+      lower.setData(lineData(bands.lower));
     }
 
     const volumeData = candles
@@ -138,21 +218,121 @@ export default function MarketChart({ candles, timeframe, chartView, showSma }: 
           : "rgba(240,93,111,.34)",
       }));
 
+    let nextPaneIndex = 1;
+
     if (volumeData.length > 0) {
-      const volumeSeries = chart.addSeries(HistogramSeries, {
-        priceFormat: { type: "volume" },
-        priceScaleId: "volume",
-        lastValueVisible: false,
-        priceLineVisible: false,
-      });
-      volumeSeries.setData(volumeData);
-      chart.priceScale("volume").applyOptions({
-        scaleMargins: {
-          top: 0.80,
-          bottom: 0,
+      const volumePaneIndex = nextPaneIndex;
+      nextPaneIndex += 1;
+
+      const volumeSeries = chart.addSeries(
+        HistogramSeries,
+        {
+          priceFormat: { type: "volume" },
+          lastValueVisible: false,
+          priceLineVisible: false,
         },
-      });
+        volumePaneIndex,
+      );
+      volumeSeries.setData(volumeData);
+      chart.panes()[volumePaneIndex]?.setHeight(105);
     }
+
+    if (indicators.rsi14 && candles.length > 14) {
+      const rsiPaneIndex = nextPaneIndex;
+      const rsiSeries = chart.addSeries(
+        LineSeries,
+        {
+          color: "#f472b6",
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: true,
+          title: "RSI 14",
+        },
+        rsiPaneIndex,
+      );
+      rsiSeries.setData(lineData(calculateRsi(candles, 14)));
+      rsiSeries.createPriceLine({
+        price: 70,
+        color: "rgba(240,93,111,.35)",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "70",
+      });
+      rsiSeries.createPriceLine({
+        price: 30,
+        color: "rgba(32,201,151,.35)",
+        lineWidth: 1,
+        lineStyle: LineStyle.Dashed,
+        axisLabelVisible: true,
+        title: "30",
+      });
+      chart.panes()[rsiPaneIndex]?.setHeight(120);
+    }
+
+    for (const drawing of drawings) {
+      if (drawing.type === "horizontal") {
+        interactionSeries.createPriceLine({
+          price: drawing.price,
+          color: "#818cf8",
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: "H",
+        });
+        continue;
+      }
+
+      const [firstPoint, secondPoint] = [...drawing.points].sort((a, b) => a.time - b.time);
+      const trendSeries = chart.addSeries(LineSeries, {
+        color: "#c084fc",
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      trendSeries.setData([
+        { time: firstPoint.time as UTCTimestamp, value: firstPoint.price },
+        { time: secondPoint.time as UTCTimestamp, value: secondPoint.price },
+      ]);
+    }
+
+    let pendingTrendPoint: DrawingPoint | null = null;
+
+    const handleClick = (param: Parameters<Parameters<typeof chart.subscribeClick>[0]>[0]) => {
+      if (drawingTool === "cursor" || !param.point || typeof param.time !== "number") return;
+
+      const price = interactionSeries.coordinateToPrice(param.point.y);
+      if (price === null) return;
+
+      const point: DrawingPoint = {
+        time: param.time,
+        price,
+      };
+
+      if (drawingTool === "horizontal") {
+        onDrawingCreated({
+          id: createDrawingId(),
+          type: "horizontal",
+          price,
+        });
+        return;
+      }
+
+      if (!pendingTrendPoint) {
+        pendingTrendPoint = point;
+        return;
+      }
+
+      onDrawingCreated({
+        id: createDrawingId(),
+        type: "trend",
+        points: [pendingTrendPoint, point],
+      });
+      pendingTrendPoint = null;
+    };
+
+    chart.subscribeClick(handleClick);
 
     const resize = new ResizeObserver(() => {
       chart.applyOptions({
@@ -166,9 +346,15 @@ export default function MarketChart({ candles, timeframe, chartView, showSma }: 
 
     return () => {
       resize.disconnect();
+      chart.unsubscribeClick(handleClick);
       chart.remove();
     };
-  }, [candles, timeframe, chartView, showSma]);
+  }, [candles, timeframe, chartView, indicators, drawings, drawingTool, onDrawingCreated]);
 
-  return <div className="chart-canvas" ref={containerRef} />;
+  return (
+    <div
+      className={`chart-canvas ${drawingTool === "cursor" ? "" : "drawing-active"}`}
+      ref={containerRef}
+    />
+  );
 }
