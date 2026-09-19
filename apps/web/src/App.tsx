@@ -2954,7 +2954,10 @@ export default function App() {
               setShowAccountPanel(true);
               setCloudError(null);
               setCloudMessage(null);
-              if (authUser) void refreshCloudState();
+              if (authUser) {
+                void refreshCloudState();
+                void refreshEntitlement();
+              }
             }}
             title={authUser ? "الحساب والمزامنة" : "تسجيل الدخول"}
           >
