@@ -3,6 +3,7 @@ import { marketEventsProvider } from "../events/index.js";
 import { companyFeedProvider } from "../feed/index.js";
 import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
+import { userStateStore } from "../storage/index.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   context.log("MarketOS health check");
@@ -15,7 +16,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   return json(200, {
       ok: true,
       service: "marketos-api",
-      version: "0.4.0",
+      version: "0.5.0",
       environment,
       buildSha: buildSha.slice(0, 12),
       generatedAt: Math.floor(Date.now() / 1000),
@@ -27,6 +28,10 @@ export async function health(_request: HttpRequest, context: InvocationContext):
       companyFeed: {
         provider: companyFeedProvider.id,
         mode: companyFeedProvider.id.includes("demo") ? "demo" : "provider",
+      },
+      userData: {
+        provider: userStateStore.mode,
+        persistent: userStateStore.mode === "cosmos",
       },
     ai: {
       provider: aiProvider,
