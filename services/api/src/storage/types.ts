@@ -24,6 +24,10 @@ export type PushSubscriptionRecord = {
   userAgent?: string;
 };
 
+export type PushSubscriptionUpdater = (
+  current: PushSubscriptionRecord[],
+) => PushSubscriptionRecord[];
+
 export type UserCloudState = {
   version: 1;
   updatedAt: number;
@@ -85,12 +89,11 @@ export interface UserStateStore {
     userId: string,
     alerts: unknown[],
     alertEvents?: AlertInboxEvent[],
-    pushSubscriptions?: PushSubscriptionRecord[],
   ): Promise<StoredUserState | null>;
 
   updatePushSubscriptions(
     userId: string,
-    pushSubscriptions: PushSubscriptionRecord[],
+    updater: PushSubscriptionUpdater,
   ): Promise<StoredUserState | null>;
 
   delete(userId: string): Promise<void>;
