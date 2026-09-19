@@ -30,4 +30,28 @@ export class MemoryUserStateStore implements UserStateStore {
   async delete(userId: string) {
     this.states.delete(userId);
   }
+
+  async listBatch(
+    limit: number,
+    continuationToken?: string,
+  ) {
+    const bounded = Math.min(100, Math.max(1, Math.floor(limit)));
+    const offset = continuationToken
+      ? Math.max(0, Number.parseInt(continuationToken, 10) || 0)
+      : 0;
+
+    const items = [...this.states.values()]
+      .sort((a, b) => a.userId.localeCompare(b.userId));
+
+    const page = items.slice(offset, offset + bounded);
+    const nextOffset = offset + page.length;
+
+    return {
+      items: page,
+      continuationToken:
+        nextOffset < items.length
+          ? String(nextOffset)
+          : undefined,
+    };
+  }
 }

@@ -91,4 +91,26 @@ assert.equal(loaded?.payload.watchlist.length, 80);
 await store.delete("user-123");
 assert.equal(await store.get("user-123"), null);
 
-console.log("Cloud state smoke passed: auth, bounds, memory persistence, deletion");
+for (const userId of ["batch-a", "batch-b", "batch-c"]) {
+  await store.put(userId, {
+    ...sanitized,
+    updatedAt: Date.now(),
+  });
+}
+
+const firstBatch = await store.listBatch(2);
+assert.equal(firstBatch.items.length, 2);
+assert.ok(firstBatch.continuationToken);
+
+const secondBatch = await store.listBatch(
+  2,
+  firstBatch.continuationToken,
+);
+assert.equal(secondBatch.items.length, 1);
+assert.equal(secondBatch.continuationToken, undefined);
+
+for (const userId of ["batch-a", "batch-b", "batch-c"]) {
+  await store.delete(userId);
+}
+
+console.log("Cloud state smoke passed: auth, bounds, persistence, deletion, pagination");

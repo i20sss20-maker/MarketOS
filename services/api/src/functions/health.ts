@@ -16,7 +16,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   return json(200, {
       ok: true,
       service: "marketos-api",
-      version: "0.5.0",
+      version: "0.6.0",
       environment,
       buildSha: buildSha.slice(0, 12),
       generatedAt: Math.floor(Date.now() / 1000),
@@ -32,6 +32,13 @@ export async function health(_request: HttpRequest, context: InvocationContext):
       userData: {
         provider: userStateStore.mode,
         persistent: userStateStore.mode === "cosmos",
+      },
+      backgroundAlerts: {
+        enabled:
+          (process.env.ALERT_WORKER_ENABLED ?? "")
+            .trim()
+            .toLowerCase() === "true",
+        mode: "scheduled-worker",
       },
     ai: {
       provider: aiProvider,

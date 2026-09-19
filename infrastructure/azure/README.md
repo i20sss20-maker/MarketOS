@@ -139,3 +139,72 @@ V1 sync includes:
 - selected UI/workspace preferences
 
 Provider keys and Azure secrets are never part of the user-state payload.
+
+
+## Background alert worker
+
+MarketOS can evaluate cloud-synced alerts on a schedule even when the browser is closed.
+
+Architecture:
+
+```text
+Azure Functions Timer (Flex Consumption)
+        |
+        | worker secret
+        v
+MarketOS /api/internal/alerts/sweep
+        |
+        +--> Cosmos user states
+        +--> Market Data Gateway
+        +--> shared @marketos/alert-core
+```
+
+The worker intentionally does **not** receive Cosmos or market-data credentials. It only receives:
+
+- the HTTPS internal sweep URL
+- a generated MarketOS worker secret
+- the timer schedule
+
+The API remains the single place that owns provider and user-data access.
+
+### Prerequisite
+
+Persistent Cosmos storage must already be enabled:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-cosmos.ps1
+```
+
+### Create and deploy the scheduled worker
+
+From the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-alert-worker.ps1
+```
+
+Defaults:
+
+- Azure Functions Flex Consumption
+- Node.js 22
+- schedule: every 5 minutes
+- no always-ready instance
+- up to 5 user-state pages per timer execution
+- 10 users per API sweep page
+- up to 5 oldest alert symbol/timeframe groups per user per sweep
+
+The server rotates alert groups by oldest `lastCheckedAt`, so users with more alert groups are processed fairly across timer runs.
+
+The bootstrap:
+
+1. verifies Cosmos persistence is enabled
+2. creates a worker Storage Account if needed
+3. creates the Flex Consumption Function App
+4. generates a cryptographically random worker secret
+5. stores the secret in both Azure services without printing it
+6. builds the TypeScript worker
+7. packages production dependencies
+8. deploys the zip package to Azure Functions
+9. enables `ALERT_WORKER_ENABLED=true` in MarketOS System Health
+
+Azure Functions Flex Consumption is execution-based. No always-ready worker is created by the MarketOS bootstrap.

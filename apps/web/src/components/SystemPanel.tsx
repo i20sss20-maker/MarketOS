@@ -149,6 +149,21 @@ export default function SystemPanel({
                       : "تخزين مؤقت للتطوير فقط"}
                   </small>
                 </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
+                    <StatusDot mode={health.backgroundAlerts.enabled ? "provider" : "demo"} />
+                    <strong>Background Alerts</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.backgroundAlerts.enabled ? "Azure Timer Worker" : "Manual only"}
+                  </span>
+                  <small>
+                    {health.backgroundAlerts.enabled
+                      ? "فحص تنبيهات مجدول حتى عند إغلاق MarketOS"
+                      : "التنبيهات السحابية تعمل يدويًا فقط"}
+                  </small>
+                </article>
               </div>
 
               <div className="system-footnote">

@@ -95,4 +95,36 @@ export class CosmosUserStateStore implements UserStateStore {
       if (statusCode !== 404) throw error;
     }
   }
+
+  async listBatch(
+    limit: number,
+    continuationToken?: string,
+  ) {
+    const container = await this.container();
+    const bounded = Math.min(100, Math.max(1, Math.floor(limit)));
+
+    const response = await container.items
+      .query<StoredUserState>(
+        {
+          query: "SELECT * FROM c WHERE c.id = @id",
+          parameters: [
+            {
+              name: "@id",
+              value: "state",
+            },
+          ],
+        },
+        {
+          maxItemCount: bounded,
+          continuationToken,
+        },
+      )
+      .fetchNext();
+
+    return {
+      items: response.resources ?? [],
+      continuationToken:
+        response.continuationToken || undefined,
+    };
+  }
 }

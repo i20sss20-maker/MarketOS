@@ -16,9 +16,18 @@ export type StoredUserState = {
   payload: UserCloudState;
 };
 
+export type UserStateBatch = {
+  items: StoredUserState[];
+  continuationToken?: string;
+};
+
 export interface UserStateStore {
   readonly mode: "memory" | "cosmos";
   get(userId: string): Promise<StoredUserState | null>;
   put(userId: string, state: UserCloudState): Promise<StoredUserState>;
   delete(userId: string): Promise<void>;
+  listBatch(
+    limit: number,
+    continuationToken?: string,
+  ): Promise<UserStateBatch>;
 }
