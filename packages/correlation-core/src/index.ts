@@ -77,8 +77,18 @@ function pearson(left: number[], right: number[]) {
     rightSquares += rightDelta ** 2;
   }
 
+  const varianceTolerance = 1e-20;
+  if (
+    leftSquares <= varianceTolerance ||
+    rightSquares <= varianceTolerance
+  ) {
+    return null;
+  }
+
   const denominator = Math.sqrt(leftSquares * rightSquares);
-  if (denominator === 0) return null;
+  if (!Number.isFinite(denominator) || denominator <= varianceTolerance) {
+    return null;
+  }
 
   return Math.max(-1, Math.min(1, numerator / denominator));
 }
