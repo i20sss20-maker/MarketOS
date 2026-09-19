@@ -26,6 +26,7 @@ import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
+import { buildDataWindowSnapshot } from "./lib/dataWindow";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoFeed } from "./lib/demoFeed";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
@@ -709,6 +710,18 @@ export default function App() {
   const lastCandle = displayCandles[displayCandles.length - 1];
   const previousDisplayedCandle = displayCandles[displayCandles.length - 2];
   const inspectedCandle = hoverCandle ?? lastCandle;
+  const dataWindowSnapshot = useMemo(
+    () =>
+      inspectedCandle
+        ? buildDataWindowSnapshot(
+            displayCandles,
+            inspectedCandle.time,
+            indicators,
+            customIndicators,
+          )
+        : null,
+    [displayCandles, inspectedCandle, indicators, customIndicators],
+  );
   const isActiveWatchlisted = watchlist.some((symbol) => symbol.id === active.id);
   const displayedPrice = replayActive ? lastCandle?.close : quote?.price ?? lastCandle?.close;
   const displayedPercent = replayActive && lastCandle && previousDisplayedCandle
@@ -3204,6 +3217,63 @@ export default function App() {
             <div><span>الشموع</span><strong>{displayCandles.length}</strong></div>
             <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
           </div>
+
+          {dataWindowSnapshot ? (
+            <section className="data-window">
+              <div className="data-window-head">
+                <div>
+                  <span className="data-window-eyebrow">DATA WINDOW</span>
+                  <strong>
+                    {hoverCandle ? "شمعة المؤشر" : "آخر شمعة"}
+                  </strong>
+                </div>
+                <small dir="ltr">
+                  {new Date(dataWindowSnapshot.time * 1000).toLocaleString("en-GB", {
+                    dateStyle: "short",
+                    timeStyle: "short",
+                  })}
+                </small>
+              </div>
+
+              <div className="data-window-ohlcv">
+                <div><span>O</span><strong>{formatPrice(dataWindowSnapshot.candle.open)}</strong></div>
+                <div><span>H</span><strong>{formatPrice(dataWindowSnapshot.candle.high)}</strong></div>
+                <div><span>L</span><strong>{formatPrice(dataWindowSnapshot.candle.low)}</strong></div>
+                <div><span>C</span><strong>{formatPrice(dataWindowSnapshot.candle.close)}</strong></div>
+                <div className="data-window-volume">
+                  <span>VOL</span>
+                  <strong>{formatVolume(dataWindowSnapshot.candle.volume)}</strong>
+                </div>
+              </div>
+
+              {dataWindowSnapshot.rows.length > 0 ? (
+                <div className="data-window-indicators">
+                  {dataWindowSnapshot.rows.map((row) => (
+                    <div className="data-window-row" key={row.id}>
+                      <span>{row.label}</span>
+                      <strong dir="ltr">
+                        {row.value === null ? "—" : formatPrice(row.value)}
+                      </strong>
+                      {row.secondaryLabel ? (
+                        <>
+                          <small>{row.secondaryLabel}</small>
+                          <b dir="ltr">
+                            {row.secondaryValue === null || row.secondaryValue === undefined
+                              ? "—"
+                              : formatPrice(row.secondaryValue)}
+                          </b>
+                        </>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="data-window-empty">
+                  فعّل مؤشرات لعرض قيمها عند نفس الشمعة.
+                </div>
+              )}
+            </section>
+          ) : null}
 
           <div className="notice">
             {dataError
