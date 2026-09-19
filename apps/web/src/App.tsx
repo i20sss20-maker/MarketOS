@@ -18,6 +18,7 @@ import type {
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
+import CommercialSkeleton from "./components/CommercialSkeleton";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
@@ -2061,7 +2062,7 @@ export default function App() {
           </div>
         </div>
       ) : null}
-      {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
+      {dataState === "loading" && !replayActive ? <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز الشارت</strong><small>يتم تحميل بيانات السوق</small></div> : null}
       {dataState === "provider" ? <div className="chart-mode live">LIVE</div> : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
       {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
@@ -2095,7 +2096,7 @@ export default function App() {
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayComparisonCandles.length === 0 ? (
-        <div className="chart-state">تحميل Pane 2…</div>
+        <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز Pane 2</strong></div>
       ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2128,7 +2129,7 @@ export default function App() {
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayThirdChartCandles.length === 0 ? (
-        <div className="chart-state">تحميل Pane 3…</div>
+        <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز Pane 3</strong></div>
       ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2161,7 +2162,7 @@ export default function App() {
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayFourthChartCandles.length === 0 ? (
-        <div className="chart-state">تحميل Pane 4…</div>
+        <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز Pane 4</strong></div>
       ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2627,6 +2628,9 @@ export default function App() {
           ) : null}
 
           <div className="symbol-list watchlist-v2-list">
+            {watchlistLoading && !query.trim() && watchlistOverview.length === 0 ? (
+              <CommercialSkeleton rows={7} compact label="جاري تحديث قائمة المتابعة" />
+            ) : null}
             {visibleSymbols.map((symbol) => {
               const rowQuote =
                 watchlistQuoteMap.get(symbol.id) ??
