@@ -104,6 +104,25 @@ export type MarketEventsResult = {
   cached?: boolean;
 };
 
+export type CompanyRelease = {
+  id: string;
+  symbol: string;
+  name?: string;
+  exchange?: string;
+  micCode?: string;
+  datetime: string;
+  title: string;
+  bodyText: string;
+  languages: string[];
+  source: string;
+};
+
+export type CompanyFeedResult = {
+  provider: string;
+  generatedAt: number;
+  releases: CompanyRelease[];
+};
+
 export interface MarketDataProvider {
   readonly id: string;
   searchSymbols(query: string): Promise<MarketSymbol[]>;
