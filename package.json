@@ -21,7 +21,8 @@
     "smoke:feed-provider": "node scripts/feed-provider-smoke.mjs",
     "smoke:screener": "node scripts/screener-smoke.mjs",
     "smoke:multi-timeframe": "node scripts/multi-timeframe-smoke.mjs",
-    "smoke:alerts": "node scripts/alerts-smoke.mjs"
+    "smoke:alerts": "node scripts/alerts-smoke.mjs",
+    "smoke:correlation": "node scripts/correlation-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
@@ -29,4 +30,4 @@
   "engines": {
     "node": "20.x"
   }
-}
+}\n
