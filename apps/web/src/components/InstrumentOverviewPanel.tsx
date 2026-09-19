@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   calculateInstrumentStats,
 } from "@marketos/market-stats-core";
@@ -88,6 +88,15 @@ export default function InstrumentOverviewPanel({
     () => calculateInstrumentStats(candles, replayMode ? null : quote),
     [candles, quote, replayMode],
   );
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
 
   if (!open) return null;
 
