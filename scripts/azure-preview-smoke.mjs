@@ -99,11 +99,19 @@ assert.ok(
 const bootstrap = readFileSync("infrastructure/azure/bootstrap-preview.ps1", "utf8");
 assert.ok(bootstrap.includes("rg-marketos-dev"), "Bootstrap script must stay scoped to the MarketOS dev resource group");
 assert.ok(bootstrap.includes("--sku Free"), "Bootstrap script must create a Free Static Web App");
+assert.ok(
+  !bootstrap.includes("USER_DATA_PROVIDER=memory"),
+  "Preview bootstrap must not downgrade persistent Cosmos storage to memory",
+);
 
 const cosmosBootstrap = readFileSync("infrastructure/azure/bootstrap-cosmos.ps1", "utf8");
 assert.ok(cosmosBootstrap.includes("--enable-free-tier true"), "Cosmos bootstrap must request Free Tier");
 assert.ok(cosmosBootstrap.includes("--partition-key-path \"/userId\""), "Cosmos user state must partition by /userId");
 assert.ok(!cosmosBootstrap.includes("Write-Host $connectionString"), "Cosmos connection string must never be printed");
+assert.ok(
+  cosmosBootstrap.includes("USER_DATA_PROVIDER=cosmos"),
+  "Cosmos bootstrap must explicitly enable persistent user storage",
+);
 
 console.log(
   `Azure preview smoke test passed: ${javascriptFiles.length} staged API JS files, Node ${config.platform.apiRuntime}`,
