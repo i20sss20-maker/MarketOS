@@ -26,7 +26,9 @@
     "smoke:cloud-state": "node scripts/cloud-state-smoke.mjs",
     "smoke:server-alerts": "node scripts/server-alerts-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
-    "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs"
+    "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
+    "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",
+    "smoke:background-alerts": "node scripts/background-alert-sweep-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
