@@ -31,8 +31,15 @@ export async function userState(
         storageMode: userStateStore.mode,
         state: stored
           ? {
-              ...stored.payload,
+              version: stored.payload.version,
+              updatedAt: stored.payload.updatedAt,
+              watchlist: stored.payload.watchlist,
+              workspaces: stored.payload.workspaces,
+              alerts: stored.payload.alerts,
               alertEvents: stored.payload.alertEvents ?? [],
+              chartSettings: stored.payload.chartSettings,
+              customIndicators: stored.payload.customIndicators,
+              ui: stored.payload.ui,
             }
           : null,
         updatedAt: stored?.updatedAt ?? null,
@@ -47,8 +54,9 @@ export async function userState(
         user.userId,
         {
           ...state,
-          // The browser owns preferences; the server owns alert-delivery history.
+          // The browser owns preferences; the server owns alert delivery + device registrations.
           alertEvents: existing?.payload.alertEvents ?? [],
+          pushSubscriptions: existing?.payload.pushSubscriptions ?? [],
         },
       );
 
