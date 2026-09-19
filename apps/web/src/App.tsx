@@ -28,6 +28,7 @@ import MarketChart, {
 import PaneVisualControls from "./components/PaneVisualControls";
 import CommercialTopBar from "./components/CommercialTopBar";
 import HomeDashboard from "./components/HomeDashboard";
+import ReplaySetupPanel from "./components/ReplaySetupPanel";
 import CommandPalette, { type CommandPaletteItem } from "./components/CommandPalette";
 import AccountPanel from "./components/AccountPanel";
 import CommercialAiPanel from "./components/CommercialAiPanel";
@@ -63,6 +64,14 @@ import {
   type CloudStateResponse,
 } from "./lib/cloudState";
 import { buildDataWindowSnapshot } from "./lib/dataWindow";
+import {
+  buildReplaySessionStats,
+  defaultReplayStartIndex,
+  isReplaySpeed,
+  replayIntervalMs,
+  replaySpeeds,
+  type ReplaySpeed,
+} from "./lib/replay";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
 import { createBrowserDemoFeed } from "./lib/demoFeed";
 import { createBrowserDemoEvents, localDateRange } from "./lib/demoEvents";
@@ -545,7 +554,13 @@ export default function App() {
   const [maximizedChartPane, setMaximizedChartPane] = useState<MaximizedChartPane>(null);
   const [replayActive, setReplayActive] = useState(false);
   const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [replayStartIndex, setReplayStartIndex] = useState<number | null>(null);
   const [replayPlaying, setReplayPlaying] = useState(false);
+  const [showReplaySetup, setShowReplaySetup] = useState(false);
+  const [replaySpeed, setReplaySpeed] = useState<ReplaySpeed>(() => {
+    const saved = readSaved<string>("marketos:replay-speed", "1x");
+    return isReplaySpeed(saved) ? saved : "1x";
+  });
   const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
 
   const [alerts, setAlerts] = useState<AdvancedAlert[]>(() => loadAlerts(timeframe));
@@ -1361,25 +1376,57 @@ export default function App() {
 
     const timer = window.setInterval(() => {
       setReplayIndex((current) => {
-        const index = current ?? Math.max(20, candles.length - 60);
+        const index =
+          current ??
+          replayStartIndex ??
+          defaultReplayStartIndex(candles.length);
+
         if (index >= candles.length - 1) {
           setReplayPlaying(false);
           return candles.length - 1;
         }
+
         return index + 1;
       });
-    }, 650);
+    }, replayIntervalMs(replaySpeed));
 
     return () => window.clearInterval(timer);
-  }, [replayActive, replayPlaying, candles.length]);
+  }, [
+    replayActive,
+    replayPlaying,
+    replayStartIndex,
+    replaySpeed,
+    candles.length,
+  ]);
 
   useEffect(() => {
     if (!replayActive || candles.length === 0) return;
-    setReplayIndex((current) => {
-      if (current === null) return Math.max(20, candles.length - 60);
-      return Math.min(current, candles.length - 1);
-    });
-  }, [replayActive, candles.length]);
+
+    const fallback =
+      defaultReplayStartIndex(candles.length);
+
+    setReplayStartIndex((current) =>
+      current === null
+        ? fallback
+        : Math.min(
+            Math.max(20, current),
+            candles.length - 1,
+          ),
+    );
+
+    setReplayIndex((current) =>
+      current === null
+        ? replayStartIndex ?? fallback
+        : Math.min(
+            Math.max(20, current),
+            candles.length - 1,
+          ),
+    );
+  }, [
+    replayActive,
+    candles.length,
+    replayStartIndex,
+  ]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -2466,7 +2513,8 @@ export default function App() {
         showStrategyTester ||
         showIndicatorLab ||
         showCompanyFeed ||
-        showObjectTree
+        showObjectTree ||
+        showReplaySetup
       ) {
         return;
       }
@@ -2507,6 +2555,7 @@ export default function App() {
     showIndicatorLab,
     showCompanyFeed,
     showObjectTree,
+    showReplaySetup,
   ]);
 
   const clearComparison = () => {
@@ -2647,9 +2696,21 @@ export default function App() {
 
   const startReplay = () => {
     if (candles.length < 25) return;
+    setReplayPlaying(false);
+    setShowReplaySetup(true);
+  };
+
+  const beginReplayAt = (index: number) => {
+    const safe = Math.min(
+      Math.max(20, Math.floor(index)),
+      Math.max(20, candles.length - 1),
+    );
+
+    setReplayStartIndex(safe);
+    setReplayIndex(safe);
     setReplayActive(true);
     setReplayPlaying(false);
-    setReplayIndex(Math.max(20, candles.length - 60));
+    setShowReplaySetup(false);
     setHoverCandle(null);
   };
 
@@ -2657,14 +2718,39 @@ export default function App() {
     setReplayActive(false);
     setReplayPlaying(false);
     setReplayIndex(null);
+    setReplayStartIndex(null);
     setHoverCandle(null);
   };
 
   const stepReplay = (delta: number) => {
+    setReplayPlaying(false);
     setReplayIndex((current) => {
-      const base = current ?? Math.max(20, candles.length - 60);
-      return Math.min(Math.max(20, base + delta), Math.max(20, candles.length - 1));
+      const base =
+        current ??
+        replayStartIndex ??
+        defaultReplayStartIndex(candles.length);
+
+      return Math.min(
+        Math.max(
+          replayStartIndex ?? 20,
+          base + delta,
+        ),
+        Math.max(20, candles.length - 1),
+      );
     });
+    setHoverCandle(null);
+  };
+
+  const resetReplayToStart = () => {
+    if (replayStartIndex === null) return;
+    setReplayPlaying(false);
+    setReplayIndex(replayStartIndex);
+    setHoverCandle(null);
+  };
+
+  const changeReplaySpeed = (speed: ReplaySpeed) => {
+    setReplaySpeed(speed);
+    saveSetting("marketos:replay-speed", speed);
   };
 
   const addAdvancedAlert = (
@@ -3373,6 +3459,16 @@ export default function App() {
         timeStyle: "short",
       })
     : null;
+
+  const replayStats =
+    replayActive &&
+    replayStartIndex !== null
+      ? buildReplaySessionStats(
+          candles,
+          replayStartIndex,
+          safeReplayIndex,
+        )
+      : null;
 
   const multiChartSymbolOptions = useMemo(
     () => [
@@ -4336,6 +4432,15 @@ export default function App() {
         }
       />
 
+      <ReplaySetupPanel
+        open={showReplaySetup}
+        ticker={active.ticker}
+        timeframe={timeframe}
+        candles={candles}
+        onClose={() => setShowReplaySetup(false)}
+        onStart={beginReplayAt}
+      />
+
       <HomeDashboard
         open={showHomeDashboard}
         autoOpenEnabled={homeAutoOpen}
@@ -5294,35 +5399,139 @@ export default function App() {
             </div>
 
             {replayActive ? (
-              <div className="replay-controls" dir="ltr">
-                <button onClick={() => stepReplay(-1)} disabled={safeReplayIndex <= 20}>‹</button>
-                <button
-                  className={replayPlaying ? "selected" : ""}
-                  onClick={() => setReplayPlaying((value) => !value)}
-                >
-                  {replayPlaying ? "Ⅱ" : "▶"}
-                </button>
-                <button
-                  onClick={() => stepReplay(1)}
-                  disabled={safeReplayIndex >= candles.length - 1}
-                >
-                  ›
-                </button>
-                <input
-                  type="range"
-                  min={20}
-                  max={Math.max(20, candles.length - 1)}
-                  value={Math.max(20, safeReplayIndex)}
-                  onChange={(event) => {
-                    setReplayPlaying(false);
-                    setReplayIndex(Number(event.target.value));
-                    setHoverCandle(null);
-                  }}
-                />
-                <span className="replay-progress">
-                  {Math.min(candles.length, safeReplayIndex + 1)} / {candles.length}
-                </span>
-                <span className="replay-date">{replayDateLabel}</span>
+              <div className="replay-v2-shell">
+                <div className="replay-controls" dir="ltr">
+                  <button
+                    onClick={resetReplayToStart}
+                    disabled={
+                      replayStartIndex === null ||
+                      safeReplayIndex <= replayStartIndex
+                    }
+                    title="العودة لبداية الجلسة"
+                  >
+                    ↺
+                  </button>
+                  <button
+                    onClick={() => stepReplay(-20)}
+                    disabled={
+                      safeReplayIndex <= (replayStartIndex ?? 20)
+                    }
+                    title="رجوع 20 شمعة"
+                  >
+                    -20
+                  </button>
+                  <button
+                    onClick={() => stepReplay(-5)}
+                    disabled={
+                      safeReplayIndex <= (replayStartIndex ?? 20)
+                    }
+                    title="رجوع 5 شمعات"
+                  >
+                    -5
+                  </button>
+                  <button
+                    onClick={() => stepReplay(-1)}
+                    disabled={
+                      safeReplayIndex <= (replayStartIndex ?? 20)
+                    }
+                    title="شمعة للخلف"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    className={replayPlaying ? "selected" : ""}
+                    onClick={() => setReplayPlaying((value) => !value)}
+                  >
+                    {replayPlaying ? "Ⅱ" : "▶"}
+                  </button>
+                  <button
+                    onClick={() => stepReplay(1)}
+                    disabled={safeReplayIndex >= candles.length - 1}
+                    title="شمعة للأمام"
+                  >
+                    ›
+                  </button>
+                  <button
+                    onClick={() => stepReplay(5)}
+                    disabled={safeReplayIndex >= candles.length - 1}
+                    title="تقدم 5 شمعات"
+                  >
+                    +5
+                  </button>
+                  <button
+                    onClick={() => stepReplay(20)}
+                    disabled={safeReplayIndex >= candles.length - 1}
+                    title="تقدم 20 شمعة"
+                  >
+                    +20
+                  </button>
+
+                  <div className="replay-speed-group">
+                    {replaySpeeds.map((speed) => (
+                      <button
+                        key={speed}
+                        className={
+                          replaySpeed === speed
+                            ? "selected"
+                            : ""
+                        }
+                        onClick={() => changeReplaySpeed(speed)}
+                      >
+                        {speed}
+                      </button>
+                    ))}
+                  </div>
+
+                  <input
+                    type="range"
+                    min={replayStartIndex ?? 20}
+                    max={Math.max(20, candles.length - 1)}
+                    value={Math.max(
+                      replayStartIndex ?? 20,
+                      safeReplayIndex,
+                    )}
+                    onChange={(event) => {
+                      setReplayPlaying(false);
+                      setReplayIndex(Number(event.target.value));
+                      setHoverCandle(null);
+                    }}
+                  />
+                  <span className="replay-progress">
+                    {Math.min(candles.length, safeReplayIndex + 1)} / {candles.length}
+                  </span>
+                  <span className="replay-date">{replayDateLabel}</span>
+                </div>
+
+                {replayStats ? (
+                  <div className="replay-session-stats" dir="ltr">
+                    <span>
+                      Move
+                      <b className={replayStats.movePercent >= 0 ? "positive" : "negative"}>
+                        {formatPercent(replayStats.movePercent)}
+                      </b>
+                    </span>
+                    <span>
+                      Range
+                      <b>{formatPercent(replayStats.rangePercent)}</b>
+                    </span>
+                    <span>
+                      High
+                      <b>{formatPrice(replayStats.sessionHigh)}</b>
+                    </span>
+                    <span>
+                      Low
+                      <b>{formatPrice(replayStats.sessionLow)}</b>
+                    </span>
+                    <span>
+                      Left
+                      <b>{replayStats.remainingBars}</b>
+                    </span>
+                    <span>
+                      Progress
+                      <b>{replayStats.progressPercent.toFixed(0)}%</b>
+                    </span>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="replay-idle-note">إعادة تشغيل تاريخية من نفس بيانات الشارت</div>
