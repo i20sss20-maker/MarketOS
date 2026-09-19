@@ -6,6 +6,7 @@
     "MARKET_DATA_PROVIDER": "demo",
     "TWELVE_DATA_API_KEY": "",
     "MARKETOS_WEB_ORIGIN": "http://localhost:5173",
-    "MARKET_EVENTS_PROVIDER": "demo"
+    "MARKET_EVENTS_PROVIDER": "demo",
+    "MARKET_FEED_PROVIDER": "demo"
   }
 }
