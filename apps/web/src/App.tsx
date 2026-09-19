@@ -1,4 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  applySmartScreener,
+  parseSmartScreenerQuery,
+} from "@marketos/screener-core";
 import type {
   Candle,
   ChartAnalysisResponse,
@@ -191,6 +195,8 @@ export default function App() {
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [screenerMode, setScreenerMode] = useState<ScreenerMode>("heatmap");
   const [screenerFilter, setScreenerFilter] = useState<ScreenerFilter>("all");
+  const [smartScreenerQuery, setSmartScreenerQuery] = useState("");
+  const [appliedSmartScreenerQuery, setAppliedSmartScreenerQuery] = useState("");
   const [overview, setOverview] = useState<MarketOverviewItem[]>([]);
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
@@ -1158,17 +1164,47 @@ export default function App() {
                 ? "الملاحظة: انقر مكان النص على الشارت"
                 : null;
 
-  const filteredOverview = useMemo(
+  const manualFilteredOverview = useMemo(
     () => overview.filter((item) => overviewMatchesFilter(item, screenerFilter)),
     [overview, screenerFilter],
   );
 
-  const sortedOverview = useMemo(
-    () => [...filteredOverview].sort(
-      (a, b) => (b.quote.percentChange ?? 0) - (a.quote.percentChange ?? 0),
-    ),
-    [filteredOverview],
+  const smartScreenerParsed = useMemo(
+    () => parseSmartScreenerQuery(appliedSmartScreenerQuery),
+    [appliedSmartScreenerQuery],
   );
+
+  const smartScreenerActive =
+    appliedSmartScreenerQuery.trim().length > 0 &&
+    smartScreenerParsed.recognized.length > 0;
+
+  const filteredOverview = useMemo(
+    () =>
+      smartScreenerActive
+        ? applySmartScreener(manualFilteredOverview, smartScreenerParsed.rule)
+        : manualFilteredOverview,
+    [manualFilteredOverview, smartScreenerActive, smartScreenerParsed.rule],
+  );
+
+  const sortedOverview = useMemo(
+    () =>
+      smartScreenerActive && smartScreenerParsed.rule.sortBy
+        ? filteredOverview
+        : [...filteredOverview].sort(
+            (a, b) => (b.quote.percentChange ?? 0) - (a.quote.percentChange ?? 0),
+          ),
+    [filteredOverview, smartScreenerActive, smartScreenerParsed.rule.sortBy],
+  );
+
+  const applySmartQuery = () => {
+    const trimmed = smartScreenerQuery.trim();
+    setAppliedSmartScreenerQuery(trimmed);
+  };
+
+  const clearSmartQuery = () => {
+    setSmartScreenerQuery("");
+    setAppliedSmartScreenerQuery("");
+  };
 
   const screenerAdvancers = filteredOverview.filter((item) => (item.quote.percentChange ?? 0) > 0).length;
   const screenerDecliners = filteredOverview.filter((item) => (item.quote.percentChange ?? 0) < 0).length;
@@ -1451,6 +1487,64 @@ export default function App() {
                 <button className="scanner-close" onClick={() => setShowScreener(false)}>×</button>
               </div>
             </header>
+
+            <div className="smart-screener-box">
+              <div className="smart-screener-head">
+                <div>
+                  <span className="smart-screener-eyebrow">SMART SCREENER</span>
+                  <strong>اسأل السوق</strong>
+                </div>
+                {smartScreenerActive ? (
+                  <button className="smart-screener-clear" onClick={clearSmartQuery}>
+                    مسح
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="smart-screener-input-row">
+                <input
+                  value={smartScreenerQuery}
+                  onChange={(event) => setSmartScreenerQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") applySmartQuery();
+                  }}
+                  placeholder="مثال: الأسهم الصاعدة أكثر من 2% والحجم فوق 1M"
+                />
+                <button onClick={applySmartQuery} disabled={!smartScreenerQuery.trim()}>
+                  تطبيق
+                </button>
+              </div>
+
+              <div className="smart-screener-examples">
+                {[
+                  "الأسهم الصاعدة أكثر من 2%",
+                  "crypto down below -3%",
+                  "الحجم فوق 1M أعلى 5",
+                  "السعر تحت 100 والحجم فوق 500K",
+                ].map((example) => (
+                  <button
+                    key={example}
+                    onClick={() => {
+                      setSmartScreenerQuery(example);
+                      setAppliedSmartScreenerQuery(example);
+                    }}
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+
+              {appliedSmartScreenerQuery.trim() ? (
+                <div className={smartScreenerActive ? "smart-screener-summary active" : "smart-screener-summary"}>
+                  <span>
+                    {smartScreenerActive
+                      ? smartScreenerParsed.summary
+                      : "ما تعرفت على فلتر واضح. جرّب نسبة تغير أو سعر أو حجم أو نوع سوق."}
+                  </span>
+                  <b>{filteredOverview.length} نتيجة</b>
+                </div>
+              ) : null}
+            </div>
 
             <div className="scanner-controls">
               <div className="scanner-filter-row">

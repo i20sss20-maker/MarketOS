@@ -51,6 +51,9 @@ jobs:
       - name: Market events runtime smoke test
         run: pnpm smoke:events
 
+      - name: Smart Screener runtime smoke test
+        run: pnpm smoke:screener
+
       - name: Company Feed demo runtime smoke test
         run: pnpm smoke:feed
 

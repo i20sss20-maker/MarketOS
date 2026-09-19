@@ -14,7 +14,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "@marketos/strategy-core": "workspace:*",
-    "@marketos/formula-core": "workspace:*"
+    "@marketos/formula-core": "workspace:*",
+    "@marketos/screener-core": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.0.2",
