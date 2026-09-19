@@ -11,6 +11,7 @@ import type {
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
 import MarketEventsPanel from "./components/MarketEventsPanel";
+import StrategyTester from "./components/StrategyTester";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart } from "./lib/aiApi";
 import { createDemoCandles, createDemoQuote } from "./lib/demoData";
@@ -152,6 +153,7 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
   const [showScreener, setShowScreener] = useState(false);
+  const [showStrategyTester, setShowStrategyTester] = useState(false);
   const [showSystemPanel, setShowSystemPanel] = useState(false);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
@@ -965,6 +967,10 @@ export default function App() {
             الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
           </button>
 
+          <button className="ghost-button strategy-button" onClick={() => setShowStrategyTester(true)}>
+            الاختبار
+          </button>
+
           <button className="ghost-button system-button" onClick={openSystemPanel}>
             النظام
           </button>
@@ -1046,6 +1052,14 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      <StrategyTester
+        open={showStrategyTester}
+        candles={displayCandles}
+        symbol={active}
+        timeframe={timeframe}
+        onClose={() => setShowStrategyTester(false)}
+      />
 
       <SystemPanel
         open={showSystemPanel}
