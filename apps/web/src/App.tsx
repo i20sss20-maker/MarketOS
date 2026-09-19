@@ -17,6 +17,10 @@ import type {
   Timeframe,
 } from "@marketos/market-core";
 import MarketChart, { type ChartView } from "./components/MarketChart";
+import CommercialTopBar from "./components/CommercialTopBar";
+import CommercialAiPanel from "./components/CommercialAiPanel";
+import CommercialWatchlistPanel from "./components/CommercialWatchlistPanel";
+import DrawingToolIcon from "./components/DrawingToolIcon";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
@@ -243,6 +247,12 @@ export default function App() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [watchlist, setWatchlist] = useState<MarketSymbol[]>(() => loadWatchlist(initialSymbols));
+  const [watchlistOpen, setWatchlistOpen] = useState(
+    () => readSaved<"on" | "off">("marketos:ui-watchlist", "on") === "on",
+  );
+  const [aiPanelOpen, setAiPanelOpen] = useState(
+    () => readSaved<"on" | "off">("marketos:ui-ai", "on") === "on",
+  );
   const [watchlistOverview, setWatchlistOverview] = useState<MarketOverviewItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
@@ -766,6 +776,22 @@ export default function App() {
     setAutoRefreshEnabled((current) => {
       const next = !current;
       saveSetting("marketos:auto-refresh", next ? "on" : "off");
+      return next;
+    });
+  };
+
+  const toggleWatchlistPanel = () => {
+    setWatchlistOpen((current) => {
+      const next = !current;
+      saveSetting("marketos:ui-watchlist", next ? "on" : "off");
+      return next;
+    });
+  };
+
+  const toggleAiPanel = () => {
+    setAiPanelOpen((current) => {
+      const next = !current;
+      saveSetting("marketos:ui-ai", next ? "on" : "off");
       return next;
     });
   };
@@ -2038,8 +2064,8 @@ export default function App() {
           </div>
         </div>
       ) : null}
-      {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
-      {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
+      {dataState === "loading" && !replayActive ? <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز الشارت</strong><small>يتم تحميل بيانات السوق</small></div> : null}
+      {dataState === "provider" ? <div className="chart-mode live">LIVE</div> : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
       {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
     </div>
@@ -2072,7 +2098,7 @@ export default function App() {
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayComparisonCandles.length === 0 ? (
-        <div className="chart-state">تحميل Pane 2…</div>
+        <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز Pane 2</strong></div>
       ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2105,7 +2131,7 @@ export default function App() {
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayThirdChartCandles.length === 0 ? (
-        <div className="chart-state">تحميل Pane 3…</div>
+        <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز Pane 3</strong></div>
       ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2138,7 +2164,7 @@ export default function App() {
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayFourthChartCandles.length === 0 ? (
-        <div className="chart-state">تحميل Pane 4…</div>
+        <div className="chart-state commercial-chart-loading"><span className="commercial-loading-ring" /><strong>جاري تجهيز Pane 4</strong></div>
       ) : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
     </div>
@@ -2146,57 +2172,36 @@ export default function App() {
 
   return (
     <main className="shell">
-      <header className="topbar">
-        <div>
-          <div className="brand">MarketOS <span>alpha</span></div>
-          <div className="tagline">Professional charts, market intelligence, AI-native workflow</div>
-        </div>
-        <div className="top-actions">
-          <div className="status-pill" title={providerStatus?.message}>
-            <span className={`status-dot ${dataState}`} />
-            {providerLabel}
-          </div>
-
-          <button className="ghost-button market-button" onClick={openScreener}>
-            السوق
-          </button>
-
-          <button className="ghost-button correlation-button" onClick={() => setShowCorrelation(true)}>
-            الارتباط
-          </button>
-
-          <button className="ghost-button events-button" onClick={openEvents}>
-            الأحداث {marketEvents.length > 0 ? `(${marketEvents.length})` : ""}
-          </button>
-
-          <button className="ghost-button company-feed-button" onClick={openCompanyFeed}>
-            الشركات {companyReleases.length > 0 ? `(${companyReleases.length})` : ""}
-          </button>
-
-          <button className="ghost-button strategy-button" onClick={() => setShowStrategyTester(true)}>
-            الاختبار
-          </button>
-
-          <button className="ghost-button system-button" onClick={openSystemPanel}>
-            النظام
-          </button>
-
-          <div className="alert-menu-wrap">
+      <CommercialTopBar
+        previewMode={providerStatus?.mode === "demo"}
+        connected={dataState !== "loading"}
+        sessionLabel={sessionLabel}
+        alertCount={activeAlerts.length}
+        eventCount={marketEvents.length}
+        companyCount={companyReleases.length}
+        watchlistOpen={watchlistOpen}
+        aiOpen={aiPanelOpen}
+        onToggleWatchlist={toggleWatchlistPanel}
+        onToggleAi={toggleAiPanel}
+        onMarket={openScreener}
+        onAlerts={() => setShowAlertMenu(true)}
+        onCorrelation={() => setShowCorrelation(true)}
+        onEvents={openEvents}
+        onCompanyFeed={openCompanyFeed}
+        onStrategy={() => setShowStrategyTester(true)}
+        onSystem={openSystemPanel}
+        workspaceSlot={
+          <div className="workspace-menu-wrap commercial-workspace-wrap">
             <button
-              className={activeAlerts.length > 0 ? "ghost-button alerts-v2-button active" : "ghost-button alerts-v2-button"}
-              onClick={() => setShowAlertMenu(true)}
+              className="commercial-workspace-button"
+              onClick={() => setShowWorkspaceMenu((value) => !value)}
             >
-              التنبيهات {activeAlerts.length > 0 ? `(${activeAlerts.length})` : ""}
-            </button>
-          </div>
-
-          <div className="workspace-menu-wrap">
-            <button className="ghost-button" onClick={() => setShowWorkspaceMenu((value) => !value)}>
-              التخطيطات {savedWorkspaces.length > 0 ? `(${savedWorkspaces.length})` : ""}
+              <span>التخطيطات</span>
+              {savedWorkspaces.length > 0 ? <b>{savedWorkspaces.length}</b> : null}
             </button>
 
             {showWorkspaceMenu ? (
-              <div className="workspace-popover" dir="rtl">
+              <div className="workspace-popover commercial-workspace-popover" dir="rtl">
                 <button className="save-workspace-button" onClick={saveCurrentWorkspace}>
                   + حفظ التخطيط الحالي
                 </button>
@@ -2215,7 +2220,13 @@ export default function App() {
                           }
                         </small>
                       </button>
-                      <button className="workspace-delete" onClick={() => deleteWorkspace(workspace.id)} title="حذف">×</button>
+                      <button
+                        className="workspace-delete"
+                        onClick={() => deleteWorkspace(workspace.id)}
+                        title="حذف"
+                      >
+                        ×
+                      </button>
                     </div>
                   ))}
                   {savedWorkspaces.length === 0 ? (
@@ -2225,8 +2236,8 @@ export default function App() {
               </div>
             ) : null}
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <IndicatorLab
         open={showIndicatorLab}
@@ -2530,138 +2541,63 @@ export default function App() {
 
       {alertMessage ? <div className="alert-toast">{alertMessage}</div> : null}
 
-      <section className="market-strip" dir="ltr">
-        <span>MARKET DATA <b>{providerStatus?.provider ?? "detecting"}</b></span>
-        <span>SESSION <b className={sessionState === "open" ? "positive" : sessionState === "closed" ? "negative" : ""}>{sessionLabel}</b></span>
-        <span>AUTO <b>{autoRefreshEnabled && !replayActive ? "ON" : "OFF"}</b></span>
-        <span>US EQUITIES</span>
-        <span>SAUDI EXCHANGE</span>
-        <span>FOREX</span>
-        <span>CRYPTO</span>
-        <span>FUTURES</span>
+      <section className="commercial-market-ribbon" dir="ltr">
+        <span className="commercial-ribbon-session">
+          <i className={`commercial-session-dot ${sessionState}`} />
+          {sessionLabel}
+        </span>
+        <span className="commercial-ribbon-symbol">
+          <b>{active.ticker}</b>
+          <em>{formatPrice(displayedPrice)}</em>
+          <strong className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
+            {formatPercent(displayedPercent)}
+          </strong>
+        </span>
+        <span>{active.exchange}</span>
+        <span>Watchlist <b>{watchlist.length}</b></span>
+        <span>Alerts <b>{activeAlerts.length}</b></span>
+        <span>{replayActive ? "Replay mode" : autoRefreshEnabled ? "Auto refresh" : "Manual refresh"}</span>
       </section>
 
-      <section className="workspace">
-        <aside className="watchlist panel">
-          <div className="watchlist-head">
-            <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
-            <div className="watchlist-head-actions">
-              <button
-                title="تحديث أسعار القائمة"
-                onClick={() => void refreshWatchlistOverview(true)}
-                disabled={watchlistLoading || replayActive}
-              >
-                {watchlistLoading ? "…" : "↻"}
-              </button>
-              <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
-            </div>
-          </div>
-
-          <div className="search-box">
-            <span>{searchLoading ? "…" : "⌕"}</span>
-            <input
-              ref={searchInputRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="ابحث عن سهم أو سوق"
-            />
-          </div>
-
-          {!query.trim() ? (
-            <div className="watchlist-controls">
-              <select
-                value={watchlistFilter}
-                onChange={(event) => {
-                  const value = event.target.value as WatchlistFilter;
-                  setWatchlistFilter(value);
-                  saveSetting("marketos:watchlist-filter", value);
-                }}
-                aria-label="فلتر قائمة المتابعة"
-              >
-                <option value="all">الكل</option>
-                <option value="equities">أسهم</option>
-                <option value="forex">فوركس</option>
-                <option value="crypto">كريبتو</option>
-                <option value="futures">عقود/سلع</option>
-              </select>
-
-              <select
-                value={watchlistSort}
-                onChange={(event) => {
-                  const value = event.target.value as WatchlistSort;
-                  setWatchlistSort(value);
-                  saveSetting("marketos:watchlist-sort", value);
-                }}
-                aria-label="ترتيب قائمة المتابعة"
-              >
-                <option value="manual">ترتيب القائمة</option>
-                <option value="change-desc">الأعلى حركة</option>
-                <option value="change-asc">الأقل حركة</option>
-                <option value="symbol">الرمز A-Z</option>
-              </select>
-            </div>
-          ) : null}
-
-          <div className="symbol-list watchlist-v2-list">
-            {visibleSymbols.map((symbol) => {
-              const rowQuote =
-                watchlistQuoteMap.get(symbol.id) ??
-                (symbol.id === active.id ? quote ?? undefined : undefined);
-              const movement = rowQuote?.percentChange;
-              const alertCount = watchlistAlertCounts.get(symbol.id) ?? 0;
-
-              return (
-                <button
-                  className={`symbol-row watchlist-v2-row ${symbol.id === active.id ? "active" : ""}`}
-                  key={symbol.id}
-                  onClick={() => chooseSymbol(symbol)}
-                >
-                  <span className="symbol-meta">
-                    <strong>
-                      {symbol.ticker}
-                      {alertCount > 0 ? (
-                        <em className="watchlist-alert-count" title={`${alertCount} تنبيه نشط`}>
-                          {alertCount}
-                        </em>
-                      ) : null}
-                    </strong>
-                    <small>{symbol.exchange}</small>
-                    <small className="watchlist-asset-label">{symbol.assetClass}</small>
-                  </span>
-
-                  <span className="watchlist-quote-cell" dir="ltr">
-                    <strong>{formatPrice(rowQuote?.price)}</strong>
-                    <small className={
-                      movement === undefined
-                        ? ""
-                        : movement >= 0
-                          ? "positive"
-                          : "negative"
-                    }>
-                      {formatPercent(movement)}
-                    </small>
-                  </span>
-                </button>
-              );
-            })}
-            {visibleSymbols.length === 0 ? <div className="empty-search">لا توجد نتائج</div> : null}
-          </div>
-
-          {!query.trim() ? (
-            <div className="watchlist-footer">
-              <span>{watchlistProvider}</span>
-              <span>
-                {watchlistUpdatedAt
-                  ? new Date(watchlistUpdatedAt).toLocaleTimeString("ar-SA", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : "—"}
-              </span>
-              {watchlistError ? <small>{watchlistError}</small> : null}
-            </div>
-          ) : null}
-        </aside>
+      <section className={[
+        "workspace",
+        "commercial-workspace",
+        watchlistOpen ? "" : "watchlist-hidden",
+        aiPanelOpen ? "" : "ai-hidden",
+      ].filter(Boolean).join(" ")}>
+        <CommercialWatchlistPanel
+          open={watchlistOpen}
+          title={query.trim() ? "نتائج البحث" : "قائمة المتابعة"}
+          query={query}
+          searchLoading={searchLoading}
+          searchInputRef={searchInputRef}
+          filter={watchlistFilter}
+          sort={watchlistSort}
+          visibleSymbols={visibleSymbols}
+          activeId={active.id}
+          activeQuote={quote ?? undefined}
+          quoteMap={watchlistQuoteMap}
+          alertCounts={watchlistAlertCounts}
+          loading={watchlistLoading}
+          replayActive={replayActive}
+          provider={watchlistProvider}
+          updatedAt={watchlistUpdatedAt}
+          error={watchlistError}
+          onClose={toggleWatchlistPanel}
+          onRefresh={() => void refreshWatchlistOverview(true)}
+          onSearchChange={setQuery}
+          onFilterChange={(value) => {
+            setWatchlistFilter(value);
+            saveSetting("marketos:watchlist-filter", value);
+          }}
+          onSortChange={(value) => {
+            setWatchlistSort(value);
+            saveSetting("marketos:watchlist-sort", value);
+          }}
+          onSelect={chooseSymbol}
+          formatPrice={formatPrice}
+          formatPercent={formatPercent}
+        />
 
         <section className="chart-area panel">
           <div className="instrument-bar">
@@ -2996,14 +2932,14 @@ export default function App() {
                 onClick={undoDrawings}
                 disabled={!canUndoDrawings(drawingHistory)}
               >
-                ↶
+                <DrawingToolIcon name="undo" />
               </button>
               <button
                 title="إعادة · Ctrl/Cmd+Shift+Z"
                 onClick={redoDrawings}
                 disabled={!canRedoDrawings(drawingHistory)}
               >
-                ↷
+                <DrawingToolIcon name="redo" />
               </button>
               <span className="drawing-rail-separator" />
               <button
@@ -3011,49 +2947,49 @@ export default function App() {
                 title="المؤشر والتحريك · V"
                 onClick={() => setDrawingTool("cursor")}
               >
-                ↖
+                <DrawingToolIcon name="cursor" />
               </button>
               <button
                 className={drawingTool === "trend" ? "selected" : ""}
                 title="خط الاتجاه · L"
                 onClick={() => setDrawingTool("trend")}
               >
-                ╱
+                <DrawingToolIcon name="trend" />
               </button>
               <button
                 className={drawingTool === "horizontal" ? "selected" : ""}
                 title="خط أفقي · H"
                 onClick={() => setDrawingTool("horizontal")}
               >
-                ―
+                <DrawingToolIcon name="horizontal" />
               </button>
               <button
                 className={drawingTool === "zone" ? "selected" : ""}
                 title="منطقة سعر"
                 onClick={() => setDrawingTool("zone")}
               >
-                ▭
+                <DrawingToolIcon name="zone" />
               </button>
               <button
                 className={drawingTool === "fibonacci" ? "selected" : ""}
                 title="Fibonacci"
                 onClick={() => setDrawingTool("fibonacci")}
               >
-                ƒ
+                <DrawingToolIcon name="fibonacci" />
               </button>
               <button
                 className={drawingTool === "measure" ? "selected" : ""}
                 title="قياس · M"
                 onClick={() => setDrawingTool("measure")}
               >
-                ↕
+                <DrawingToolIcon name="measure" />
               </button>
               <button
                 className={drawingTool === "text" ? "selected" : ""}
                 title="ملاحظة نصية · N"
                 onClick={() => setDrawingTool("text")}
               >
-                T
+                <DrawingToolIcon name="text" />
               </button>
               <span className="drawing-rail-separator" />
               <button
@@ -3061,7 +2997,7 @@ export default function App() {
                 onClick={clearDrawings}
                 disabled={!drawings.some((drawing) => !drawing.locked)}
               >
-                ⌫
+                <DrawingToolIcon name="clear" />
               </button>
             </div>
 
@@ -3102,194 +3038,34 @@ export default function App() {
           </div>
         </section>
 
-        <aside className="ai-panel panel">
-          <div className="panel-title">MarketOS AI</div>
-          <div className="ai-card">
-            <span className="eyebrow">CHART CONTEXT</span>
-            <h2>اسأل الشارت</h2>
-            <p>
-              سياق الشارت يشمل OHLCV والفريم والمؤشرات النشطة والرسومات المحفوظة. هذي نفس الطبقة اللي بنوصلها بمحرك AI الفعلي.
-            </p>
-          </div>
-
-          <div className="quick-prompts">
-            <button onClick={() => runChartReading("اقرأ الاتجاه الحالي بشكل وصفي")}>اقرأ الاتجاه</button>
-            <button onClick={() => runChartReading("حدد نطاق آخر 20 شمعة والمستويات المرسومة")}>حدد النطاق</button>
-            <button onClick={() => runChartReading("اشرح الحركة والحجم والمؤشرات النشطة")}>اشرح الحركة</button>
-          </div>
-
-          <button
-            className="multi-timeframe-button"
-            onClick={() => void runMultiTimeframeReading()}
-            disabled={multiTimeframeLoading}
-          >
-            <span>Multi‑Timeframe AI</span>
-            <small>15m · 1h · 4h · 1d</small>
-            <b>{multiTimeframeLoading ? "…" : "↗"}</b>
-          </button>
-
-          <div className="prompt-box">
-            <textarea
-              value={aiPrompt}
-              onChange={(event) => setAiPrompt(event.target.value)}
-              maxLength={1200}
-            />
-            <button onClick={() => runChartReading()} disabled={aiLoading}>
-              {aiLoading ? "جاري قراءة السياق…" : "قراءة الشارت"} <span>↗</span>
-            </button>
-          </div>
-
-          {aiResult ? (
-            <div className="ai-result">
-              <strong>{aiResult.summary}</strong>
-              {aiResult.observations.length > 0 ? (
-                <ul>
-                  {aiResult.observations.map((observation, index) => (
-                    <li key={`${index}-${observation.slice(0, 12)}`}>{observation}</li>
-                  ))}
-                </ul>
-              ) : null}
-              <small>Engine: {aiResult.engine}</small>
-            </div>
-          ) : null}
-
-          {multiTimeframeError ? (
-            <div className="multi-timeframe-error">{multiTimeframeError}</div>
-          ) : null}
-
-          {multiTimeframeResult ? (
-            <div className="multi-timeframe-result">
-              <div className="multi-timeframe-summary">
-                <span className={`multi-alignment ${multiTimeframeResult.alignment}`}>
-                  {multiTimeframeResult.alignment === "up"
-                    ? "توافق صاعد"
-                    : multiTimeframeResult.alignment === "down"
-                      ? "توافق هابط"
-                      : multiTimeframeResult.alignment === "sideways"
-                        ? "توافق جانبي"
-                        : "توافق مختلط"}
-                </span>
-                <strong>{multiTimeframeResult.summary}</strong>
-                <small>
-                  النطاق المركب: {formatPrice(multiTimeframeResult.rangeLow)} – {formatPrice(multiTimeframeResult.rangeHigh)}
-                </small>
-              </div>
-
-              <div className="multi-timeframe-grid">
-                {multiTimeframeResult.items.map((item) => (
-                  <article className={`multi-timeframe-card ${item.trend}`} key={item.timeframe}>
-                    <div>
-                      <strong>{item.timeframe.toUpperCase()}</strong>
-                      <span>
-                        {item.trend === "up" ? "صاعد" : item.trend === "down" ? "هابط" : "جانبي"}
-                      </span>
-                    </div>
-                    <b className={item.analysis.metrics.change20 >= 0 ? "positive" : "negative"}>
-                      {formatPercent(item.analysis.metrics.change20)}
-                    </b>
-                    <small>
-                      SMA20 {item.analysis.metrics.distanceFromSma20 >= 0 ? "+" : ""}
-                      {item.analysis.metrics.distanceFromSma20.toFixed(2)}%
-                    </small>
-                  </article>
-                ))}
-              </div>
-
-              {multiTimeframeResult.failures.length > 0 ? (
-                <div className="multi-timeframe-failures">
-                  تعذر: {multiTimeframeResult.failures.map((item) => item.timeframe.toUpperCase()).join("، ")}
-                </div>
-              ) : null}
-
-              <small className="multi-timeframe-engine">
-                Engine: {multiTimeframeResult.engine}
-              </small>
-            </div>
-          ) : null}
-
-          <div className="context-grid">
-            <div><span>الرمز</span><strong>{active.ticker}</strong></div>
-            <div><span>الفريم</span><strong>{timeframe.toUpperCase()}</strong></div>
-            <div><span>المؤشرات</span><strong>{activeIndicatorItems.length + activeCustomIndicators.length}</strong></div>
-            <div><span>الرسومات</span><strong>{drawings.length}</strong></div>
-            <div><span>المقارنة</span><strong>{comparisonSymbol?.ticker ?? "—"}</strong></div>
-            <div><span>التنبيهات</span><strong>{activeAlerts.length}</strong></div>
-            <div><span>الشموع</span><strong>{displayCandles.length}</strong></div>
-            <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
-          </div>
-
-          {dataWindowSnapshot ? (
-            <section className="data-window">
-              <div className="data-window-head">
-                <div>
-                  <span className="data-window-eyebrow">DATA WINDOW</span>
-                  <strong>
-                    {hoverCandle ? "شمعة المؤشر" : "آخر شمعة"}
-                  </strong>
-                </div>
-                <small dir="ltr">
-                  {new Date(dataWindowSnapshot.time * 1000).toLocaleString("en-GB", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
-                </small>
-              </div>
-
-              <div className="data-window-ohlcv">
-                <div><span>O</span><strong>{formatPrice(dataWindowSnapshot.candle.open)}</strong></div>
-                <div><span>H</span><strong>{formatPrice(dataWindowSnapshot.candle.high)}</strong></div>
-                <div><span>L</span><strong>{formatPrice(dataWindowSnapshot.candle.low)}</strong></div>
-                <div><span>C</span><strong>{formatPrice(dataWindowSnapshot.candle.close)}</strong></div>
-                <div className="data-window-volume">
-                  <span>VOL</span>
-                  <strong>{formatVolume(dataWindowSnapshot.candle.volume)}</strong>
-                </div>
-              </div>
-
-              {dataWindowSnapshot.rows.length > 0 ? (
-                <div className="data-window-indicators">
-                  {dataWindowSnapshot.rows.map((row) => (
-                    <div className="data-window-row" key={row.id}>
-                      <span>{row.label}</span>
-                      <strong dir="ltr">
-                        {row.value === null ? "—" : formatPrice(row.value)}
-                      </strong>
-                      {row.secondaryLabel ? (
-                        <>
-                          <small>{row.secondaryLabel}</small>
-                          <b dir="ltr">
-                            {row.secondaryValue === null || row.secondaryValue === undefined
-                              ? "—"
-                              : formatPrice(row.secondaryValue)}
-                          </b>
-                        </>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="data-window-empty">
-                  فعّل مؤشرات لعرض قيمها عند نفس الشمعة.
-                </div>
-              )}
-            </section>
-          ) : null}
-
-          <div className="notice">
-            {dataError
-              ? "وضع البيانات التجريبية نشط مؤقتًا لأن مصدر البيانات المباشر غير متصل."
-              : providerStatus?.mode === "demo"
-                ? "وضع البيانات التجريبية نشط للتطوير. عند ربط مزود السوق ستظهر البيانات من المصدر مباشرة."
-                : providerStatus?.message ?? "Market Data V1 active."}
-          </div>
-
-          <div className="chart-attribution">
-            Charts powered by{" "}
-            <a href="https://www.tradingview.com/" target="_blank" rel="noreferrer">
-              TradingView Lightweight Charts™
-            </a>
-          </div>
-        </aside>
+        <CommercialAiPanel
+          open={aiPanelOpen}
+          prompt={aiPrompt}
+          aiLoading={aiLoading}
+          multiTimeframeLoading={multiTimeframeLoading}
+          aiResult={aiResult}
+          multiTimeframeResult={multiTimeframeResult}
+          multiTimeframeError={multiTimeframeError}
+          ticker={active.ticker}
+          timeframe={timeframe}
+          indicatorCount={activeIndicatorItems.length + activeCustomIndicators.length}
+          drawingCount={drawings.length}
+          comparisonTicker={comparisonSymbol?.ticker}
+          alertCount={activeAlerts.length}
+          candleCount={displayCandles.length}
+          source={quote?.source ?? "fallback"}
+          dataWindow={dataWindowSnapshot}
+          dataError={dataError}
+          previewMode={providerStatus?.mode === "demo"}
+          providerMessage={providerStatus?.message}
+          onClose={toggleAiPanel}
+          onPromptChange={setAiPrompt}
+          onRead={(prompt) => void runChartReading(prompt)}
+          onMultiTimeframe={() => void runMultiTimeframeReading()}
+          formatPrice={formatPrice}
+          formatPercent={formatPercent}
+          formatVolume={formatVolume}
+        />
       </section>
     </main>
   );
