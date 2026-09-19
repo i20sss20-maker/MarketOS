@@ -75,8 +75,8 @@ export class CosmosUserStateStore implements UserStateStore {
       },
     };
 
-    const response = await container.items.upsert(stored);
-    return response.resource ?? stored;
+    await container.items.upsert(stored);
+    return stored;
   }
 
   async delete(userId: string) {
