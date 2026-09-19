@@ -20,6 +20,7 @@ import MarketChart, { type ChartView } from "./components/MarketChart";
 import CommercialTopBar from "./components/CommercialTopBar";
 import CommercialAiPanel from "./components/CommercialAiPanel";
 import CommercialWatchlistPanel from "./components/CommercialWatchlistPanel";
+import DrawingToolIcon from "./components/DrawingToolIcon";
 import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
@@ -2931,14 +2932,14 @@ export default function App() {
                 onClick={undoDrawings}
                 disabled={!canUndoDrawings(drawingHistory)}
               >
-                ↶
+                <DrawingToolIcon name="undo" />
               </button>
               <button
                 title="إعادة · Ctrl/Cmd+Shift+Z"
                 onClick={redoDrawings}
                 disabled={!canRedoDrawings(drawingHistory)}
               >
-                ↷
+                <DrawingToolIcon name="redo" />
               </button>
               <span className="drawing-rail-separator" />
               <button
@@ -2946,49 +2947,49 @@ export default function App() {
                 title="المؤشر والتحريك · V"
                 onClick={() => setDrawingTool("cursor")}
               >
-                ↖
+                <DrawingToolIcon name="cursor" />
               </button>
               <button
                 className={drawingTool === "trend" ? "selected" : ""}
                 title="خط الاتجاه · L"
                 onClick={() => setDrawingTool("trend")}
               >
-                ╱
+                <DrawingToolIcon name="trend" />
               </button>
               <button
                 className={drawingTool === "horizontal" ? "selected" : ""}
                 title="خط أفقي · H"
                 onClick={() => setDrawingTool("horizontal")}
               >
-                ―
+                <DrawingToolIcon name="horizontal" />
               </button>
               <button
                 className={drawingTool === "zone" ? "selected" : ""}
                 title="منطقة سعر"
                 onClick={() => setDrawingTool("zone")}
               >
-                ▭
+                <DrawingToolIcon name="zone" />
               </button>
               <button
                 className={drawingTool === "fibonacci" ? "selected" : ""}
                 title="Fibonacci"
                 onClick={() => setDrawingTool("fibonacci")}
               >
-                ƒ
+                <DrawingToolIcon name="fibonacci" />
               </button>
               <button
                 className={drawingTool === "measure" ? "selected" : ""}
                 title="قياس · M"
                 onClick={() => setDrawingTool("measure")}
               >
-                ↕
+                <DrawingToolIcon name="measure" />
               </button>
               <button
                 className={drawingTool === "text" ? "selected" : ""}
                 title="ملاحظة نصية · N"
                 onClick={() => setDrawingTool("text")}
               >
-                T
+                <DrawingToolIcon name="text" />
               </button>
               <span className="drawing-rail-separator" />
               <button
@@ -2996,7 +2997,7 @@ export default function App() {
                 onClick={clearDrawings}
                 disabled={!drawings.some((drawing) => !drawing.locked)}
               >
-                ⌫
+                <DrawingToolIcon name="clear" />
               </button>
             </div>
 
