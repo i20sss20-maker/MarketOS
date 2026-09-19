@@ -20,6 +20,7 @@ import AdvancedAlertsPanel from "./components/AdvancedAlertsPanel";
 import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
+import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
@@ -226,6 +227,7 @@ export default function App() {
   );
   const watchlistInitialLoadRef = useRef(false);
   const [showScreener, setShowScreener] = useState(false);
+  const [showInstrumentOverview, setShowInstrumentOverview] = useState(false);
   const [showCorrelation, setShowCorrelation] = useState(false);
   const [showCompanyFeed, setShowCompanyFeed] = useState(false);
   const [companyReleases, setCompanyReleases] = useState<CompanyRelease[]>([]);
@@ -1669,6 +1671,10 @@ export default function App() {
             السوق
           </button>
 
+          <button className="ghost-button overview-button" onClick={() => setShowInstrumentOverview(true)}>
+            التفاصيل
+          </button>
+
           <button className="ghost-button correlation-button" onClick={() => setShowCorrelation(true)}>
             الارتباط
           </button>
@@ -1752,6 +1758,16 @@ export default function App() {
         onRefresh={() => void refreshCompanyFeed()}
         onClose={() => setShowCompanyFeed(false)}
         onSelectSymbol={openCompanyFeedSymbol}
+      />
+
+      <InstrumentOverviewPanel
+        open={showInstrumentOverview}
+        symbol={active}
+        timeframe={timeframe}
+        candles={displayCandles}
+        quote={replayActive ? null : quote}
+        replayMode={replayActive}
+        onClose={() => setShowInstrumentOverview(false)}
       />
 
       <ChartSettingsPanel
