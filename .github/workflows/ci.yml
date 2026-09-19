@@ -117,6 +117,9 @@ jobs:
       - name: Pane Linking workspace smoke test
         run: pnpm smoke:pane-linking
 
+      - name: Crosshair Linking runtime smoke test
+        run: pnpm smoke:crosshair-linking
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
