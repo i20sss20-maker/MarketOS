@@ -4,6 +4,11 @@ import {
   applySmartScreener,
   parseSmartScreenerQuery,
 } from "@marketos/screener-core";
+import {
+  canUseFeature,
+  type FeatureId,
+  type ResolvedEntitlement,
+} from "@marketos/entitlements-core";
 import type {
   Candle,
   ChartAnalysisResponse,
@@ -35,8 +40,13 @@ import ExportPanel from "./components/ExportPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
+import PlansPanel from "./components/PlansPanel";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
+import {
+  anonymousEntitlement,
+  getUserEntitlements,
+} from "./lib/entitlementsApi";
 import {
   applyCloudStateToLocal,
   collectLocalCloudState,
@@ -217,7 +227,6 @@ function readSavedSymbol(): MarketSymbol {
 
   const shared = readSharedChartState();
   if (shared) return shared.symbol;
-
   try {
     const saved = window.localStorage.getItem("marketos:symbol-object");
     if (!saved) return initialSymbols[0];
@@ -338,6 +347,13 @@ export default function App() {
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [authUser, setAuthUser] = useState<AuthPrincipal | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [entitlement, setEntitlement] = useState<ResolvedEntitlement>(
+    () => anonymousEntitlement(),
+  );
+  const [entitlementLoading, setEntitlementLoading] = useState(false);
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [showPlansPanel, setShowPlansPanel] = useState(false);
+  const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [cloudState, setCloudState] = useState<CloudStateResponse | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
@@ -481,6 +497,75 @@ export default function App() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  const refreshEntitlement = useCallback(async () => {
+    if (!authUser) {
+      setEntitlement(
+        anonymousEntitlement(),
+      );
+      setEntitlementError(null);
+      return;
+    }
+
+    setEntitlementLoading(true);
+    setEntitlementError(null);
+
+    try {
+      const response =
+        await getUserEntitlements();
+
+      setEntitlement(
+        response.entitlement,
+      );
+    } catch (error) {
+      setEntitlement(
+        anonymousEntitlement(),
+      );
+      setEntitlementError(
+        error instanceof Error
+          ? error.message
+          : "تعذر قراءة خطة MarketOS.",
+      );
+    } finally {
+      setEntitlementLoading(false);
+    }
+  }, [authUser]);
+
+  const showPlanRequirement = useCallback(
+    (message: string) => {
+      setPlanMessage(message);
+      setShowPlansPanel(true);
+    },
+    [],
+  );
+
+  const requireFeature = useCallback(
+    (
+      feature: FeatureId,
+      label: string,
+    ) => {
+      if (
+        canUseFeature(
+          entitlement,
+          feature,
+        )
+      ) {
+        return true;
+      }
+
+      showPlanRequirement(
+        `${label} تتطلب خطة أعلى من ${entitlement.definition.name}.`,
+      );
+      return false;
+    },
+    [
+      entitlement,
+      showPlanRequirement,
+    ],
+  );
+
+  const planLimits =
+    entitlement.definition.limits;
 
   const refreshCloudState = useCallback(async () => {
     if (!authUser) {
@@ -825,25 +910,70 @@ export default function App() {
     getAuthPrincipal()
       .then(async (user) => {
         if (cancelled) return;
+
         setAuthUser(user);
         setAuthChecked(true);
 
         if (!user) {
           setCloudState(null);
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementLoading(false);
+          setEntitlementError(null);
           return;
         }
 
-        try {
-          const response = await getCloudState();
-          if (!cancelled) setCloudState(response);
-        } catch {
-          // Account can still be used even if cloud storage is not configured yet.
+        setEntitlementLoading(true);
+        setEntitlementError(null);
+
+        const [
+          cloudResult,
+          entitlementResult,
+        ] = await Promise.allSettled([
+          getCloudState(),
+          getUserEntitlements(),
+        ]);
+
+        if (cancelled) return;
+
+        if (
+          cloudResult.status ===
+          "fulfilled"
+        ) {
+          setCloudState(
+            cloudResult.value,
+          );
         }
+
+        if (
+          entitlementResult.status ===
+          "fulfilled"
+        ) {
+          setEntitlement(
+            entitlementResult.value
+              .entitlement,
+          );
+        } else {
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementError(
+            "تعذر قراءة الخطة من MarketOS API؛ تم تطبيق حدود Free مؤقتًا.",
+          );
+        }
+
+        setEntitlementLoading(false);
       })
       .catch(() => {
         if (!cancelled) {
           setAuthUser(null);
           setAuthChecked(true);
+          setCloudState(null);
+          setEntitlement(
+            anonymousEntitlement(),
+          );
+          setEntitlementLoading(false);
         }
       });
 
@@ -1228,10 +1358,32 @@ export default function App() {
     [customIndicators],
   );
 
-  const updateCustomIndicators = useCallback((next: CustomIndicatorDefinition[]) => {
-    setCustomIndicators(next);
-    saveCustomIndicators(next);
-  }, []);
+  const updateCustomIndicators = useCallback(
+    (
+      next: CustomIndicatorDefinition[],
+    ) => {
+      if (
+        next.length >
+          customIndicators.length &&
+        next.length >
+          planLimits.customIndicators
+      ) {
+        showPlanRequirement(
+          `خطة ${entitlement.definition.name} تسمح بـ ${planLimits.customIndicators} مؤشر مخصص.`,
+        );
+        return;
+      }
+
+      setCustomIndicators(next);
+      saveCustomIndicators(next);
+    },
+    [
+      customIndicators.length,
+      planLimits.customIndicators,
+      entitlement.definition.name,
+      showPlanRequirement,
+    ],
+  );
 
   const toggleCustomIndicator = (id: string) => {
     updateCustomIndicators(
@@ -1322,14 +1474,45 @@ export default function App() {
     });
   };
 
-  const addToWatchlist = useCallback((symbol: MarketSymbol) => {
-    setWatchlist((current) => {
-      if (current.some((item) => item.id === symbol.id)) return current;
-      const next = [symbol, ...current].slice(0, 50);
+  const addToWatchlist = useCallback(
+    (symbol: MarketSymbol) => {
+      if (
+        watchlist.some(
+          (item) =>
+            item.id === symbol.id,
+        )
+      ) {
+        return;
+      }
+
+      if (
+        watchlist.length >=
+        planLimits.watchlistItems
+      ) {
+        showPlanRequirement(
+          `وصلت حد قائمة المتابعة في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز.`,
+        );
+        return;
+      }
+
+      const next = [
+        symbol,
+        ...watchlist,
+      ].slice(
+        0,
+        planLimits.watchlistItems,
+      );
+
+      setWatchlist(next);
       saveWatchlist(next);
-      return next;
-    });
-  }, []);
+    },
+    [
+      watchlist,
+      planLimits.watchlistItems,
+      entitlement.definition.name,
+      showPlanRequirement,
+    ],
+  );
 
   const fallbackOverview = useCallback((symbols: MarketSymbol[]) => {
     return symbols.slice(0, 25).map((symbol) => {
@@ -1554,14 +1737,43 @@ export default function App() {
   };
 
   const toggleActiveWatchlist = () => {
-    setWatchlist((current) => {
-      const exists = current.some((item) => item.id === active.id);
-      const next = exists
-        ? current.filter((item) => item.id !== active.id)
-        : [active, ...current].slice(0, 50);
+    const exists =
+      watchlist.some(
+        (item) => item.id === active.id,
+      );
+
+    if (exists) {
+      const next =
+        watchlist.filter(
+          (item) =>
+            item.id !== active.id,
+        );
+
+      setWatchlist(next);
       saveWatchlist(next);
-      return next;
-    });
+      return;
+    }
+
+    if (
+      watchlist.length >=
+      planLimits.watchlistItems
+    ) {
+      showPlanRequirement(
+        `وصلت حد قائمة المتابعة في خطة ${entitlement.definition.name}: ${planLimits.watchlistItems} رمز.`,
+      );
+      return;
+    }
+
+    const next = [
+      active,
+      ...watchlist,
+    ].slice(
+      0,
+      planLimits.watchlistItems,
+    );
+
+    setWatchlist(next);
+    saveWatchlist(next);
   };
 
   const chooseSymbol = (symbol: MarketSymbol) => {
@@ -1886,11 +2098,28 @@ export default function App() {
   };
 
   const chooseLayoutMode = (mode: ChartLayoutMode) => {
+    if (
+      mode === "quad" &&
+      !requireFeature(
+        "quadChart",
+        "تخطيط 4×",
+      )
+    ) {
+      return;
+    }
+
     ensureMultiChartSymbols(mode);
     setLayoutMode(mode);
     setMaximizedChartPane(null);
-    if (mode === "single") setSyncedLogicalRange(null);
-    saveSetting("marketos:chart-layout", mode);
+
+    if (mode === "single") {
+      setSyncedLogicalRange(null);
+    }
+
+    saveSetting(
+      "marketos:chart-layout",
+      mode,
+    );
   };
 
   const visiblePaneTimeframes = [
@@ -1947,6 +2176,16 @@ export default function App() {
     logic: AlertLogic,
     conditions: AdvancedAlertCondition[],
   ) => {
+    if (
+      alerts.length >=
+      planLimits.alerts
+    ) {
+      showPlanRequirement(
+        `وصلت حد التنبيهات في خطة ${entitlement.definition.name}: ${planLimits.alerts} تنبيه.`,
+      );
+      return;
+    }
+
     const alert = createAdvancedAlert(
       active,
       alertTimeframe,
@@ -2167,6 +2406,16 @@ export default function App() {
 
 
   const saveCurrentWorkspace = () => {
+    if (
+      savedWorkspaces.length >=
+      planLimits.savedWorkspaces
+    ) {
+      showPlanRequirement(
+        `وصلت حد التخطيطات المحفوظة في خطة ${entitlement.definition.name}: ${planLimits.savedWorkspaces} تخطيط.`,
+      );
+      return;
+    }
+
     const workspace = createWorkspace({
       name: `تخطيط ${savedWorkspaces.length + 1}`,
       symbol: active,
@@ -2223,12 +2472,32 @@ export default function App() {
     const fourthPane = workspace.panes?.fourth ?? null;
 
     const requestedLayout = workspace.layoutMode ?? "single";
-    const restoredLayout: ChartLayoutMode =
+    const requestedRestoredLayout: ChartLayoutMode =
       requestedLayout === "quad" && secondaryPane && thirdPane && fourthPane
         ? "quad"
         : requestedLayout === "split" && secondaryPane
           ? "split"
           : "single";
+
+    const restoredLayout: ChartLayoutMode =
+      requestedRestoredLayout === "quad" &&
+      !canUseFeature(
+        entitlement,
+        "quadChart",
+      )
+        ? secondaryPane
+          ? "split"
+          : "single"
+        : requestedRestoredLayout;
+
+    if (
+      requestedRestoredLayout === "quad" &&
+      restoredLayout !== "quad"
+    ) {
+      showPlanRequirement(
+        "هذا التخطيط محفوظ بوضع 4×. تم فتحه بوضع 2× لأن خطتك الحالية لا تشمل 4×.",
+      );
+    }
 
     setActive(primaryPane.symbol);
     setTimeframe(primaryPane.timeframe);
@@ -2273,7 +2542,43 @@ export default function App() {
       fourthPane?.symbol,
     ].filter((symbol): symbol is MarketSymbol => Boolean(symbol));
 
-    for (const symbol of restoredSymbols) addToWatchlist(symbol);
+    setWatchlist((current) => {
+      const merged =
+        new Map<string, MarketSymbol>(
+          current.map((symbol) => [
+            symbol.id,
+            symbol,
+          ]),
+        );
+
+      for (
+        const symbol
+        of restoredSymbols
+      ) {
+        if (
+          merged.size >=
+            planLimits.watchlistItems &&
+          !merged.has(symbol.id)
+        ) {
+          break;
+        }
+
+        merged.set(
+          symbol.id,
+          symbol,
+        );
+      }
+
+      const next = [
+        ...merged.values(),
+      ].slice(
+        0,
+        planLimits.watchlistItems,
+      );
+
+      saveWatchlist(next);
+      return next;
+    });
 
     saveSetting("marketos:symbol", primaryPane.symbol.id);
     saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
@@ -2312,6 +2617,15 @@ export default function App() {
   };
 
   const runMultiTimeframeReading = async () => {
+    if (
+      !requireFeature(
+        "multiTimeframeAi",
+        "Multi‑Timeframe AI",
+      )
+    ) {
+      return;
+    }
+
     if (multiTimeframeLoading) return;
 
     setMultiTimeframeLoading(true);
@@ -2816,10 +3130,28 @@ export default function App() {
           setExportError(null);
           setShowExportPanel(true);
         }}
-        onCorrelation={() => setShowCorrelation(true)}
+        onCorrelation={() => {
+          if (
+            requireFeature(
+              "correlationMatrix",
+              "Correlation Matrix",
+            )
+          ) {
+            setShowCorrelation(true);
+          }
+        }}
         onEvents={openEvents}
         onCompanyFeed={openCompanyFeed}
-        onStrategy={() => setShowStrategyTester(true)}
+        onStrategy={() => {
+          if (
+            requireFeature(
+              "strategyTester",
+              "Strategy Tester",
+            )
+          ) {
+            setShowStrategyTester(true);
+          }
+        }}
         onSystem={openSystemPanel}
         accountSlot={
           <button
@@ -2831,6 +3163,7 @@ export default function App() {
               if (authUser) {
                 void refreshCloudState();
                 void refreshPushState();
+                void refreshEntitlement();
               }
             }}
             title={authUser ? "الحساب والمزامنة" : "تسجيل الدخول"}
@@ -2838,7 +3171,11 @@ export default function App() {
             <span className="commercial-account-avatar">
               {(authUser?.userDetails || "M").slice(0, 1).toUpperCase()}
             </span>
-            <span>{authUser ? "الحساب" : "دخول"}</span>
+            <span>
+              {authUser
+                ? entitlement.definition.name
+                : "دخول"}
+            </span>
           </button>
         }
         workspaceSlot={
@@ -2895,6 +3232,9 @@ export default function App() {
         user={authUser}
         checked={authChecked}
         cloud={cloudState}
+        entitlement={entitlement}
+        entitlementLoading={entitlementLoading}
+        entitlementError={entitlementError}
         busy={cloudBusy}
         error={cloudError}
         message={cloudMessage}
@@ -2905,18 +3245,36 @@ export default function App() {
         pushBusy={pushBusy}
         pushError={pushError}
         onClose={() => setShowAccountPanel(false)}
-        onRefresh={() => void refreshCloudState()}
+        onRefresh={() => {
+          void refreshCloudState();
+          void refreshEntitlement();
+        }}
         onUpload={() => void uploadCurrentDeviceToCloud()}
         onRestore={() => void restoreCloudToThisDevice()}
         onDeleteCloud={() => void removeCloudCopy()}
         onEnablePush={() => void enablePushOnThisDevice()}
         onDisablePush={() => void disablePushOnThisDevice()}
         onRefreshPush={() => void refreshPushState()}
+        onShowPlans={() => {
+          setPlanMessage(null);
+          setShowPlansPanel(true);
+        }}
+      />
+
+      <PlansPanel
+        open={showPlansPanel}
+        entitlement={entitlement}
+        message={planMessage}
+        onClose={() => {
+          setShowPlansPanel(false);
+          setPlanMessage(null);
+        }}
       />
 
       <IndicatorLab
         open={showIndicatorLab}
         indicators={customIndicators}
+        maxIndicators={planLimits.customIndicators}
         onChange={updateCustomIndicators}
         onClose={() => setShowIndicatorLab(false)}
       />
@@ -3608,7 +3966,15 @@ export default function App() {
                       className="indicator-lab-launch"
                       onClick={() => {
                         setShowIndicatorMenu(false);
-                        setShowIndicatorLab(true);
+
+                        if (
+                          requireFeature(
+                            "customIndicatorLab",
+                            "معمل المؤشرات",
+                          )
+                        ) {
+                          setShowIndicatorLab(true);
+                        }
                       }}
                     >
                       <span>⚗ معمل المؤشرات</span>
@@ -3646,9 +4012,26 @@ export default function App() {
                 <button
                   className={layoutMode === "quad" ? "selected" : ""}
                   onClick={() => chooseLayoutMode("quad")}
-                  title="أربعة شارتات مستقلة"
+                  aria-disabled={
+                    !canUseFeature(
+                      entitlement,
+                      "quadChart",
+                    )
+                  }
+                  title={
+                    canUseFeature(
+                      entitlement,
+                      "quadChart",
+                    )
+                      ? "أربعة شارتات مستقلة"
+                      : "يتطلب MarketOS Pro"
+                  }
                 >
                   4×
+                  {!canUseFeature(
+                    entitlement,
+                    "quadChart",
+                  ) ? " 🔒" : ""}
                 </button>
               </div>
 
@@ -3822,6 +4205,12 @@ export default function App() {
           prompt={aiPrompt}
           aiLoading={aiLoading}
           multiTimeframeLoading={multiTimeframeLoading}
+          multiTimeframeEnabled={
+            canUseFeature(
+              entitlement,
+              "multiTimeframeAi",
+            )
+          }
           aiResult={aiResult}
           multiTimeframeResult={multiTimeframeResult}
           multiTimeframeError={multiTimeframeError}

@@ -17,6 +17,8 @@
     "WEB_PUSH_ENABLED": "false",
     "VAPID_PUBLIC_KEY": "",
     "VAPID_PRIVATE_KEY": "",
-    "VAPID_SUBJECT": ""
+    "VAPID_SUBJECT": "",
+    "ENTITLEMENT_DATA_PROVIDER": "memory",
+    "COSMOS_ENTITLEMENTS_CONTAINER": "entitlements"
   }
 }

@@ -10,6 +10,7 @@ import {
 type Props = {
   open: boolean;
   indicators: CustomIndicatorDefinition[];
+  maxIndicators: number;
   onChange: (indicators: CustomIndicatorDefinition[]) => void;
   onClose: () => void;
 };
@@ -17,6 +18,7 @@ type Props = {
 export default function IndicatorLab({
   open,
   indicators,
+  maxIndicators,
   onChange,
   onClose,
 }: Props) {
@@ -31,7 +33,7 @@ export default function IndicatorLab({
 
   const save = () => {
     try {
-      if (indicators.length >= 20) {
+      if (indicators.length >= maxIndicators) {
         setError("الحد الأقصى 20 مؤشرًا مخصصًا.");
         return;
       }
@@ -124,7 +126,7 @@ export default function IndicatorLab({
             <button
               className="indicator-save"
               onClick={save}
-              disabled={!validation.ok || !name.trim() || indicators.length >= 20}
+              disabled={!validation.ok || !name.trim() || indicators.length >= maxIndicators}
             >
               إضافة المؤشر
             </button>
@@ -161,7 +163,7 @@ export default function IndicatorLab({
             <div className="indicator-list-head">
               <div>
                 <span className="indicator-lab-section-title">مؤشراتي</span>
-                <small>{indicators.length} / 20</small>
+                <small>{indicators.length} / {maxIndicators}</small>
               </div>
             </div>
 
