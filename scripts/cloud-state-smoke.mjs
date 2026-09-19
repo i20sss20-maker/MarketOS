@@ -74,12 +74,8 @@ const drawings = Object.fromEntries(
       `SYMBOL-${symbolIndex}`,
       Array.from(
         { length: 180 },
-        (_, drawingIndex) => ({
-          id:
-            `drawing-${symbolIndex}-${drawingIndex}`,
-          type: "horizontal",
-          price: 100 + drawingIndex,
-        }),
+        (_, drawingIndex) =>
+          drawingIndex,
       ),
     ],
   ),
