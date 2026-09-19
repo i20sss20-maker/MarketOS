@@ -58,6 +58,8 @@ const initialSymbols: MarketSymbol[] = [
 
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
+type ChartLayoutMode = "single" | "split";
+
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
@@ -125,6 +127,12 @@ export default function App() {
   const [showComparisonMenu, setShowComparisonMenu] = useState(false);
   const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(null);
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
+    readSaved("marketos:chart-layout", "single"),
+  );
+  const [replayActive, setReplayActive] = useState(false);
+  const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [replayPlaying, setReplayPlaying] = useState(false);
   const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
 
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => loadAlerts());
@@ -278,16 +286,37 @@ export default function App() {
     [query, searchResults, watchlist],
   );
 
+  const safeReplayIndex = replayActive
+    ? Math.min(replayIndex ?? candles.length - 1, Math.max(0, candles.length - 1))
+    : candles.length - 1;
+
+  const displayCandles = useMemo(
+    () => replayActive ? candles.slice(0, safeReplayIndex + 1) : candles,
+    [candles, replayActive, safeReplayIndex],
+  );
+
+  const replayCutoff = displayCandles[displayCandles.length - 1]?.time;
+  const displayComparisonCandles = useMemo(
+    () =>
+      replayActive && replayCutoff !== undefined
+        ? comparisonCandles.filter((candle) => candle.time <= replayCutoff)
+        : comparisonCandles,
+    [comparisonCandles, replayActive, replayCutoff],
+  );
+
   const activeIndicatorItems = useMemo(
     () => indicatorCatalog.filter((item) => indicators[item.id]),
     [indicators],
   );
 
-  const lastCandle = candles[candles.length - 1];
+  const lastCandle = displayCandles[displayCandles.length - 1];
+  const previousDisplayedCandle = displayCandles[displayCandles.length - 2];
   const inspectedCandle = hoverCandle ?? lastCandle;
   const isActiveWatchlisted = watchlist.some((symbol) => symbol.id === active.id);
-  const displayedPrice = quote?.price ?? lastCandle?.close;
-  const displayedPercent = quote?.percentChange;
+  const displayedPrice = replayActive ? lastCandle?.close : quote?.price ?? lastCandle?.close;
+  const displayedPercent = replayActive && lastCandle && previousDisplayedCandle
+    ? ((lastCandle.close - previousDisplayedCandle.close) / previousDisplayedCandle.close) * 100
+    : quote?.percentChange;
   const providerLabel =
     dataState === "loading"
       ? "Loading data"
@@ -317,6 +346,9 @@ export default function App() {
 
   const chooseSymbol = (symbol: MarketSymbol) => {
     setActive(symbol);
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
     if (comparisonSymbol?.id === symbol.id) {
       setComparisonSymbol(null);
       setComparisonCandles([]);
@@ -333,6 +365,9 @@ export default function App() {
 
   const chooseTimeframe = (value: Timeframe) => {
     setTimeframe(value);
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
     saveSetting("marketos:timeframe", value);
     setDrawingTool("cursor");
     setHoverCandle(null);
@@ -378,6 +413,34 @@ export default function App() {
     if (symbol.id === active.id) return;
     setComparisonSymbol(symbol);
     setShowComparisonMenu(false);
+  };
+
+  const chooseLayoutMode = (mode: ChartLayoutMode) => {
+    if (mode === "split" && !comparisonSymbol) return;
+    setLayoutMode(mode);
+    saveSetting("marketos:chart-layout", mode);
+  };
+
+  const startReplay = () => {
+    if (candles.length < 25) return;
+    setReplayActive(true);
+    setReplayPlaying(false);
+    setReplayIndex(Math.max(20, candles.length - 60));
+    setHoverCandle(null);
+  };
+
+  const exitReplay = () => {
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
+    setHoverCandle(null);
+  };
+
+  const stepReplay = (delta: number) => {
+    setReplayIndex((current) => {
+      const base = current ?? Math.max(20, candles.length - 60);
+      return Math.min(Math.max(20, base + delta), Math.max(20, candles.length - 1));
+    });
   };
 
   const addAlert = () => {
@@ -448,8 +511,8 @@ export default function App() {
   };
 
   const runChartReading = async (promptOverride?: string) => {
-    if (candles.length < 20 || aiLoading) {
-      if (candles.length < 20) {
+    if (displayCandles.length < 20 || aiLoading) {
+      if (displayCandles.length < 20) {
         setAiResult({
           engine: "browser-fallback",
           summary: "لا توجد شموع كافية لقراءة الشارت حاليًا.",
@@ -467,7 +530,7 @@ export default function App() {
       const analysis = await analyzeChart({
         symbol: active,
         timeframe,
-        visibleCandles: candles.slice(-300),
+        visibleCandles: displayCandles.slice(-300),
         quote,
         indicators: activeIndicatorItems.map((item) => item.id),
         userDrawings: drawings.map((drawing) =>
@@ -484,7 +547,7 @@ export default function App() {
         observations: analysis.observations,
       });
     } catch {
-      const recent = candles.slice(-20);
+      const recent = displayCandles.slice(-20);
       const first = recent[0];
       const last = recent[recent.length - 1];
       const high = Math.max(...recent.map((candle) => candle.high));
