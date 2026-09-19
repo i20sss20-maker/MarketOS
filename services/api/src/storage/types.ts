@@ -14,6 +14,7 @@ export type StoredUserState = {
   id: "state";
   userId: string;
   updatedAt: number;
+  clientUpdatedAt: number;
   clientRevision: number;
   payload: UserCloudState;
   _etag?: string;
