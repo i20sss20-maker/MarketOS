@@ -417,14 +417,21 @@ export default function App() {
     try {
       const response = await putCloudState(
         collectLocalCloudState(),
+        cloudState?.updatedAt ?? null,
       );
       setCloudState(response);
       setCloudMessage("تم حفظ بيانات هذا الجهاز في السحابة.");
     } catch (error) {
-      setCloudError(
+      const message =
         error instanceof Error
           ? error.message
-          : "تعذر رفع بيانات الجهاز.",
+          : "تعذر رفع بيانات الجهاز.";
+
+      setCloudError(
+        message.includes("changed on another device") ||
+        message.includes("cloud copy already exists")
+          ? "توجد نسخة سحابية أحدث أو مختلفة. اضغط «تحديث الحالة» ثم راجع النسخة قبل الرفع من جديد."
+          : message,
       );
     } finally {
       setCloudBusy(false);
