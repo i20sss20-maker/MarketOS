@@ -482,24 +482,30 @@ function rsiSeries(source: Series, period: number): Series {
 }
 
 function atrSeries(candles: Candle[], period: number): Series {
-  const trueRange: Series = new Array(candles.length).fill(undefined);
+  const output: Series = new Array(candles.length).fill(undefined);
+  if (candles.length <= period) return output;
 
+  const trueRanges: number[] = [];
   for (let index = 1; index < candles.length; index += 1) {
     const candle = candles[index];
     const previous = candles[index - 1];
-    trueRange[index] = Math.max(
+    trueRanges[index] = Math.max(
       candle.high - candle.low,
       Math.abs(candle.high - previous.close),
       Math.abs(candle.low - previous.close),
     );
   }
 
-  const output: Series = new Array(candles.length).fill(undefined);
-  const values = trueRange.slice(1);
-  const smoothed = emaSeries(values, period);
+  let atr = 0;
+  for (let index = 1; index <= period; index += 1) {
+    atr += trueRanges[index];
+  }
+  atr /= period;
+  output[period] = atr;
 
-  for (let index = 0; index < smoothed.length; index += 1) {
-    output[index + 1] = smoothed[index];
+  for (let index = period + 1; index < candles.length; index += 1) {
+    atr = ((atr * (period - 1)) + trueRanges[index]) / period;
+    output[index] = atr;
   }
 
   return output;
