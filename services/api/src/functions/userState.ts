@@ -1,5 +1,7 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { cloudStateViolations } from "@marketos/entitlements-core";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
+import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { json, preflight } from "../http/responses.js";
 import { sanitizeUserCloudState } from "../storage/stateValidation.js";
 import { userStateStore } from "../storage/index.js";
@@ -96,6 +98,39 @@ export async function userState(
         sanitizeUserCloudState(
           payload?.state ?? payload,
         );
+
+      const entitlement =
+        await getResolvedUserEntitlement(
+          user.userId,
+        );
+
+      const violations =
+        cloudStateViolations(
+          {
+            watchlistItems:
+              state.watchlist.length,
+            savedWorkspaces:
+              state.workspaces.length,
+            alerts:
+              state.alerts.length,
+            customIndicators:
+              state.customIndicators.length,
+          },
+          entitlement,
+        );
+
+      if (violations.length > 0) {
+        return json(403, {
+          ok: false,
+          code: "PLAN_LIMIT",
+          error:
+            "Cloud state exceeds the current MarketOS plan limits.",
+          plan: entitlement.plan,
+          limits:
+            entitlement.definition.limits,
+          violations,
+        });
+      }
 
       const expectedClientRevision =
         payload?.expectedClientRevision === null
