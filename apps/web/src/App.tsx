@@ -109,8 +109,8 @@ const initialSymbols: MarketSymbol[] = [
 
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
-type ChartLayoutMode = "single" | "split";
-type MaximizedChartPane = "primary" | "secondary" | null;
+type ChartLayoutMode = "single" | "split" | "quad";
+type MaximizedChartPane = "primary" | "secondary" | "third" | "fourth" | null;
 type ScreenerMode = "heatmap" | "table";
 type ScreenerFilter = "all" | "equities" | "forex" | "crypto" | "futures";
 type WatchlistFilter = "all" | "equities" | "forex" | "crypto" | "futures";
@@ -259,6 +259,10 @@ export default function App() {
   const [showComparisonMenu, setShowComparisonMenu] = useState(false);
   const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(null);
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(null);
+  const [thirdChartCandles, setThirdChartCandles] = useState<Candle[]>([]);
+  const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(null);
+  const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
   );
