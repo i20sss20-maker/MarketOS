@@ -2062,7 +2062,7 @@ export default function App() {
         </div>
       ) : null}
       {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
-      {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
+      {dataState === "provider" ? <div className="chart-mode live">LIVE</div> : null}
       {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
       {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
     </div>
@@ -2538,15 +2538,22 @@ export default function App() {
 
       {alertMessage ? <div className="alert-toast">{alertMessage}</div> : null}
 
-      <section className="market-strip" dir="ltr">
-        <span>MARKET DATA <b>{providerStatus?.provider ?? "detecting"}</b></span>
-        <span>SESSION <b className={sessionState === "open" ? "positive" : sessionState === "closed" ? "negative" : ""}>{sessionLabel}</b></span>
-        <span>AUTO <b>{autoRefreshEnabled && !replayActive ? "ON" : "OFF"}</b></span>
-        <span>US EQUITIES</span>
-        <span>SAUDI EXCHANGE</span>
-        <span>FOREX</span>
-        <span>CRYPTO</span>
-        <span>FUTURES</span>
+      <section className="commercial-market-ribbon" dir="ltr">
+        <span className="commercial-ribbon-session">
+          <i className={`commercial-session-dot ${sessionState}`} />
+          {sessionLabel}
+        </span>
+        <span className="commercial-ribbon-symbol">
+          <b>{active.ticker}</b>
+          <em>{formatPrice(displayedPrice)}</em>
+          <strong className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
+            {formatPercent(displayedPercent)}
+          </strong>
+        </span>
+        <span>{active.exchange}</span>
+        <span>Watchlist <b>{watchlist.length}</b></span>
+        <span>Alerts <b>{activeAlerts.length}</b></span>
+        <span>{replayActive ? "Replay mode" : autoRefreshEnabled ? "Auto refresh" : "Manual refresh"}</span>
       </section>
 
       <section className={[
@@ -2556,8 +2563,11 @@ export default function App() {
         aiPanelOpen ? "" : "ai-hidden",
       ].filter(Boolean).join(" ")}>
         <aside className={watchlistOpen ? "watchlist panel commercial-side-panel" : "watchlist panel commercial-side-panel panel-collapsed"}>
-          <div className="watchlist-head">
-            <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
+          <div className="watchlist-head commercial-panel-head">
+            <div>
+              <div className="panel-title">{query.trim() ? "نتائج البحث" : "قائمة المتابعة"}</div>
+              {!query.trim() ? <small>{visibleSymbols.length} رمز</small> : null}
+            </div>
             <div className="watchlist-head-actions">
               <button
                 title="تحديث أسعار القائمة"
@@ -2567,6 +2577,7 @@ export default function App() {
                 {watchlistLoading ? "…" : "↻"}
               </button>
               <button title="بحث وإضافة رمز" onClick={() => searchInputRef.current?.focus()}>+</button>
+              <button className="commercial-panel-close" title="إغلاق القائمة" onClick={toggleWatchlistPanel}>×</button>
             </div>
           </div>
 
@@ -3116,7 +3127,13 @@ export default function App() {
         </section>
 
         <aside className={aiPanelOpen ? "ai-panel panel commercial-ai-panel" : "ai-panel panel commercial-ai-panel panel-collapsed"}>
-          <div className="panel-title">MarketOS AI</div>
+          <div className="commercial-panel-head ai-panel-head">
+            <div>
+              <div className="panel-title">MarketOS AI</div>
+              <small>Chart-aware assistant</small>
+            </div>
+            <button className="commercial-panel-close" title="إغلاق AI" onClick={toggleAiPanel}>×</button>
+          </div>
           <div className="ai-card">
             <span className="eyebrow">CHART CONTEXT</span>
             <h2>اسأل الشارت</h2>
@@ -3290,10 +3307,10 @@ export default function App() {
 
           <div className="notice">
             {dataError
-              ? "وضع البيانات التجريبية نشط مؤقتًا لأن مصدر البيانات المباشر غير متصل."
+              ? "تعذر تحديث مصدر البيانات الحالي؛ يتم عرض آخر بيانات متاحة."
               : providerStatus?.mode === "demo"
-                ? "وضع البيانات التجريبية نشط للتطوير. عند ربط مزود السوق ستظهر البيانات من المصدر مباشرة."
-                : providerStatus?.message ?? "Market Data V1 active."}
+                ? "البيانات الحالية في وضع المعاينة حتى يتم ربط مصدر السوق المباشر."
+                : providerStatus?.message ?? "مصدر بيانات السوق متصل."}
           </div>
 
           <div className="chart-attribution">
