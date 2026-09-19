@@ -22,6 +22,7 @@ function publicCloudState(
     alertEvents: state.alertEvents ?? [],
     chartSettings: state.chartSettings,
     customIndicators: state.customIndicators,
+    chartTemplates: state.chartTemplates,
     drawings: state.drawings,
     ui: state.ui,
   };
@@ -115,6 +116,8 @@ export async function userState(
               state.alerts.length,
             customIndicators:
               state.customIndicators.length,
+            chartTemplates:
+              state.chartTemplates.length,
           },
           entitlement,
         );
