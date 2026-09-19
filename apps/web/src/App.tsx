@@ -26,6 +26,7 @@ import MarketChart, {
   type ChartView,
 } from "./components/MarketChart";
 import PaneVisualControls from "./components/PaneVisualControls";
+import PaneLinkControls from "./components/PaneLinkControls";
 import CommercialTopBar from "./components/CommercialTopBar";
 import HomeDashboard from "./components/HomeDashboard";
 import CommandPalette, { type CommandPaletteItem } from "./components/CommandPalette";
@@ -149,6 +150,11 @@ import {
   savePaneVisualState,
   type PaneVisualState,
 } from "./lib/paneVisualState";
+import {
+  loadPaneLinkSettings,
+  savePaneLinkSettings,
+  type PaneLinkSettings,
+} from "./lib/paneLinks";
 import {
   createWorkspace,
   loadWorkspaces,
@@ -539,7 +545,13 @@ export default function App() {
     readSaved("marketos:chart-layout", "single"),
   );
   const [chartSyncEnabled, setChartSyncEnabled] = useState(
-    () => readSaved<"on" | "off">("marketos:chart-sync", "on") === "on",
+    () => loadPaneLinkSettings().range,
+  );
+  const [paneSymbolLinkEnabled, setPaneSymbolLinkEnabled] = useState(
+    () => loadPaneLinkSettings().symbol,
+  );
+  const [paneTimeframeLinkEnabled, setPaneTimeframeLinkEnabled] = useState(
+    () => loadPaneLinkSettings().timeframe,
   );
   const [syncedLogicalRange, setSyncedLogicalRange] = useState<LogicalRange | null>(null);
   const [maximizedChartPane, setMaximizedChartPane] = useState<MaximizedChartPane>(null);
@@ -2150,17 +2162,41 @@ export default function App() {
     setReplayPlaying(false);
     setReplayIndex(null);
 
-    if (comparisonSymbol?.id === symbol.id) {
-      setComparisonSymbol(previousActive);
-      savePaneSymbol("marketos:pane-secondary", previousActive);
-    }
-    if (thirdChartSymbol?.id === symbol.id) {
-      setThirdChartSymbol(previousActive);
-      savePaneSymbol("marketos:pane-third", previousActive);
-    }
-    if (fourthChartSymbol?.id === symbol.id) {
-      setFourthChartSymbol(previousActive);
-      savePaneSymbol("marketos:pane-fourth", previousActive);
+    if (
+      paneSymbolLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      setComparisonSymbol(symbol);
+      savePaneSymbol(
+        "marketos:pane-secondary",
+        symbol,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartSymbol(symbol);
+        savePaneSymbol(
+          "marketos:pane-third",
+          symbol,
+        );
+        setFourthChartSymbol(symbol);
+        savePaneSymbol(
+          "marketos:pane-fourth",
+          symbol,
+        );
+      }
+    } else {
+      if (comparisonSymbol?.id === symbol.id) {
+        setComparisonSymbol(previousActive);
+        savePaneSymbol("marketos:pane-secondary", previousActive);
+      }
+      if (thirdChartSymbol?.id === symbol.id) {
+        setThirdChartSymbol(previousActive);
+        savePaneSymbol("marketos:pane-third", previousActive);
+      }
+      if (fourthChartSymbol?.id === symbol.id) {
+        setFourthChartSymbol(previousActive);
+        savePaneSymbol("marketos:pane-fourth", previousActive);
+      }
     }
 
     addToWatchlist(symbol);
@@ -2182,6 +2218,32 @@ export default function App() {
     setReplayPlaying(false);
     setReplayIndex(null);
     saveSetting("marketos:timeframe", value);
+
+    if (
+      paneTimeframeLinkEnabled &&
+      layoutMode !== "single"
+    ) {
+      setComparisonTimeframe(value);
+      saveSetting(
+        "marketos:pane-secondary-timeframe",
+        value,
+      );
+
+      if (layoutMode === "quad") {
+        setThirdChartTimeframe(value);
+        saveSetting(
+          "marketos:pane-third-timeframe",
+          value,
+        );
+        setFourthChartTimeframe(value);
+        saveSetting(
+          "marketos:pane-fourth-timeframe",
+          value,
+        );
+      }
+    }
+
+    setSyncedLogicalRange(null);
     setDrawingTool("cursor");
     setHoverCandle(null);
     setAiResult(null);
