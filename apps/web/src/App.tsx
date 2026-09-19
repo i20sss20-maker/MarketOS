@@ -801,6 +801,68 @@ export default function App() {
     setDrawingTool("cursor");
   };
 
+  useEffect(() => {
+    const handleKeyboard = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editable =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT" ||
+        target?.isContentEditable;
+
+      if (event.key === "Escape") {
+        setDrawingTool("cursor");
+        setTextAnchor(null);
+        setTextDraft("");
+        setEditingTextId(null);
+        return;
+      }
+
+      if (
+        editable ||
+        showScreener ||
+        showEvents ||
+        showSystemPanel ||
+        showStrategyTester
+      ) {
+        return;
+      }
+
+      const modifier = event.ctrlKey || event.metaKey;
+      if (modifier && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) redoDrawings();
+        else undoDrawings();
+        return;
+      }
+
+      if (modifier && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redoDrawings();
+        return;
+      }
+
+      if (modifier || event.altKey) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "v") setDrawingTool("cursor");
+      if (key === "l") setDrawingTool("trend");
+      if (key === "h") setDrawingTool("horizontal");
+      if (key === "m") setDrawingTool("measure");
+      if (key === "n") setDrawingTool("text");
+    };
+
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, [
+    redoDrawings,
+    undoDrawings,
+    showScreener,
+    showEvents,
+    showSystemPanel,
+    showStrategyTester,
+  ]);
+
   const chooseComparison = (symbol: MarketSymbol) => {
     if (symbol.id === active.id) return;
     setComparisonSymbol(symbol);
