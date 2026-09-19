@@ -86,6 +86,12 @@ function PlanCard({
             {definition.limits.customIndicators}
           </b>
         </div>
+        <div>
+          <span>Templates</span>
+          <b>
+            {definition.limits.chartTemplates}
+          </b>
+        </div>
       </div>
 
       <div className="plan-features">
