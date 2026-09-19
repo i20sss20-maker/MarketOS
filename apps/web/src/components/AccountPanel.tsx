@@ -1,3 +1,4 @@
+import type { ResolvedEntitlement } from "@marketos/entitlements-core";
 import type {
   AuthPrincipal,
   CloudStateResponse,
@@ -8,6 +9,9 @@ type Props = {
   user: AuthPrincipal | null;
   checked: boolean;
   cloud: CloudStateResponse | null;
+  entitlement: ResolvedEntitlement;
+  entitlementLoading: boolean;
+  entitlementError: string | null;
   busy: boolean;
   error: string | null;
   message: string | null;
@@ -16,6 +20,7 @@ type Props = {
   onUpload: () => void;
   onRestore: () => void;
   onDeleteCloud: () => void;
+  onShowPlans: () => void;
 };
 
 function providerLabel(provider: string) {
@@ -37,6 +42,9 @@ export default function AccountPanel({
   user,
   checked,
   cloud,
+  entitlement,
+  entitlementLoading,
+  entitlementError,
   busy,
   error,
   message,
@@ -45,6 +53,7 @@ export default function AccountPanel({
   onUpload,
   onRestore,
   onDeleteCloud,
+  onShowPlans,
 }: Props) {
   if (!open) return null;
 
@@ -89,6 +98,60 @@ export default function AccountPanel({
                   <small>{providerLabel(user.identityProvider)} · حساب متصل</small>
                 </div>
                 <span className="account-connected">متصل</span>
+              </div>
+
+              <div className="account-plan-card">
+                <div className="account-plan-main">
+                  <div>
+                    <span>الخطة</span>
+                    <strong>
+                      {entitlementLoading
+                        ? "جاري التحقق…"
+                        : entitlement.definition.name}
+                    </strong>
+                  </div>
+                  <span className={`account-plan-status ${entitlement.status}`}>
+                    {entitlement.status === "trialing"
+                      ? "تجريبية"
+                      : entitlement.status === "active"
+                        ? "نشطة"
+                        : entitlement.status === "past_due"
+                          ? "تحتاج تحديث دفع"
+                          : "ملغاة"}
+                  </span>
+                </div>
+
+                <div className="account-plan-limits">
+                  <span>
+                    Watchlist
+                    <b>{entitlement.definition.limits.watchlistItems}</b>
+                  </span>
+                  <span>
+                    Layouts
+                    <b>{entitlement.definition.limits.savedWorkspaces}</b>
+                  </span>
+                  <span>
+                    Alerts
+                    <b>{entitlement.definition.limits.alerts}</b>
+                  </span>
+                  <span>
+                    Custom
+                    <b>{entitlement.definition.limits.customIndicators}</b>
+                  </span>
+                </div>
+
+                {entitlementError ? (
+                  <div className="account-plan-error">
+                    {entitlementError}
+                  </div>
+                ) : null}
+
+                <button
+                  className="account-plan-button"
+                  onClick={onShowPlans}
+                >
+                  عرض الخطط
+                </button>
               </div>
 
               <div className="account-cloud-card">
