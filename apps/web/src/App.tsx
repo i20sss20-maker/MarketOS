@@ -4638,9 +4638,9 @@ export default function App() {
     {
       id: "panel:ai",
       group: "AI",
-      label: aiPanelOpen ? "إخفاء MarketOS AI" : "فتح MarketOS AI",
-      description: "قراءة الشارت وData Window",
-      keywords: ["ai", "ذكاء", "assistant", "data window"],
+      label: aiPanelOpen ? "إخفاء MarketOS Analyst" : "فتح MarketOS Analyst",
+      description: "توقعات احتمالية · تحليل الشارت · Data Window",
+      keywords: ["analyst", "forecast", "ai", "محلل", "توقع", "ذكاء", "data window"],
       priority: 69,
       onSelect: toggleAiPanel,
     },
