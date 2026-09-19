@@ -13,6 +13,16 @@ assert.ok(candles.every((candle) => candle.high >= candle.low), "Each candle hig
 
 const quote = await provider.getQuote(symbol);
 assert.ok(Number.isFinite(quote.price) && quote.price > 0, "Quote price should be positive");
+
+const catalog = await provider.searchSymbols("");
+const batch = await provider.getQuotes(catalog);
+assert.equal(batch.length, catalog.length, "Batch quotes should return every demo catalog symbol");
+assert.ok(
+  batch.every((item) => Number.isFinite(item.quote.price) && item.quote.price > 0),
+  "Every batch quote should have a positive price",
+);
 assert.equal(provider.getStatus().mode, "demo");
 
-console.log(`Market data smoke test passed: ${symbol.ticker}, ${candles.length} candles, quote ${quote.price}`);
+console.log(
+  `Market data smoke test passed: ${symbol.ticker}, ${candles.length} candles, quote ${quote.price}, batch ${batch.length}`,
+);
