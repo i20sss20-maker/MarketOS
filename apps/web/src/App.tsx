@@ -288,14 +288,23 @@ export default function App() {
     () => readSavedPaneSymbol("marketos:pane-secondary"),
   );
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [comparisonTimeframe, setComparisonTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-secondary-timeframe", timeframe),
+  );
   const [thirdChartSymbol, setThirdChartSymbol] = useState<MarketSymbol | null>(
     () => readSavedPaneSymbol("marketos:pane-third"),
   );
   const [thirdChartCandles, setThirdChartCandles] = useState<Candle[]>([]);
+  const [thirdChartTimeframe, setThirdChartTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-third-timeframe", timeframe),
+  );
   const [fourthChartSymbol, setFourthChartSymbol] = useState<MarketSymbol | null>(
     () => readSavedPaneSymbol("marketos:pane-fourth"),
   );
   const [fourthChartCandles, setFourthChartCandles] = useState<Candle[]>([]);
+  const [fourthChartTimeframe, setFourthChartTimeframe] = useState<Timeframe>(
+    () => readSaved<Timeframe>("marketos:pane-fourth-timeframe", timeframe),
+  );
   const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
     readSaved("marketos:chart-layout", "single"),
   );
@@ -455,15 +464,15 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    getMarketCandles(comparisonSymbol, timeframe, 300, controller.signal)
+    getMarketCandles(comparisonSymbol, comparisonTimeframe, 300, controller.signal)
       .then((response) => setComparisonCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setComparisonCandles(createDemoCandles(comparisonSymbol.id, timeframe, 300));
+        setComparisonCandles(createDemoCandles(comparisonSymbol.id, comparisonTimeframe, 300));
       });
 
     return () => controller.abort();
-  }, [comparisonSymbol, active.id, timeframe]);
+  }, [comparisonSymbol, active.id, comparisonTimeframe]);
 
   useEffect(() => {
     if (layoutMode !== "quad" || !thirdChartSymbol) {
@@ -472,15 +481,15 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    getMarketCandles(thirdChartSymbol, timeframe, 300, controller.signal)
+    getMarketCandles(thirdChartSymbol, thirdChartTimeframe, 300, controller.signal)
       .then((response) => setThirdChartCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, timeframe, 300));
+        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, thirdChartTimeframe, 300));
       });
 
     return () => controller.abort();
-  }, [layoutMode, thirdChartSymbol, timeframe]);
+  }, [layoutMode, thirdChartSymbol, thirdChartTimeframe]);
 
   useEffect(() => {
     if (layoutMode !== "quad" || !fourthChartSymbol) {
@@ -489,15 +498,15 @@ export default function App() {
     }
 
     const controller = new AbortController();
-    getMarketCandles(fourthChartSymbol, timeframe, 300, controller.signal)
+    getMarketCandles(fourthChartSymbol, fourthChartTimeframe, 300, controller.signal)
       .then((response) => setFourthChartCandles(response.candles))
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, timeframe, 300));
+        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, fourthChartTimeframe, 300));
       });
 
     return () => controller.abort();
-  }, [layoutMode, fourthChartSymbol, timeframe]);
+  }, [layoutMode, fourthChartSymbol, fourthChartTimeframe]);
 
   useEffect(() => {
     if (replayActive) return;
@@ -1319,6 +1328,15 @@ export default function App() {
     saveSetting("marketos:chart-layout", mode);
   };
 
+  const visiblePaneTimeframes = [
+    timeframe,
+    ...(layoutMode === "split" || layoutMode === "quad" ? [comparisonTimeframe] : []),
+    ...(layoutMode === "quad" ? [thirdChartTimeframe, fourthChartTimeframe] : []),
+  ];
+
+  const chartSyncCompatible =
+    new Set(visiblePaneTimeframes).size <= 1;
+
   const toggleChartSync = () => {
     setChartSyncEnabled((current) => {
       const next = !current;
@@ -1329,9 +1347,9 @@ export default function App() {
   };
 
   const handleSynchronizedRangeChange = useCallback((range: LogicalRange | null) => {
-    if (!chartSyncEnabled || layoutMode === "single") return;
+    if (!chartSyncEnabled || !chartSyncCompatible || layoutMode === "single") return;
     setSyncedLogicalRange(range);
-  }, [chartSyncEnabled, layoutMode]);
+  }, [chartSyncEnabled, chartSyncCompatible, layoutMode]);
 
   const toggleMaximizedPane = (pane: Exclude<MaximizedChartPane, null>) => {
     setMaximizedChartPane((current) => current === pane ? null : pane);
@@ -1509,6 +1527,35 @@ export default function App() {
       chartView,
       indicators,
       drawings,
+      version: 2,
+      layoutMode,
+      chartSyncEnabled,
+      chartSettings,
+      customIndicators,
+      panes: {
+        primary: {
+          symbol: active,
+          timeframe,
+        },
+        secondary: comparisonSymbol
+          ? {
+              symbol: comparisonSymbol,
+              timeframe: comparisonTimeframe,
+            }
+          : null,
+        third: thirdChartSymbol
+          ? {
+              symbol: thirdChartSymbol,
+              timeframe: thirdChartTimeframe,
+            }
+          : null,
+        fourth: fourthChartSymbol
+          ? {
+              symbol: fourthChartSymbol,
+              timeframe: fourthChartTimeframe,
+            }
+          : null,
+      },
     });
 
     setSavedWorkspaces((current) => {
@@ -1520,28 +1567,95 @@ export default function App() {
   };
 
   const restoreWorkspace = (workspace: SavedWorkspace) => {
-    setActive(workspace.symbol);
-    setTimeframe(workspace.timeframe);
+    const primaryPane = workspace.panes?.primary ?? {
+      symbol: workspace.symbol,
+      timeframe: workspace.timeframe,
+    };
+    const secondaryPane = workspace.panes?.secondary ?? null;
+    const thirdPane = workspace.panes?.third ?? null;
+    const fourthPane = workspace.panes?.fourth ?? null;
+
+    const requestedLayout = workspace.layoutMode ?? "single";
+    const restoredLayout: ChartLayoutMode =
+      requestedLayout === "quad" && secondaryPane && thirdPane && fourthPane
+        ? "quad"
+        : requestedLayout === "split" && secondaryPane
+          ? "split"
+          : "single";
+
+    setActive(primaryPane.symbol);
+    setTimeframe(primaryPane.timeframe);
+    setComparisonSymbol(secondaryPane?.symbol ?? null);
+    setComparisonTimeframe(secondaryPane?.timeframe ?? primaryPane.timeframe);
+    setThirdChartSymbol(thirdPane?.symbol ?? null);
+    setThirdChartTimeframe(thirdPane?.timeframe ?? primaryPane.timeframe);
+    setFourthChartSymbol(fourthPane?.symbol ?? null);
+    setFourthChartTimeframe(fourthPane?.timeframe ?? primaryPane.timeframe);
+    setLayoutMode(restoredLayout);
+    setChartSyncEnabled(workspace.chartSyncEnabled ?? true);
+    setSyncedLogicalRange(null);
+    setMaximizedChartPane(null);
+
     setChartView(workspace.chartView);
     setIndicators(workspace.indicators);
     setDrawingHistory(createDrawingHistory(workspace.drawings));
+
+    if (workspace.chartSettings) {
+      setChartSettings(workspace.chartSettings);
+      saveChartSettings(workspace.chartSettings);
+    }
+
+    if (workspace.customIndicators) {
+      setCustomIndicators(workspace.customIndicators);
+      saveCustomIndicators(workspace.customIndicators);
+    }
+
     setDrawingTool("cursor");
     setTextAnchor(null);
     setTextDraft("");
     setEditingTextId(null);
     setHoverCandle(null);
     setAiResult(null);
-    addToWatchlist(workspace.symbol);
+    setMultiTimeframeResult(null);
+    setMultiTimeframeError(null);
 
-    saveSetting("marketos:symbol", workspace.symbol.id);
-    saveSetting("marketos:symbol-object", JSON.stringify(workspace.symbol));
-    saveSetting("marketos:timeframe", workspace.timeframe);
+    const restoredSymbols = [
+      primaryPane.symbol,
+      secondaryPane?.symbol,
+      thirdPane?.symbol,
+      fourthPane?.symbol,
+    ].filter((symbol): symbol is MarketSymbol => Boolean(symbol));
+
+    for (const symbol of restoredSymbols) addToWatchlist(symbol);
+
+    saveSetting("marketos:symbol", primaryPane.symbol.id);
+    saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
+    saveSetting("marketos:timeframe", primaryPane.timeframe);
     saveSetting("marketos:chart-view", workspace.chartView);
+    saveSetting("marketos:chart-layout", restoredLayout);
+    saveSetting("marketos:chart-sync", (workspace.chartSyncEnabled ?? true) ? "on" : "off");
+
+    savePaneSymbol("marketos:pane-secondary", secondaryPane?.symbol ?? null);
+    savePaneSymbol("marketos:pane-third", thirdPane?.symbol ?? null);
+    savePaneSymbol("marketos:pane-fourth", fourthPane?.symbol ?? null);
+
+    saveSetting(
+      "marketos:pane-secondary-timeframe",
+      secondaryPane?.timeframe ?? primaryPane.timeframe,
+    );
+    saveSetting(
+      "marketos:pane-third-timeframe",
+      thirdPane?.timeframe ?? primaryPane.timeframe,
+    );
+    saveSetting(
+      "marketos:pane-fourth-timeframe",
+      fourthPane?.timeframe ?? primaryPane.timeframe,
+    );
+
     saveIndicatorSelection(workspace.indicators);
-    saveDrawings(workspace.symbol.id, workspace.drawings);
+    saveDrawings(primaryPane.symbol.id, workspace.drawings);
     setShowWorkspaceMenu(false);
   };
-
   const deleteWorkspace = (id: string) => {
     setSavedWorkspaces((current) => {
       const next = current.filter((workspace) => workspace.id !== id);
@@ -1772,6 +1886,40 @@ export default function App() {
     chooseAuxiliaryPaneSymbol(pane, symbol);
   };
 
+  const paneTimeframe = (pane: ChartPaneId): Timeframe => {
+    if (pane === "primary") return timeframe;
+    if (pane === "secondary") return comparisonTimeframe;
+    if (pane === "third") return thirdChartTimeframe;
+    return fourthChartTimeframe;
+  };
+
+  const changePaneTimeframe = (
+    pane: ChartPaneId,
+    nextTimeframe: Timeframe,
+  ) => {
+    setSyncedLogicalRange(null);
+
+    if (pane === "primary") {
+      chooseTimeframe(nextTimeframe);
+      return;
+    }
+
+    if (pane === "secondary") {
+      setComparisonTimeframe(nextTimeframe);
+      saveSetting("marketos:pane-secondary-timeframe", nextTimeframe);
+      return;
+    }
+
+    if (pane === "third") {
+      setThirdChartTimeframe(nextTimeframe);
+      saveSetting("marketos:pane-third-timeframe", nextTimeframe);
+      return;
+    }
+
+    setFourthChartTimeframe(nextTimeframe);
+    saveSetting("marketos:pane-fourth-timeframe", nextTimeframe);
+  };
+
   const renderPaneSymbolSelector = (
     pane: ChartPaneId,
     symbol: MarketSymbol,
@@ -1785,6 +1933,19 @@ export default function App() {
         {multiChartSymbolOptions.map((option) => (
           <option value={option.id} key={option.id}>
             {option.ticker} · {option.exchange}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="pane-timeframe-select"
+        value={paneTimeframe(pane)}
+        onChange={(event) => changePaneTimeframe(pane, event.target.value as Timeframe)}
+        aria-label={`فريم ${pane}`}
+      >
+        {timeframes.map((item) => (
+          <option value={item} key={item}>
+            {item.toUpperCase()}
           </option>
         ))}
       </select>
@@ -1837,7 +1998,7 @@ export default function App() {
         }
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {textAnchor ? (
@@ -1884,7 +2045,7 @@ export default function App() {
       </div>
       <MarketChart
         candles={displayComparisonCandles}
-        timeframe={timeframe}
+        timeframe={comparisonTimeframe}
         chartView={chartView}
         indicators={indicators}
         customIndicators={customIndicators}
@@ -1894,7 +2055,7 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayComparisonCandles.length === 0 ? (
@@ -1917,7 +2078,7 @@ export default function App() {
       </div>
       <MarketChart
         candles={displayThirdChartCandles}
-        timeframe={timeframe}
+        timeframe={thirdChartTimeframe}
         chartView={chartView}
         indicators={indicators}
         customIndicators={customIndicators}
@@ -1927,7 +2088,7 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayThirdChartCandles.length === 0 ? (
@@ -1950,7 +2111,7 @@ export default function App() {
       </div>
       <MarketChart
         candles={displayFourthChartCandles}
-        timeframe={timeframe}
+        timeframe={fourthChartTimeframe}
         chartView={chartView}
         indicators={indicators}
         customIndicators={customIndicators}
@@ -1960,7 +2121,7 @@ export default function App() {
         comparison={null}
         settings={chartSettings}
         resetViewKey={chartResetKey}
-        syncedLogicalRange={chartSyncEnabled ? syncedLogicalRange : null}
+        syncedLogicalRange={chartSyncEnabled && chartSyncCompatible ? syncedLogicalRange : null}
         onVisibleLogicalRangeChange={handleSynchronizedRangeChange}
       />
       {displayFourthChartCandles.length === 0 ? (
@@ -2031,7 +2192,15 @@ export default function App() {
                     <div className="workspace-row" key={workspace.id}>
                       <button className="workspace-open" onClick={() => restoreWorkspace(workspace)}>
                         <strong>{workspace.name}</strong>
-                        <small>{workspace.symbol.ticker} · {workspace.timeframe.toUpperCase()}</small>
+                        <small>
+                          {workspace.symbol.ticker} · {workspace.timeframe.toUpperCase()} · {
+                            workspace.layoutMode === "quad"
+                              ? "4×"
+                              : workspace.layoutMode === "split"
+                                ? "2×"
+                                : "1×"
+                          }
+                        </small>
                       </button>
                       <button className="workspace-delete" onClick={() => deleteWorkspace(workspace.id)} title="حذف">×</button>
                     </div>
@@ -2756,10 +2925,16 @@ export default function App() {
               </div>
 
               <button
-                className={chartSyncEnabled && layoutMode !== "single" ? "chart-sync-toggle active" : "chart-sync-toggle"}
+                className={chartSyncEnabled && layoutMode !== "single" && chartSyncCompatible ? "chart-sync-toggle active" : "chart-sync-toggle"}
                 onClick={toggleChartSync}
-                disabled={layoutMode === "single"}
-                title={layoutMode === "quad" ? "مزامنة Zoom/Scroll بين الأربع شارتات" : "مزامنة Zoom/Scroll بين الشارتين"}
+                disabled={layoutMode === "single" || !chartSyncCompatible}
+                title={
+                  !chartSyncCompatible
+                    ? "المزامنة تتطلب نفس الفريم في Panes الظاهرة"
+                    : layoutMode === "quad"
+                      ? "مزامنة Zoom/Scroll بين الأربع شارتات"
+                      : "مزامنة Zoom/Scroll بين الشارتين"
+                }
               >
                 Sync
               </button>
