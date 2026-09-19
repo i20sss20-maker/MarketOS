@@ -58,6 +58,8 @@ const initialSymbols: MarketSymbol[] = [
 
 const timeframes: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d", "1w"];
 
+type ChartLayoutMode = "single" | "split";
+
 function readSaved<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
@@ -125,6 +127,12 @@ export default function App() {
   const [showComparisonMenu, setShowComparisonMenu] = useState(false);
   const [comparisonSymbol, setComparisonSymbol] = useState<MarketSymbol | null>(null);
   const [comparisonCandles, setComparisonCandles] = useState<Candle[]>([]);
+  const [layoutMode, setLayoutMode] = useState<ChartLayoutMode>(() =>
+    readSaved("marketos:chart-layout", "single"),
+  );
+  const [replayActive, setReplayActive] = useState(false);
+  const [replayIndex, setReplayIndex] = useState<number | null>(null);
+  const [replayPlaying, setReplayPlaying] = useState(false);
   const [hoverCandle, setHoverCandle] = useState<Candle | null>(null);
 
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => loadAlerts());
@@ -220,6 +228,8 @@ export default function App() {
   }, [comparisonSymbol, active.id, timeframe]);
 
   useEffect(() => {
+    if (replayActive) return;
+
     const price = quote?.price ?? candles[candles.length - 1]?.close;
     if (!Number.isFinite(price)) return;
 
@@ -235,7 +245,32 @@ export default function App() {
 
     const timer = window.setTimeout(() => setAlertMessage(null), 7000);
     return () => window.clearTimeout(timer);
-  }, [quote?.price, candles, active]);
+  }, [quote?.price, candles, active, replayActive]);
+
+  useEffect(() => {
+    if (!replayActive || !replayPlaying || candles.length === 0) return;
+
+    const timer = window.setInterval(() => {
+      setReplayIndex((current) => {
+        const index = current ?? Math.max(20, candles.length - 60);
+        if (index >= candles.length - 1) {
+          setReplayPlaying(false);
+          return candles.length - 1;
+        }
+        return index + 1;
+      });
+    }, 650);
+
+    return () => window.clearInterval(timer);
+  }, [replayActive, replayPlaying, candles.length]);
+
+  useEffect(() => {
+    if (!replayActive || candles.length === 0) return;
+    setReplayIndex((current) => {
+      if (current === null) return Math.max(20, candles.length - 60);
+      return Math.min(current, candles.length - 1);
+    });
+  }, [replayActive, candles.length]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -278,16 +313,37 @@ export default function App() {
     [query, searchResults, watchlist],
   );
 
+  const safeReplayIndex = replayActive
+    ? Math.min(replayIndex ?? candles.length - 1, Math.max(0, candles.length - 1))
+    : candles.length - 1;
+
+  const displayCandles = useMemo(
+    () => replayActive ? candles.slice(0, safeReplayIndex + 1) : candles,
+    [candles, replayActive, safeReplayIndex],
+  );
+
+  const replayCutoff = displayCandles[displayCandles.length - 1]?.time;
+  const displayComparisonCandles = useMemo(
+    () =>
+      replayActive && replayCutoff !== undefined
+        ? comparisonCandles.filter((candle) => candle.time <= replayCutoff)
+        : comparisonCandles,
+    [comparisonCandles, replayActive, replayCutoff],
+  );
+
   const activeIndicatorItems = useMemo(
     () => indicatorCatalog.filter((item) => indicators[item.id]),
     [indicators],
   );
 
-  const lastCandle = candles[candles.length - 1];
+  const lastCandle = displayCandles[displayCandles.length - 1];
+  const previousDisplayedCandle = displayCandles[displayCandles.length - 2];
   const inspectedCandle = hoverCandle ?? lastCandle;
   const isActiveWatchlisted = watchlist.some((symbol) => symbol.id === active.id);
-  const displayedPrice = quote?.price ?? lastCandle?.close;
-  const displayedPercent = quote?.percentChange;
+  const displayedPrice = replayActive ? lastCandle?.close : quote?.price ?? lastCandle?.close;
+  const displayedPercent = replayActive && lastCandle && previousDisplayedCandle
+    ? ((lastCandle.close - previousDisplayedCandle.close) / previousDisplayedCandle.close) * 100
+    : quote?.percentChange;
   const providerLabel =
     dataState === "loading"
       ? "Loading data"
@@ -317,6 +373,9 @@ export default function App() {
 
   const chooseSymbol = (symbol: MarketSymbol) => {
     setActive(symbol);
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
     if (comparisonSymbol?.id === symbol.id) {
       setComparisonSymbol(null);
       setComparisonCandles([]);
@@ -333,6 +392,9 @@ export default function App() {
 
   const chooseTimeframe = (value: Timeframe) => {
     setTimeframe(value);
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
     saveSetting("marketos:timeframe", value);
     setDrawingTool("cursor");
     setHoverCandle(null);
@@ -378,6 +440,34 @@ export default function App() {
     if (symbol.id === active.id) return;
     setComparisonSymbol(symbol);
     setShowComparisonMenu(false);
+  };
+
+  const chooseLayoutMode = (mode: ChartLayoutMode) => {
+    if (mode === "split" && !comparisonSymbol) return;
+    setLayoutMode(mode);
+    saveSetting("marketos:chart-layout", mode);
+  };
+
+  const startReplay = () => {
+    if (candles.length < 25) return;
+    setReplayActive(true);
+    setReplayPlaying(false);
+    setReplayIndex(Math.max(20, candles.length - 60));
+    setHoverCandle(null);
+  };
+
+  const exitReplay = () => {
+    setReplayActive(false);
+    setReplayPlaying(false);
+    setReplayIndex(null);
+    setHoverCandle(null);
+  };
+
+  const stepReplay = (delta: number) => {
+    setReplayIndex((current) => {
+      const base = current ?? Math.max(20, candles.length - 60);
+      return Math.min(Math.max(20, base + delta), Math.max(20, candles.length - 1));
+    });
   };
 
   const addAlert = () => {
@@ -448,8 +538,8 @@ export default function App() {
   };
 
   const runChartReading = async (promptOverride?: string) => {
-    if (candles.length < 20 || aiLoading) {
-      if (candles.length < 20) {
+    if (displayCandles.length < 20 || aiLoading) {
+      if (displayCandles.length < 20) {
         setAiResult({
           engine: "browser-fallback",
           summary: "لا توجد شموع كافية لقراءة الشارت حاليًا.",
@@ -467,7 +557,7 @@ export default function App() {
       const analysis = await analyzeChart({
         symbol: active,
         timeframe,
-        visibleCandles: candles.slice(-300),
+        visibleCandles: displayCandles.slice(-300),
         quote,
         indicators: activeIndicatorItems.map((item) => item.id),
         userDrawings: drawings.map((drawing) =>
@@ -484,7 +574,7 @@ export default function App() {
         observations: analysis.observations,
       });
     } catch {
-      const recent = candles.slice(-20);
+      const recent = displayCandles.slice(-20);
       const first = recent[0];
       const last = recent[recent.length - 1];
       const high = Math.max(...recent.map((candle) => candle.high));
@@ -522,6 +612,71 @@ export default function App() {
             : null;
 
   const activeAlerts = alerts.filter((alert) => !alert.triggeredAt);
+  const replayDateLabel = replayActive && lastCandle
+    ? new Date(lastCandle.time * 1000).toLocaleString("ar-SA", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+
+  const ignoreDrawingCreated = useCallback((_drawing: ChartDrawing) => undefined, []);
+
+  const primaryChartNode = (
+    <div className="chart-host primary-chart-host">
+      {inspectedCandle ? (
+        <div className="ohlc-legend" dir="ltr">
+          <span>O <b>{formatPrice(inspectedCandle.open)}</b></span>
+          <span>H <b>{formatPrice(inspectedCandle.high)}</b></span>
+          <span>L <b>{formatPrice(inspectedCandle.low)}</b></span>
+          <span>C <b className={inspectedCandle.close >= inspectedCandle.open ? "positive" : "negative"}>
+            {formatPrice(inspectedCandle.close)}
+          </b></span>
+          {inspectedCandle.volume !== undefined ? (
+            <span>V <b>{Math.round(inspectedCandle.volume).toLocaleString("en-US")}</b></span>
+          ) : null}
+        </div>
+      ) : null}
+      <MarketChart
+        candles={displayCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        drawings={drawings}
+        drawingTool={drawingTool}
+        onDrawingCreated={handleDrawingCreated}
+        onCrosshairCandle={setHoverCandle}
+        comparison={
+          layoutMode === "single" && comparisonSymbol && displayComparisonCandles.length > 0
+            ? { symbol: comparisonSymbol, candles: displayComparisonCandles }
+            : null
+        }
+      />
+      {dataState === "loading" && !replayActive ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
+      {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+      {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
+    </div>
+  );
+
+  const secondaryChartNode = comparisonSymbol && displayComparisonCandles.length > 0 ? (
+    <div className="chart-host secondary-chart-host">
+      <div className="secondary-chart-label" dir="ltr">
+        <strong>{comparisonSymbol.ticker}</strong>
+        <span>{comparisonSymbol.exchange}</span>
+      </div>
+      <MarketChart
+        candles={displayComparisonCandles}
+        timeframe={timeframe}
+        chartView={chartView}
+        indicators={indicators}
+        drawings={[]}
+        drawingTool="cursor"
+        onDrawingCreated={ignoreDrawingCreated}
+        comparison={null}
+      />
+      {replayActive ? <div className="chart-mode replay-mode">REPLAY</div> : null}
+    </div>
+  ) : null;
 
   return (
     <main className="shell">
@@ -683,7 +838,7 @@ export default function App() {
               <span className={(displayedPercent ?? 0) >= 0 ? "positive" : "negative"}>
                 {formatPercent(displayedPercent)}
               </span>
-              <small>{quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
+              <small>{replayActive ? "REPLAY" : quote?.source ?? "fallback"} · {timeframe.toUpperCase()}</small>
             </div>
           </div>
 
@@ -716,6 +871,8 @@ export default function App() {
                   <button className="comparison-clear" onClick={() => {
                     setComparisonSymbol(null);
                     setComparisonCandles([]);
+                    setLayoutMode("single");
+                    saveSetting("marketos:chart-layout", "single");
                   }}>×</button>
                 ) : null}
 
@@ -792,6 +949,69 @@ export default function App() {
             </div>
           </div>
 
+          <div className={replayActive ? "replay-toolbar active" : "replay-toolbar"}>
+            <div className="replay-main-actions">
+              <button
+                className={replayActive ? "replay-toggle active" : "replay-toggle"}
+                onClick={replayActive ? exitReplay : startReplay}
+              >
+                {replayActive ? "خروج Replay" : "Replay"}
+              </button>
+
+              <div className="layout-toggle" title="تخطيط الشارت">
+                <button
+                  className={layoutMode === "single" ? "selected" : ""}
+                  onClick={() => chooseLayoutMode("single")}
+                >
+                  1×
+                </button>
+                <button
+                  className={layoutMode === "split" ? "selected" : ""}
+                  onClick={() => chooseLayoutMode("split")}
+                  disabled={!comparisonSymbol}
+                  title={comparisonSymbol ? "شارتان جنبًا إلى جنب" : "اختر أصلًا للمقارنة أولًا"}
+                >
+                  2×
+                </button>
+              </div>
+            </div>
+
+            {replayActive ? (
+              <div className="replay-controls" dir="ltr">
+                <button onClick={() => stepReplay(-1)} disabled={safeReplayIndex <= 20}>‹</button>
+                <button
+                  className={replayPlaying ? "selected" : ""}
+                  onClick={() => setReplayPlaying((value) => !value)}
+                >
+                  {replayPlaying ? "Ⅱ" : "▶"}
+                </button>
+                <button
+                  onClick={() => stepReplay(1)}
+                  disabled={safeReplayIndex >= candles.length - 1}
+                >
+                  ›
+                </button>
+                <input
+                  type="range"
+                  min={20}
+                  max={Math.max(20, candles.length - 1)}
+                  value={Math.max(20, safeReplayIndex)}
+                  onChange={(event) => {
+                    setReplayPlaying(false);
+                    setReplayIndex(Number(event.target.value));
+                    setHoverCandle(null);
+                  }}
+                />
+                <span className="replay-progress">
+                  {Math.min(candles.length, safeReplayIndex + 1)} / {candles.length}
+                </span>
+                <span className="replay-date">{replayDateLabel}</span>
+              </div>
+            ) : (
+              <div className="replay-idle-note">إعادة تشغيل تاريخية من نفس بيانات الشارت</div>
+            )}
+          </div>
+
           <div className="chart-stage">
             <div className="drawing-rail">
               <button
@@ -832,37 +1052,12 @@ export default function App() {
               <button title="مسح الرسومات" onClick={clearDrawings} disabled={drawings.length === 0}>⌫</button>
             </div>
 
-            <div className="chart-host">
-              {inspectedCandle ? (
-                <div className="ohlc-legend" dir="ltr">
-                  <span>O <b>{formatPrice(inspectedCandle.open)}</b></span>
-                  <span>H <b>{formatPrice(inspectedCandle.high)}</b></span>
-                  <span>L <b>{formatPrice(inspectedCandle.low)}</b></span>
-                  <span>C <b className={inspectedCandle.close >= inspectedCandle.open ? "positive" : "negative"}>
-                    {formatPrice(inspectedCandle.close)}
-                  </b></span>
-                  {inspectedCandle.volume !== undefined ? <span>V <b>{Math.round(inspectedCandle.volume).toLocaleString("en-US")}</b></span> : null}
-                </div>
-              ) : null}
-              <MarketChart
-                candles={candles}
-                timeframe={timeframe}
-                chartView={chartView}
-                indicators={indicators}
-                drawings={drawings}
-                drawingTool={drawingTool}
-                onDrawingCreated={handleDrawingCreated}
-                onCrosshairCandle={setHoverCandle}
-                comparison={
-                  comparisonSymbol && comparisonCandles.length > 0
-                    ? { symbol: comparisonSymbol, candles: comparisonCandles }
-                    : null
-                }
-              />
-              {dataState === "loading" ? <div className="chart-state">تحميل بيانات السوق…</div> : null}
-              {dataState === "fallback" ? <div className="chart-mode">DEMO</div> : <div className="chart-mode live">DATA</div>}
-              {drawingHint ? <div className="drawing-hint">{drawingHint}</div> : null}
-            </div>
+            {layoutMode === "split" && secondaryChartNode ? (
+              <div className="multi-chart-grid">
+                {primaryChartNode}
+                {secondaryChartNode}
+              </div>
+            ) : primaryChartNode}
           </div>
         </section>
 
@@ -914,7 +1109,7 @@ export default function App() {
             <div><span>الرسومات</span><strong>{drawings.length}</strong></div>
             <div><span>المقارنة</span><strong>{comparisonSymbol?.ticker ?? "—"}</strong></div>
             <div><span>التنبيهات</span><strong>{activeAlerts.length}</strong></div>
-            <div><span>الشموع</span><strong>{candles.length}</strong></div>
+            <div><span>الشموع</span><strong>{displayCandles.length}</strong></div>
             <div><span>المصدر</span><strong>{quote?.source ?? "fallback"}</strong></div>
           </div>
 
