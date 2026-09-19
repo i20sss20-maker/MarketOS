@@ -26,6 +26,10 @@ export type SystemHealth = {
     provider: string;
     mode: "local" | "provider";
   };
+  userData: {
+    provider: "memory" | "cosmos";
+    persistent: boolean;
+  };
 };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
