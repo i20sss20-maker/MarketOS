@@ -203,6 +203,178 @@ function average(values: number[]) {
   return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function emaSeries(
+  values: number[],
+  period: number,
+) {
+  const output: Array<number | null> =
+    Array(values.length).fill(null);
+
+  if (values.length < period) {
+    return output;
+  }
+
+  const multiplier =
+    2 / (period + 1);
+  let current =
+    average(values.slice(0, period));
+
+  output[period - 1] = current;
+
+  for (
+    let index = period;
+    index < values.length;
+    index += 1
+  ) {
+    current =
+      values[index] * multiplier +
+      current * (1 - multiplier);
+    output[index] = current;
+  }
+
+  return output;
+}
+
+function rsi14(
+  closes: number[],
+) {
+  if (closes.length < 15) {
+    return undefined;
+  }
+
+  const recent =
+    closes.slice(-15);
+  let gains = 0;
+  let losses = 0;
+
+  for (
+    let index = 1;
+    index < recent.length;
+    index += 1
+  ) {
+    const change =
+      recent[index] -
+      recent[index - 1];
+
+    if (change >= 0) {
+      gains += change;
+    } else {
+      losses +=
+        Math.abs(change);
+    }
+  }
+
+  const avgGain = gains / 14;
+  const avgLoss = losses / 14;
+
+  if (avgLoss === 0) {
+    return 100;
+  }
+
+  const rs = avgGain / avgLoss;
+  return 100 -
+    100 / (1 + rs);
+}
+
+function atr14(
+  candles: Candle[],
+) {
+  if (candles.length < 15) {
+    return undefined;
+  }
+
+  const recent =
+    candles.slice(-15);
+  const ranges: number[] = [];
+
+  for (
+    let index = 1;
+    index < recent.length;
+    index += 1
+  ) {
+    const candle = recent[index];
+    const previous =
+      recent[index - 1];
+
+    ranges.push(
+      Math.max(
+        candle.high - candle.low,
+        Math.abs(
+          candle.high -
+          previous.close,
+        ),
+        Math.abs(
+          candle.low -
+          previous.close,
+        ),
+      ),
+    );
+  }
+
+  return average(ranges);
+}
+
+function macdMetrics(
+  closes: number[],
+) {
+  if (closes.length < 35) {
+    return undefined;
+  }
+
+  const fast =
+    emaSeries(closes, 12);
+  const slow =
+    emaSeries(closes, 26);
+
+  const macdValues: number[] = [];
+
+  for (
+    let index = 0;
+    index < closes.length;
+    index += 1
+  ) {
+    const fastValue = fast[index];
+    const slowValue = slow[index];
+
+    if (
+      fastValue === null ||
+      slowValue === null
+    ) {
+      continue;
+    }
+
+    macdValues.push(
+      fastValue - slowValue,
+    );
+  }
+
+  const signalSeries =
+    emaSeries(macdValues, 9);
+  const macd =
+    macdValues[
+      macdValues.length - 1
+    ];
+  const signal =
+    signalSeries[
+      signalSeries.length - 1
+    ];
+
+  if (
+    macd === undefined ||
+    signal === null ||
+    signal === undefined
+  ) {
+    return undefined;
+  }
+
+  return {
+    macd,
+    signal,
+    histogram:
+      macd - signal,
+  };
+}
+
 function percentChange(from: number, to: number) {
   if (from === 0) return 0;
   return ((to - from) / from) * 100;
@@ -219,6 +391,28 @@ export function analyzeChartContext(context: ChartContext): ChartAnalysisRespons
   const first = recent[0];
   const last = recent[recent.length - 1];
   const closes = recent.map((candle) => candle.close);
+  const allCloses =
+    candles.map(
+      (candle) => candle.close,
+    );
+  const ema20Series =
+    emaSeries(allCloses, 20);
+  const ema50Series =
+    emaSeries(allCloses, 50);
+  const ema20 =
+    ema20Series[
+      ema20Series.length - 1
+    ] ?? undefined;
+  const ema50 =
+    ema50Series[
+      ema50Series.length - 1
+    ] ?? undefined;
+  const currentRsi14 =
+    rsi14(allCloses);
+  const currentAtr14 =
+    atr14(candles);
+  const currentMacd =
+    macdMetrics(allCloses);
   const rangeLow20 = Math.min(...recent.map((candle) => candle.low));
   const rangeHigh20 = Math.max(...recent.map((candle) => candle.high));
   const sma20 = average(closes);
@@ -261,6 +455,36 @@ export function analyzeChartContext(context: ChartContext): ChartAnalysisRespons
   if (latestVolumeRatio !== undefined) {
     observations.push(
       `حجم آخر شمعة يساوي ${round(latestVolumeRatio, 2)}× متوسط أحجام آخر 20 شمعة.`,
+    );
+  }
+
+  if (currentRsi14 !== undefined) {
+    observations.push(
+      `RSI14 عند ${round(currentRsi14, 1)}.`,
+    );
+  }
+
+  if (
+    ema20 !== undefined &&
+    ema50 !== undefined
+  ) {
+    observations.push(
+      `EMA20 ${ema20 >= ema50 ? "فوق" : "تحت"} EMA50 (${round(ema20)} مقابل ${round(ema50)}).`,
+    );
+  }
+
+  if (currentMacd) {
+    observations.push(
+      `MACD histogram ${round(currentMacd.histogram, 4)} (${currentMacd.histogram >= 0 ? "زخم موجب" : "زخم سالب"}).`,
+    );
+  }
+
+  if (
+    currentAtr14 !== undefined &&
+    last.close !== 0
+  ) {
+    observations.push(
+      `ATR14 يساوي ${round(currentAtr14, 4)} أو ${round((currentAtr14 / last.close) * 100, 2)}% من السعر.`,
     );
   }
 
@@ -312,6 +536,53 @@ export function analyzeChartContext(context: ChartContext): ChartAnalysisRespons
       rangeHigh20: round(rangeHigh20),
       sma20: round(sma20),
       distanceFromSma20: round(distanceFromSma20, 4),
+      ema20:
+        ema20 === undefined
+          ? undefined
+          : round(ema20),
+      ema50:
+        ema50 === undefined
+          ? undefined
+          : round(ema50),
+      rsi14:
+        currentRsi14 === undefined
+          ? undefined
+          : round(currentRsi14, 2),
+      atr14:
+        currentAtr14 === undefined
+          ? undefined
+          : round(currentAtr14, 4),
+      atrPercent:
+        currentAtr14 === undefined ||
+        last.close === 0
+          ? undefined
+          : round(
+              (currentAtr14 /
+                last.close) *
+                100,
+              4,
+            ),
+      macd:
+        currentMacd
+          ? round(
+              currentMacd.macd,
+              4,
+            )
+          : undefined,
+      macdSignal:
+        currentMacd
+          ? round(
+              currentMacd.signal,
+              4,
+            )
+          : undefined,
+      macdHistogram:
+        currentMacd
+          ? round(
+              currentMacd.histogram,
+              4,
+            )
+          : undefined,
       averageVolume20: averageVolume20 === undefined ? undefined : round(averageVolume20, 2),
       latestVolumeRatio: latestVolumeRatio === undefined ? undefined : round(latestVolumeRatio, 4),
       realizedRangePercent20: round(realizedRangePercent20, 4),
