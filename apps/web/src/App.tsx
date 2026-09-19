@@ -1152,6 +1152,8 @@ export default function App() {
     if (symbol.id === active.id) return;
     setComparisonSymbol(symbol);
     setShowComparisonMenu(false);
+    setMaximizedChartPane(null);
+    setSyncedLogicalRange(null);
   };
 
   const chooseLayoutMode = (mode: ChartLayoutMode) => {
@@ -2303,6 +2305,8 @@ export default function App() {
                     setComparisonSymbol(null);
                     setComparisonCandles([]);
                     setLayoutMode("single");
+                    setMaximizedChartPane(null);
+                    setSyncedLogicalRange(null);
                     saveSetting("marketos:chart-layout", "single");
                   }}>×</button>
                 ) : null}
