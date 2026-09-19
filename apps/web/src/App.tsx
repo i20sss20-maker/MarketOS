@@ -2925,10 +2925,16 @@ export default function App() {
               </div>
 
               <button
-                className={chartSyncEnabled && layoutMode !== "single" ? "chart-sync-toggle active" : "chart-sync-toggle"}
+                className={chartSyncEnabled && layoutMode !== "single" && chartSyncCompatible ? "chart-sync-toggle active" : "chart-sync-toggle"}
                 onClick={toggleChartSync}
-                disabled={layoutMode === "single"}
-                title={layoutMode === "quad" ? "مزامنة Zoom/Scroll بين الأربع شارتات" : "مزامنة Zoom/Scroll بين الشارتين"}
+                disabled={layoutMode === "single" || !chartSyncCompatible}
+                title={
+                  !chartSyncCompatible
+                    ? "المزامنة تتطلب نفس الفريم في Panes الظاهرة"
+                    : layoutMode === "quad"
+                      ? "مزامنة Zoom/Scroll بين الأربع شارتات"
+                      : "مزامنة Zoom/Scroll بين الشارتين"
+                }
               >
                 Sync
               </button>
