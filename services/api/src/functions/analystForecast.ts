@@ -5,6 +5,7 @@ import {
 } from "@azure/functions";
 import type {
   AssetClass,
+  Candle,
   MarketSymbol,
   Timeframe,
 } from "@marketos/market-core";
@@ -18,6 +19,9 @@ import {
 import {
   buildAnalystForecast,
 } from "../ai/analystForecastEngine.js";
+import {
+  buildForecastCalibration,
+} from "../ai/forecastCalibration.js";
 import {
   marketDataProvider,
 } from "../providers/index.js";
@@ -131,6 +135,29 @@ function forecastTimeframes(
   ];
 }
 
+function calibrationPlan(
+  symbol: MarketSymbol,
+): {
+  timeframe: Timeframe;
+  lookaheadBars: number;
+} {
+  if (
+    symbol.assetClass === "stock" ||
+    symbol.assetClass === "etf" ||
+    symbol.assetClass === "index"
+  ) {
+    return {
+      timeframe: "1d",
+      lookaheadBars: 5,
+    };
+  }
+
+  return {
+    timeframe: "4h",
+    lookaheadBars: 6,
+  };
+}
+
 function isoDate(
   date: Date,
 ) {
@@ -213,6 +240,7 @@ export async function analystForecast(
 
             return {
               timeframe,
+              candles,
               analysis:
                 analyzeChartContext(
                   context,
@@ -230,6 +258,12 @@ export async function analystForecast(
         >;
     }> = [];
 
+    const candleHistory =
+      new Map<
+        Timeframe,
+        Candle[]
+      >();
+
     const failures: Array<{
       timeframe: Timeframe;
       error: string;
@@ -246,6 +280,10 @@ export async function analystForecast(
         ) {
           analyses.push(
             result.value,
+          );
+          candleHistory.set(
+            timeframe,
+            result.value.candles,
           );
         } else {
           failures.push({
@@ -327,6 +365,24 @@ export async function analystForecast(
       marketDataProvider
         .getStatus();
 
+    const calibrationConfig =
+      calibrationPlan(symbol);
+    const calibrationCandles =
+      candleHistory.get(
+        calibrationConfig.timeframe,
+      );
+    const calibration =
+      calibrationCandles
+        ? buildForecastCalibration({
+            timeframe:
+              calibrationConfig.timeframe,
+            candles:
+              calibrationCandles,
+            lookaheadBars:
+              calibrationConfig.lookaheadBars,
+          })
+        : null;
+
     const forecast =
       buildAnalystForecast({
         symbol,
@@ -337,6 +393,7 @@ export async function analystForecast(
         dataProvider:
           marketDataProvider.id,
         dataMode: status.mode,
+        calibration,
       });
 
     return json(200, {
