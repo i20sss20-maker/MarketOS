@@ -16,6 +16,7 @@ export type StoredUserState = {
   updatedAt: number;
   clientUpdatedAt: number;
   clientRevision: number;
+  serverRevision: number;
   payload: UserCloudState;
   _etag?: string;
 };
@@ -27,12 +28,14 @@ export type UserStateBatch = {
 
 export type UserStatePutOptions = {
   expectedClientRevision?: number | null;
+  expectedServerRevision?: number | null;
 };
 
 export class UserStateConflictError extends Error {
   constructor(
     readonly currentClientRevision: number | null,
-    message = "Cloud state changed on another device.",
+    readonly currentServerRevision: number | null,
+    message = "Cloud state changed since this device last read it.",
   ) {
     super(message);
     this.name = "UserStateConflictError";
