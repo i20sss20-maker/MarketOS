@@ -2795,6 +2795,10 @@ export default function App() {
       "marketos:chart-view",
       template.chartView,
     );
+    updateActiveChartTabSession({
+      chartView:
+        template.chartView,
+    });
 
     setChartSettings(
       template.chartSettings,
@@ -4434,6 +4438,34 @@ export default function App() {
       priority: 110,
       onSelect: openHomeDashboard,
     },
+    ...chartTabs.map(
+      (tab, index) => ({
+        id: `chart-tab:${tab.id}`,
+        group: "Chart Tabs",
+        label: tab.symbol.ticker,
+        description:
+          `${tab.timeframe.toUpperCase()} · ${tab.chartView} · ${tab.symbol.exchange}`,
+        keywords: [
+          "tab",
+          "chart tab",
+          "session",
+          "تبويب",
+          "جلسة",
+          tab.symbol.ticker,
+          tab.symbol.name,
+        ],
+        priority:
+          tab.id === activeChartTabId
+            ? 98
+            : 80 - index,
+        badge:
+          tab.id === activeChartTabId
+            ? "الحالي"
+            : undefined,
+        onSelect: () =>
+          switchChartTab(tab.id),
+      }),
+    ),
     ...watchlistCollections.map(
       (collection, index) => ({
         id: `watchlist:${collection.id}`,
@@ -5931,6 +5963,21 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <ChartTabsBar
+            tabs={chartTabs}
+            activeTabId={activeChartTabId}
+            recentSymbols={recentSymbols}
+            maxTabs={MAX_CHART_TABS}
+            onSelect={switchChartTab}
+            onCloseTab={closeChartTabSession}
+            onAddSymbol={openChartTabForSymbol}
+            onOpenSearch={() => {
+              setCommandQuery("");
+              setCommandSymbolResults([]);
+              setShowCommandPalette(true);
+            }}
+          />
 
           <div className="chart-toolbar">
             <div className="timeframes">
