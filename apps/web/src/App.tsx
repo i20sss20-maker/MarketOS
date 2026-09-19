@@ -418,6 +418,75 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
 
+  const refreshEntitlement = useCallback(async () => {
+    if (!authUser) {
+      setEntitlement(
+        anonymousEntitlement(),
+      );
+      setEntitlementError(null);
+      return;
+    }
+
+    setEntitlementLoading(true);
+    setEntitlementError(null);
+
+    try {
+      const response =
+        await getUserEntitlements();
+
+      setEntitlement(
+        response.entitlement,
+      );
+    } catch (error) {
+      setEntitlement(
+        anonymousEntitlement(),
+      );
+      setEntitlementError(
+        error instanceof Error
+          ? error.message
+          : "تعذر قراءة خطة MarketOS.",
+      );
+    } finally {
+      setEntitlementLoading(false);
+    }
+  }, [authUser]);
+
+  const showPlanRequirement = useCallback(
+    (message: string) => {
+      setPlanMessage(message);
+      setShowPlansPanel(true);
+    },
+    [],
+  );
+
+  const requireFeature = useCallback(
+    (
+      feature: FeatureId,
+      label: string,
+    ) => {
+      if (
+        canUseFeature(
+          entitlement,
+          feature,
+        )
+      ) {
+        return true;
+      }
+
+      showPlanRequirement(
+        `${label} تتطلب خطة أعلى من ${entitlement.definition.name}.`,
+      );
+      return false;
+    },
+    [
+      entitlement,
+      showPlanRequirement,
+    ],
+  );
+
+  const planLimits =
+    entitlement.definition.limits;
+
   const refreshCloudState = useCallback(async () => {
     if (!authUser) {
       setCloudState(null);
