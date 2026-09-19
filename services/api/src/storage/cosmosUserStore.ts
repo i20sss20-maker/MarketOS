@@ -2,6 +2,7 @@ import { CosmosClient, type Container } from "@azure/cosmos";
 import {
   UserStateConflictError,
   type AlertInboxEvent,
+  type PushSubscriptionRecord,
   type StoredUserState,
   type UserCloudState,
   type UserStatePutOptions,
@@ -211,6 +212,8 @@ export class CosmosUserStateStore implements UserStateStore {
   async updateAlerts(
     userId: string,
     alerts: unknown[],
+    alertEvents?: AlertInboxEvent[],
+    pushSubscriptions?: PushSubscriptionRecord[],
   ) {
     const container = await this.container();
 
@@ -230,6 +233,14 @@ export class CosmosUserStateStore implements UserStateStore {
         payload: {
           ...existing.payload,
           alerts,
+          alertEvents:
+            alertEvents ??
+            existing.payload.alertEvents ??
+            [],
+          pushSubscriptions:
+            pushSubscriptions ??
+            existing.payload.pushSubscriptions ??
+            [],
           updatedAt: now,
         },
       };
@@ -258,6 +269,59 @@ export class CosmosUserStateStore implements UserStateStore {
 
     throw new Error(
       "Cloud alerts changed concurrently too many times. Retry the alert sweep.",
+    );
+  }
+
+  async updatePushSubscriptions(
+    userId: string,
+    pushSubscriptions: PushSubscriptionRecord[],
+  ) {
+    const container = await this.container();
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const existing = await this.get(userId);
+      if (!existing) return null;
+      if (!existing._etag) return existing;
+
+      const now = Date.now();
+      const stored: StoredUserState = {
+        id: existing.id,
+        userId: existing.userId,
+        updatedAt: now,
+        clientUpdatedAt: existing.clientUpdatedAt,
+        clientRevision: existing.clientRevision,
+        serverRevision: existing.serverRevision + 1,
+        payload: {
+          ...existing.payload,
+          pushSubscriptions,
+          updatedAt: now,
+        },
+      };
+
+      try {
+        const response = await container
+          .item("state", userId)
+          .replace<StoredUserState>(
+            stored,
+            {
+              accessCondition: {
+                type: "IfMatch",
+                condition: existing._etag,
+              },
+            },
+          );
+
+        return response.resource
+          ? normalizeStored(response.resource)
+          : stored;
+      } catch (error) {
+        if (statusCode(error) === 412) continue;
+        throw error;
+      }
+    }
+
+    throw new Error(
+      "Cloud Push registrations changed concurrently too many times. Retry device registration.",
     );
   }
 
