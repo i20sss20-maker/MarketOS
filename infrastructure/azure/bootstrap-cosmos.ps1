@@ -3,7 +3,8 @@ param(
   [string]$StaticWebApp = "marketos-preview",
   [string]$Location = "westeurope",
   [string]$Database = "marketos",
-  [string]$Container = "userState"
+  [string]$Container = "userState",
+  [string]$EntitlementsContainer = "entitlements"
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,19 +53,23 @@ az cosmosdb sql database create --account-name $CosmosAccount --resource-group $
 Write-Host "Creating/confirming userState container..." -ForegroundColor Cyan
 az cosmosdb sql container create --account-name $CosmosAccount --resource-group $ResourceGroup --database-name $Database --name $Container --partition-key-path "/userId" --throughput 400 --output none
 
+Write-Host "Creating/confirming entitlements container..." -ForegroundColor Cyan
+az cosmosdb sql container create --account-name $CosmosAccount --resource-group $ResourceGroup --database-name $Database --name $EntitlementsContainer --partition-key-path "/userId" --throughput 400 --output none
+
 Write-Host "Reading Cosmos connection string securely..." -ForegroundColor Cyan
 $connectionString = az cosmosdb keys list --name $CosmosAccount --resource-group $ResourceGroup --type connection-strings --query "connectionStrings[0].connectionString" --output tsv
 if (-not $connectionString) { throw "Could not read Cosmos DB connection string." }
 
 Write-Host "Connecting Cosmos DB to MarketOS Static Web App..." -ForegroundColor Cyan
-az staticwebapp appsettings set --name $StaticWebApp --resource-group $ResourceGroup --setting-names "USER_DATA_PROVIDER=cosmos" "COSMOS_CONNECTION_STRING=$connectionString" "COSMOS_DATABASE=$Database" "COSMOS_CONTAINER=$Container" --output none
+az staticwebapp appsettings set --name $StaticWebApp --resource-group $ResourceGroup --setting-names "USER_DATA_PROVIDER=cosmos" "ENTITLEMENT_DATA_PROVIDER=cosmos" "COSMOS_CONNECTION_STRING=$connectionString" "COSMOS_DATABASE=$Database" "COSMOS_CONTAINER=$Container" "COSMOS_ENTITLEMENTS_CONTAINER=$EntitlementsContainer" --output none
 
 Write-Host ""
 Write-Host "MarketOS persistent cloud storage is ready." -ForegroundColor Green
 Write-Host "Resource group: $ResourceGroup"
 Write-Host "Cosmos account: $CosmosAccount"
 Write-Host "Database: $Database"
-Write-Host "Container: $Container"
+Write-Host "User state container: $Container"
+Write-Host "Entitlements container: $EntitlementsContainer"
 Write-Host "Partition key: /userId"
 Write-Host "Static Web App: $StaticWebApp"
 Write-Host ""
