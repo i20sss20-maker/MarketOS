@@ -68,6 +68,8 @@ type Props = {
   currentPrice?: number;
   alerts: AdvancedAlert[];
   checking: boolean;
+  serverChecking: boolean;
+  cloudAvailable: boolean;
   checkMessage: string | null;
   onCreate: (
     timeframe: Timeframe,
@@ -78,6 +80,7 @@ type Props = {
   onRearm: (id: string) => void;
   onToggleEnabled: (id: string) => void;
   onCheckAll: () => void;
+  onServerCheck: () => void;
   onClose: () => void;
 };
 
@@ -88,12 +91,15 @@ export default function AdvancedAlertsPanel({
   currentPrice,
   alerts,
   checking,
+  serverChecking,
+  cloudAvailable,
   checkMessage,
   onCreate,
   onDelete,
   onRearm,
   onToggleEnabled,
   onCheckAll,
+  onServerCheck,
   onClose,
 }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>(currentTimeframe);
@@ -199,8 +205,28 @@ export default function AdvancedAlertsPanel({
             <p>{symbol.ticker} · شروط متعددة ومؤشرات وفريم مستقل</p>
           </div>
           <div className="advanced-alert-header-actions">
-            <button onClick={onCheckAll} disabled={checking || alerts.length === 0}>
-              {checking ? "فحص…" : "فحص الكل"}
+            <button
+              onClick={onCheckAll}
+              disabled={checking || serverChecking || alerts.length === 0}
+              title="يفحص التنبيهات من هذا المتصفح الآن"
+            >
+              {checking ? "فحص…" : "فحص محلي"}
+            </button>
+            <button
+              className="advanced-alert-cloud-check"
+              onClick={onServerCheck}
+              disabled={checking || serverChecking || alerts.length === 0}
+              title={
+                cloudAvailable
+                  ? "يرفع التنبيهات الحالية ثم يفحصها من MarketOS API"
+                  : "سجل الدخول أولًا لاستخدام الفحص السحابي"
+              }
+            >
+              {serverChecking
+                ? "سحابي…"
+                : cloudAvailable
+                  ? "فحص سحابي"
+                  : "فحص سحابي 🔒"}
             </button>
             <button className="advanced-alert-close" onClick={onClose}>×</button>
           </div>
@@ -328,7 +354,7 @@ export default function AdvancedAlertsPanel({
             </button>
 
             <div className="advanced-alert-builder-note">
-              الفحص التلقائي يتم عند توفر نفس الرمز والفريم في مساحة العمل. زر «فحص الكل» يفحص التنبيهات الأخرى يدويًا عبر Market Data Gateway.
+              الفحص المحلي يعمل من المتصفح. الفحص السحابي للمستخدم المسجل يرفع الحالة الحالية ثم يفحص التنبيهات عبر MarketOS API ويحفظ النتيجة في التخزين السحابي.
             </div>
           </aside>
 
