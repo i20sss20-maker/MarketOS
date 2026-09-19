@@ -39,7 +39,7 @@ import CompanyFeedPanel from "./components/CompanyFeedPanel";
 import CorrelationPanel from "./components/CorrelationPanel";
 import ChartSettingsPanel from "./components/ChartSettingsPanel";
 import ChartTemplatesPanel from "./components/ChartTemplatesPanel";
-import ObjectTreePanel from "./components/ObjectTreePanel";
+import ObjectTreePanel, { type ObjectTreePaneId } from "./components/ObjectTreePanel";
 import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import ExportPanel from "./components/ExportPanel";
 import IndicatorLab from "./components/IndicatorLab";
@@ -404,6 +404,7 @@ export default function App() {
   const [showChartTemplates, setShowChartTemplates] = useState(false);
   const [chartTemplateMessage, setChartTemplateMessage] = useState<string | null>(null);
   const [showObjectTree, setShowObjectTree] = useState(false);
+  const [objectTreePane, setObjectTreePane] = useState<ObjectTreePaneId>("primary");
   const [chartResetKey, setChartResetKey] = useState(0);
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -2522,6 +2523,9 @@ export default function App() {
       "marketos:chart-layout",
       "single",
     );
+    if (objectTreePane !== "primary") {
+      setObjectTreePane("primary");
+    }
   };
 
   const chooseComparison = (symbol: MarketSymbol) => {
@@ -3509,6 +3513,80 @@ export default function App() {
     );
   };
 
+  const objectTreePaneOptions: Array<{
+    id: ObjectTreePaneId;
+    label: string;
+  }> = [
+    {
+      id: "primary",
+      label: "Pane 1 · " + active.ticker,
+    },
+    ...(layoutMode !== "single" && comparisonSymbol
+      ? [{
+          id: "secondary" as const,
+          label: "Pane 2 · " + comparisonSymbol.ticker,
+        }]
+      : []),
+    ...(layoutMode === "quad" && thirdChartSymbol
+      ? [{
+          id: "third" as const,
+          label: "Pane 3 · " + thirdChartSymbol.ticker,
+        }]
+      : []),
+    ...(layoutMode === "quad" && fourthChartSymbol
+      ? [{
+          id: "fourth" as const,
+          label: "Pane 4 · " + fourthChartSymbol.ticker,
+        }]
+      : []),
+  ];
+
+  const objectTreeSymbol =
+    objectTreePane === "secondary"
+      ? comparisonSymbol ?? active
+      : objectTreePane === "third"
+        ? thirdChartSymbol ?? active
+        : objectTreePane === "fourth"
+          ? fourthChartSymbol ?? active
+          : active;
+
+  const objectTreeVisual =
+    paneVisual(objectTreePane);
+
+  const toggleObjectTreeIndicator = (
+    id: IndicatorId,
+  ) => {
+    changePaneVisual(
+      objectTreePane,
+      {
+        ...objectTreeVisual,
+        indicators: {
+          ...objectTreeVisual.indicators,
+          [id]:
+            !objectTreeVisual.indicators[id],
+        },
+      },
+    );
+  };
+
+  useEffect(() => {
+    const stillAvailable =
+      objectTreePaneOptions.some(
+        (pane) =>
+          pane.id === objectTreePane,
+      );
+
+    if (!stillAvailable) {
+      setObjectTreePane("primary");
+    }
+  }, [
+    objectTreePane,
+    layoutMode,
+    comparisonSymbol?.id,
+    thirdChartSymbol?.id,
+    fourthChartSymbol?.id,
+  ]);
+
   const commandSymbolOptions = [
     ...new Map(
       [
@@ -3771,7 +3849,10 @@ export default function App() {
       description: `${drawings.length} رسم · ${activeIndicatorItems.length + activeCustomIndicators.length} مؤشر`,
       keywords: ["object tree", "objects", "عناصر", "شجرة", "رسومات", "مؤشرات"],
       priority: 54.25,
-      onSelect: () => setShowObjectTree(true),
+      onSelect: () => {
+        setObjectTreePane("primary");
+        setShowObjectTree(true);
+      },
     },
     {
       id: "panel:plans",
@@ -4472,13 +4553,24 @@ export default function App() {
 
       <ObjectTreePanel
         open={showObjectTree}
-        symbol={active}
-        indicators={indicators}
+        symbol={objectTreeSymbol}
+        paneId={objectTreePane}
+        paneOptions={objectTreePaneOptions}
+        indicators={objectTreeVisual.indicators}
         customIndicators={customIndicators}
-        drawings={drawings}
-        comparisonSymbol={comparisonSymbol}
+        drawings={
+          objectTreePane === "primary"
+            ? drawings
+            : []
+        }
+        comparisonSymbol={
+          objectTreePane === "primary"
+            ? comparisonSymbol
+            : null
+        }
+        onPaneChange={setObjectTreePane}
         onClose={() => setShowObjectTree(false)}
-        onToggleIndicator={toggleIndicator}
+        onToggleIndicator={toggleObjectTreeIndicator}
         onToggleCustom={toggleCustomIndicator}
         onToggleDrawingHidden={toggleDrawingHidden}
         onToggleDrawingLocked={toggleDrawingLocked}
@@ -4958,8 +5050,11 @@ export default function App() {
 
               <button
                 className="object-tree-launch"
-                onClick={() => setShowObjectTree(true)}
-                title="إدارة عناصر الشارت"
+                onClick={() => {
+                  setObjectTreePane("primary");
+                  setShowObjectTree(true);
+                }}
+                title="إدارة عناصر الشارت والـPanes"
               >
                 ☷ العناصر
               </button>
