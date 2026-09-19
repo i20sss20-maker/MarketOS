@@ -2742,18 +2742,24 @@ export default function App() {
                 <button
                   className={layoutMode === "split" ? "selected" : ""}
                   onClick={() => chooseLayoutMode("split")}
-                  disabled={!comparisonSymbol}
-                  title={comparisonSymbol ? "شارتان جنبًا إلى جنب" : "اختر أصلًا للمقارنة أولًا"}
+                  title="شارتان جنبًا إلى جنب"
                 >
                   2×
+                </button>
+                <button
+                  className={layoutMode === "quad" ? "selected" : ""}
+                  onClick={() => chooseLayoutMode("quad")}
+                  title="أربعة شارتات مستقلة"
+                >
+                  4×
                 </button>
               </div>
 
               <button
-                className={chartSyncEnabled && layoutMode === "split" ? "chart-sync-toggle active" : "chart-sync-toggle"}
+                className={chartSyncEnabled && layoutMode !== "single" ? "chart-sync-toggle active" : "chart-sync-toggle"}
                 onClick={toggleChartSync}
-                disabled={layoutMode !== "split"}
-                title="مزامنة Zoom/Scroll بين الشارتين"
+                disabled={layoutMode === "single"}
+                title={layoutMode === "quad" ? "مزامنة Zoom/Scroll بين الأربع شارتات" : "مزامنة Zoom/Scroll بين الشارتين"}
               >
                 Sync
               </button>
@@ -2871,7 +2877,27 @@ export default function App() {
               </button>
             </div>
 
-            {layoutMode === "split" && secondaryChartNode ? (
+            {layoutMode === "quad" && secondaryChartNode && thirdChartNode && fourthChartNode ? (
+              <div className={[
+                "multi-chart-grid",
+                "quad-chart-grid",
+                maximizedChartPane ? "pane-maximized" : "",
+                maximizedChartPane ? `max-${maximizedChartPane}` : "",
+              ].filter(Boolean).join(" ")}>
+                <div className={maximizedChartPane && maximizedChartPane !== "primary" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {primaryChartNode}
+                </div>
+                <div className={maximizedChartPane && maximizedChartPane !== "secondary" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {secondaryChartNode}
+                </div>
+                <div className={maximizedChartPane && maximizedChartPane !== "third" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {thirdChartNode}
+                </div>
+                <div className={maximizedChartPane && maximizedChartPane !== "fourth" ? "multi-pane hidden-pane" : "multi-pane"}>
+                  {fourthChartNode}
+                </div>
+              </div>
+            ) : layoutMode === "split" && secondaryChartNode ? (
               <div className={[
                 "multi-chart-grid",
                 maximizedChartPane ? "pane-maximized" : "",
