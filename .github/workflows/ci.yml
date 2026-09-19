@@ -102,6 +102,9 @@ jobs:
       - name: Multiple Watchlists migration smoke test
         run: pnpm smoke:multiple-watchlists
 
+      - name: Pane Independence workspace smoke test
+        run: pnpm smoke:pane-independence
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
