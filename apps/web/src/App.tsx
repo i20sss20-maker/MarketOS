@@ -4,6 +4,11 @@ import {
   applySmartScreener,
   parseSmartScreenerQuery,
 } from "@marketos/screener-core";
+import {
+  canUseFeature,
+  type FeatureId,
+  type ResolvedEntitlement,
+} from "@marketos/entitlements-core";
 import type {
   Candle,
   ChartAnalysisResponse,
@@ -31,8 +36,13 @@ import InstrumentOverviewPanel from "./components/InstrumentOverviewPanel";
 import IndicatorLab from "./components/IndicatorLab";
 import MarketEventsPanel from "./components/MarketEventsPanel";
 import StrategyTester from "./components/StrategyTester";
+import PlansPanel from "./components/PlansPanel";
 import SystemPanel from "./components/SystemPanel";
 import { analyzeChart, analyzeMultipleTimeframes } from "./lib/aiApi";
+import {
+  anonymousEntitlement,
+  getUserEntitlements,
+} from "./lib/entitlementsApi";
 import {
   applyCloudStateToLocal,
   collectLocalCloudState,
@@ -270,6 +280,13 @@ export default function App() {
   const [showAccountPanel, setShowAccountPanel] = useState(false);
   const [authUser, setAuthUser] = useState<AuthPrincipal | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [entitlement, setEntitlement] = useState<ResolvedEntitlement>(
+    () => anonymousEntitlement(),
+  );
+  const [entitlementLoading, setEntitlementLoading] = useState(false);
+  const [entitlementError, setEntitlementError] = useState<string | null>(null);
+  const [showPlansPanel, setShowPlansPanel] = useState(false);
+  const [planMessage, setPlanMessage] = useState<string | null>(null);
   const [cloudState, setCloudState] = useState<CloudStateResponse | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
