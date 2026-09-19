@@ -208,3 +208,50 @@ The bootstrap:
 9. enables `ALERT_WORKER_ENABLED=true` in MarketOS System Health
 
 Azure Functions Flex Consumption is execution-based. No always-ready worker is created by the MarketOS bootstrap.
+
+## Web Push notifications
+
+MarketOS can send opt-in browser notifications when the background alert worker triggers an alert. Web Push uses the existing Static Web App API and Cosmos user state, so this setup does not create another Azure resource.
+
+Prerequisites:
+
+- Azure Static Web App is deployed
+- persistent Cosmos user state is enabled
+- users sign in before registering a device
+
+Enable Web Push once from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-web-push.ps1
+```
+
+The bootstrap:
+
+1. verifies Azure login and persistent Cosmos storage
+2. reuses existing VAPID keys when present
+3. generates a VAPID key pair locally only when needed
+4. writes the public/private keys directly to Azure app settings
+5. never prints the VAPID private key
+6. enables `WEB_PUSH_ENABLED=true`
+
+Do not rotate VAPID keys during normal updates because existing browser subscriptions are tied to the public key. Intentional rotation is available with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infrastructure\azure\bootstrap-web-push.ps1 -RotateKeys
+```
+
+After Web Push is configured, signed-in users can enable or disable notifications for each browser/device from **MarketOS > Account**. A device registration changes only the server revision, so Cloud Sync V2 does not treat it as a user-preference conflict.
+
+Background alert deliveries are persisted in Alert Inbox before Push is attempted. A Push failure therefore never drops the actual alert.
+
+Web Push settings:
+
+```text
+WEB_PUSH_ENABLED=true
+VAPID_PUBLIC_KEY=<public key>
+VAPID_PRIVATE_KEY=<private key>
+VAPID_SUBJECT=https://<marketos-host>
+```
+
+The private key is server-side only and is never returned by `/api/push/config`.
+
