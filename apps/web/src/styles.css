@@ -821,3 +821,25 @@ input:focus-visible {
     width: auto;
   }
 }
+
+
+.chart-attribution {
+  margin: 14px 11px 2px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148,163,184,.07);
+  color: #4f5d72;
+  font-size: 7px;
+  line-height: 1.5;
+  direction: ltr;
+  text-align: left;
+}
+
+.chart-attribution a {
+  color: #7282a0;
+  text-decoration: none;
+}
+
+.chart-attribution a:hover {
+  color: #a7b3c8;
+  text-decoration: underline;
+}
