@@ -132,6 +132,9 @@ jobs:
       - name: Forecast Journal scorecard smoke test
         run: pnpm smoke:forecast-journal
 
+      - name: Analyst Radar ranking and integration smoke test
+        run: pnpm smoke:analyst-radar
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
