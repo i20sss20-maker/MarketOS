@@ -47,6 +47,7 @@ This repository is **fully isolated** from every other project:
 - Chart Templates with presets, saved configurations, custom-indicator merge and Cloud Sync
 - independent multi-chart pane visuals for chart type, built-in indicators and display settings, persisted in Workspace V3
 - Object Tree for centralized indicator, custom indicator, comparison and drawing management
+- Drawing Alerts bridge for creating live price alerts directly from horizontal chart levels
 - Multiple Watchlists with safe legacy migration, named lists, active-list switching and Cloud Sync
 - Market Screener + Heatmap + breadth
 - market session status and optional quote auto-refresh
