@@ -1518,6 +1518,35 @@ export default function App() {
       chartView,
       indicators,
       drawings,
+      version: 2,
+      layoutMode,
+      chartSyncEnabled,
+      chartSettings,
+      customIndicators,
+      panes: {
+        primary: {
+          symbol: active,
+          timeframe,
+        },
+        secondary: comparisonSymbol
+          ? {
+              symbol: comparisonSymbol,
+              timeframe: comparisonTimeframe,
+            }
+          : null,
+        third: thirdChartSymbol
+          ? {
+              symbol: thirdChartSymbol,
+              timeframe: thirdChartTimeframe,
+            }
+          : null,
+        fourth: fourthChartSymbol
+          ? {
+              symbol: fourthChartSymbol,
+              timeframe: fourthChartTimeframe,
+            }
+          : null,
+      },
     });
 
     setSavedWorkspaces((current) => {
@@ -1529,28 +1558,95 @@ export default function App() {
   };
 
   const restoreWorkspace = (workspace: SavedWorkspace) => {
-    setActive(workspace.symbol);
-    setTimeframe(workspace.timeframe);
+    const primaryPane = workspace.panes?.primary ?? {
+      symbol: workspace.symbol,
+      timeframe: workspace.timeframe,
+    };
+    const secondaryPane = workspace.panes?.secondary ?? null;
+    const thirdPane = workspace.panes?.third ?? null;
+    const fourthPane = workspace.panes?.fourth ?? null;
+
+    const requestedLayout = workspace.layoutMode ?? "single";
+    const restoredLayout: ChartLayoutMode =
+      requestedLayout === "quad" && secondaryPane && thirdPane && fourthPane
+        ? "quad"
+        : requestedLayout === "split" && secondaryPane
+          ? "split"
+          : "single";
+
+    setActive(primaryPane.symbol);
+    setTimeframe(primaryPane.timeframe);
+    setComparisonSymbol(secondaryPane?.symbol ?? null);
+    setComparisonTimeframe(secondaryPane?.timeframe ?? primaryPane.timeframe);
+    setThirdChartSymbol(thirdPane?.symbol ?? null);
+    setThirdChartTimeframe(thirdPane?.timeframe ?? primaryPane.timeframe);
+    setFourthChartSymbol(fourthPane?.symbol ?? null);
+    setFourthChartTimeframe(fourthPane?.timeframe ?? primaryPane.timeframe);
+    setLayoutMode(restoredLayout);
+    setChartSyncEnabled(workspace.chartSyncEnabled ?? true);
+    setSyncedLogicalRange(null);
+    setMaximizedChartPane(null);
+
     setChartView(workspace.chartView);
     setIndicators(workspace.indicators);
     setDrawingHistory(createDrawingHistory(workspace.drawings));
+
+    if (workspace.chartSettings) {
+      setChartSettings(workspace.chartSettings);
+      saveChartSettings(workspace.chartSettings);
+    }
+
+    if (workspace.customIndicators) {
+      setCustomIndicators(workspace.customIndicators);
+      saveCustomIndicators(workspace.customIndicators);
+    }
+
     setDrawingTool("cursor");
     setTextAnchor(null);
     setTextDraft("");
     setEditingTextId(null);
     setHoverCandle(null);
     setAiResult(null);
-    addToWatchlist(workspace.symbol);
+    setMultiTimeframeResult(null);
+    setMultiTimeframeError(null);
 
-    saveSetting("marketos:symbol", workspace.symbol.id);
-    saveSetting("marketos:symbol-object", JSON.stringify(workspace.symbol));
-    saveSetting("marketos:timeframe", workspace.timeframe);
+    const restoredSymbols = [
+      primaryPane.symbol,
+      secondaryPane?.symbol,
+      thirdPane?.symbol,
+      fourthPane?.symbol,
+    ].filter((symbol): symbol is MarketSymbol => Boolean(symbol));
+
+    for (const symbol of restoredSymbols) addToWatchlist(symbol);
+
+    saveSetting("marketos:symbol", primaryPane.symbol.id);
+    saveSetting("marketos:symbol-object", JSON.stringify(primaryPane.symbol));
+    saveSetting("marketos:timeframe", primaryPane.timeframe);
     saveSetting("marketos:chart-view", workspace.chartView);
+    saveSetting("marketos:chart-layout", restoredLayout);
+    saveSetting("marketos:chart-sync", (workspace.chartSyncEnabled ?? true) ? "on" : "off");
+
+    savePaneSymbol("marketos:pane-secondary", secondaryPane?.symbol ?? null);
+    savePaneSymbol("marketos:pane-third", thirdPane?.symbol ?? null);
+    savePaneSymbol("marketos:pane-fourth", fourthPane?.symbol ?? null);
+
+    saveSetting(
+      "marketos:pane-secondary-timeframe",
+      secondaryPane?.timeframe ?? primaryPane.timeframe,
+    );
+    saveSetting(
+      "marketos:pane-third-timeframe",
+      thirdPane?.timeframe ?? primaryPane.timeframe,
+    );
+    saveSetting(
+      "marketos:pane-fourth-timeframe",
+      fourthPane?.timeframe ?? primaryPane.timeframe,
+    );
+
     saveIndicatorSelection(workspace.indicators);
-    saveDrawings(workspace.symbol.id, workspace.drawings);
+    saveDrawings(primaryPane.symbol.id, workspace.drawings);
     setShowWorkspaceMenu(false);
   };
-
   const deleteWorkspace = (id: string) => {
     setSavedWorkspaces((current) => {
       const next = current.filter((workspace) => workspace.id !== id);
