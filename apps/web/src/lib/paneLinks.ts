@@ -2,12 +2,14 @@ export type PaneLinkSettings = {
   range: boolean;
   symbol: boolean;
   timeframe: boolean;
+  crosshair: boolean;
 };
 
 export const defaultPaneLinkSettings: PaneLinkSettings = {
   range: true,
   symbol: false,
   timeframe: false,
+  crosshair: false,
 };
 
 export function normalizePaneLinkSettings(
@@ -33,6 +35,10 @@ export function normalizePaneLinkSettings(
       typeof source.timeframe === "boolean"
         ? source.timeframe
         : fallback.timeframe,
+    crosshair:
+      typeof source.crosshair === "boolean"
+        ? source.crosshair
+        : fallback.crosshair,
   };
 }
 
@@ -56,6 +62,8 @@ export function loadPaneLinkSettings(): PaneLinkSettings {
       store.getItem("marketos:pane-link-symbol") === "on",
     timeframe:
       store.getItem("marketos:pane-link-timeframe") === "on",
+    crosshair:
+      store.getItem("marketos:pane-link-crosshair") === "on",
   };
 }
 
@@ -77,6 +85,10 @@ export function savePaneLinkSettings(
     store.setItem(
       "marketos:pane-link-timeframe",
       settings.timeframe ? "on" : "off",
+    );
+    store.setItem(
+      "marketos:pane-link-crosshair",
+      settings.crosshair ? "on" : "off",
     );
   } catch {
     // Ignore restricted storage.
