@@ -853,7 +853,8 @@ export default function App() {
         showScreener ||
         showEvents ||
         showSystemPanel ||
-        showStrategyTester
+        showStrategyTester ||
+        showIndicatorLab
       ) {
         return;
       }
@@ -891,6 +892,7 @@ export default function App() {
     showEvents,
     showSystemPanel,
     showStrategyTester,
+    showIndicatorLab,
   ]);
 
   const chooseComparison = (symbol: MarketSymbol) => {
