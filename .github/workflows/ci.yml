@@ -102,6 +102,9 @@ jobs:
       - name: Multiple Watchlists migration smoke test
         run: pnpm smoke:multiple-watchlists
 
+      - name: Object Tree runtime smoke test
+        run: pnpm smoke:object-tree
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
