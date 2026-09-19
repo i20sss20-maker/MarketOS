@@ -526,7 +526,7 @@ export default function ObjectTreePanel({
                           }
                           title="إنشاء تنبيه عند هذا المستوى"
                         >
-                          ♢
+                          🔔
                         </button>
                       ) : null}
 
