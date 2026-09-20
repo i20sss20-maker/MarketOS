@@ -144,6 +144,9 @@ jobs:
       - name: Analyst Performance and forecast monitor smoke test
         run: pnpm smoke:analyst-performance
 
+      - name: Shared Forecast Monitor policy smoke test
+        run: pnpm smoke:forecast-monitor-policy
+
       - name: Analyst Brief home intelligence smoke test
         run: pnpm smoke:analyst-brief
 
