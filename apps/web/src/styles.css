@@ -13811,3 +13811,166 @@ button.bear:hover {
     transform: scale(1);
   }
 }
+
+
+/* Analyst Attention Queue V1 --------------------------------------------- */
+.home-analyst-attention {
+  margin: 0 7px 7px;
+  border-top: 1px solid rgba(148,163,184,.045);
+  padding-top: 7px;
+}
+
+.home-analyst-attention-head {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-analyst-attention-head span,
+.home-analyst-attention-head strong {
+  display: block;
+}
+
+.home-analyst-attention-head span {
+  color: #6873a4;
+  font-size: 5.5px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.home-analyst-attention-head strong {
+  margin-top: 2px;
+  color: #9eaabc;
+  font-size: 7px;
+}
+
+.home-analyst-attention-head small {
+  border: 1px solid rgba(148,163,184,.06);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: rgba(148,163,184,.025);
+  color: #657388;
+  font-size: 5.5px;
+}
+
+.home-analyst-attention-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.home-analyst-attention-list > button {
+  width: 100%;
+  min-height: 43px;
+  display: grid;
+  grid-template-columns:
+    minmax(58px,.65fr)
+    minmax(120px,2fr)
+    auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(148,163,184,.04);
+  border-radius: 7px;
+  padding: 6px 8px;
+  background: rgba(148,163,184,.015);
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+
+.home-analyst-attention-list > button:hover {
+  border-color: rgba(129,140,248,.10);
+  background: rgba(129,140,248,.025);
+}
+
+.home-analyst-attention-list > button.attention-reversal {
+  border-right-color: rgba(245,158,11,.24);
+}
+
+.home-analyst-attention-list > button.attention-watch-near {
+  border-right-color: rgba(56,189,248,.22);
+}
+
+.home-analyst-attention-list > button.attention-strengthening {
+  border-right-color: rgba(34,197,94,.20);
+}
+
+.home-analyst-attention-list > button.attention-catalyst {
+  border-right-color: rgba(168,85,247,.18);
+}
+
+.home-analyst-attention-list > button.attention-verification {
+  border-right-color: rgba(148,163,184,.13);
+}
+
+.home-analyst-attention-symbol strong,
+.home-analyst-attention-symbol small,
+.home-analyst-attention-main b,
+.home-analyst-attention-main small {
+  display: block;
+}
+
+.home-analyst-attention-symbol strong {
+  color: #acb7c7;
+  font-size: 7.5px;
+}
+
+.home-analyst-attention-symbol small {
+  margin-top: 2px;
+  color: #4f5d71;
+  font-size: 5px;
+}
+
+.home-analyst-attention-main b {
+  color: #8f9caf;
+  font-size: 6.5px;
+  font-weight: 700;
+}
+
+.home-analyst-attention-main small {
+  margin-top: 3px;
+  color: #536176;
+  font-size: 5.5px;
+  line-height: 1.45;
+}
+
+.home-analyst-attention-kind {
+  justify-self: end;
+  border: 1px solid rgba(148,163,184,.06);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: rgba(148,163,184,.025);
+  color: #667489;
+  font-size: 5.5px;
+  white-space: nowrap;
+}
+
+.attention-reversal .home-analyst-attention-kind {
+  border-color: rgba(245,158,11,.14);
+  color: #b29563;
+}
+
+.attention-watch-near .home-analyst-attention-kind {
+  border-color: rgba(56,189,248,.12);
+  color: #719bab;
+}
+
+.attention-strengthening .home-analyst-attention-kind {
+  border-color: rgba(34,197,94,.12);
+  color: #75a487;
+}
+
+@media (max-width: 720px) {
+  .home-analyst-attention-list > button {
+    grid-template-columns:
+      minmax(54px,.7fr)
+      minmax(100px,2fr);
+  }
+
+  .home-analyst-attention-kind {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
