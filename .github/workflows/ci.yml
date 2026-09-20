@@ -150,6 +150,9 @@ jobs:
       - name: Analyst Brief home intelligence smoke test
         run: pnpm smoke:analyst-brief
 
+      - name: Analyst Model Health smoke test
+        run: pnpm smoke:analyst-model-health
+
       - name: Analyst Attention Queue smoke test
         run: pnpm smoke:analyst-attention
 
