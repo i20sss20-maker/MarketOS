@@ -268,10 +268,10 @@ export default function AnalystPerformanceView({
           </h2>
           <p>
             يقيس توقعات بيانات المزود
-            عند شمعة نهاية الأفق نفسها،
-            وليس بسعر اليوم. الدقة هنا
-            نتيجة تاريخية فعلية وليست
-            درجة ثقة داخلية.
+            بعد عدد الشموع الفعلي نفسه
+            المستخدم في المعايرة، وليس
+            بعد عدد أيام تقويمية أو بسعر
+            اليوم.
           </p>
         </div>
 
@@ -646,9 +646,12 @@ export default function AnalystPerformanceView({
                   )}
                   {" · "}
                   {record.evaluationMethod ===
-                  "horizon-candle"
-                    ? "شمعة الأفق"
-                    : "Legacy"}
+                  "horizon-bars"
+                    ? "عدد الشموع"
+                    : record.evaluationMethod ===
+                        "horizon-candle"
+                      ? "أفق زمني V2"
+                      : "Legacy"}
                 </small>
               </span>
             </div>
@@ -678,12 +681,12 @@ export default function AnalystPerformanceView({
       ) : null}
 
       <footer className="analyst-performance-note">
-        التوقعات الجديدة تُقيّم على أول
-        شمعة مناسبة بعد نهاية الأفق ضمن
-        هامش جلسات السوق، لا على السعر
-        الحالي. هذه إحصاءات تاريخية
-        وليست ضمانًا للمستقبل، ونتائج
-        Demo لا تدخل في الدقة الرسمية.
+        التوقعات الجديدة تُقيّم بعد
+        عدد الشموع الفعلي المحدد وقت
+        التوقع، لذلك الويكند والعطل لا
+        تختصر الأفق. السجلات V2 القديمة
+        تبقى متوافقة، ونتائج Demo لا
+        تدخل في الدقة الرسمية.
       </footer>
     </section>
   );
