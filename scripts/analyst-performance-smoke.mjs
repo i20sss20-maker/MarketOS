@@ -374,11 +374,19 @@ assert.match(
 );
 assert.match(
   view,
-  /شمعة نهاية الأفق/,
+  /عدد الشموع الفعلي/,
 );
 assert.match(
   view,
-  /شمعة الأفق/,
+  /عدد الشموع/,
+);
+assert.match(
+  monitor,
+  /historyLimitForGroup/,
+);
+assert.match(
+  monitor,
+  /1500/,
 );
 
 console.log(
