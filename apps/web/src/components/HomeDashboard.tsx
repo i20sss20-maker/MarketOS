@@ -1,4 +1,8 @@
-import { useEffect, useMemo } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type {
   MarketEvent,
   MarketOverviewItem,
@@ -20,8 +24,14 @@ import {
   prepareRadarSymbols,
 } from "../lib/analystRadar";
 import {
+  analystRadarSignature,
+  isAnalystRadarCacheStale,
   loadAnalystRadarCache,
+  saveAnalystRadarCache,
 } from "../lib/analystRadarCache";
+import {
+  scanAnalystRadar,
+} from "../lib/analystRadarScanner";
 import {
   loadForecastJournal,
 } from "../lib/forecastJournal";
@@ -125,18 +135,44 @@ export default function HomeDashboard({
     [overview, events, alertEvents, workspaces],
   );
 
+  const [
+    analystBriefRevision,
+    setAnalystBriefRevision,
+  ] = useState(0);
+  const [
+    analystBriefRefreshing,
+    setAnalystBriefRefreshing,
+  ] = useState(false);
+
+  const analystCandidates =
+    useMemo(
+      () =>
+        prepareRadarSymbols(
+          activeSymbol,
+          watchlist,
+          5,
+        ),
+      [
+        activeSymbol,
+        watchlist,
+      ],
+    );
+
+  const analystCandidateSignature =
+    useMemo(
+      () =>
+        analystRadarSignature(
+          analystCandidates,
+        ),
+      [analystCandidates],
+    );
+
   const analystBrief =
     useMemo(
       () => {
-        const candidates =
-          prepareRadarSymbols(
-            activeSymbol,
-            watchlist,
-            5,
-          );
         const radarCache =
           loadAnalystRadarCache(
-            candidates,
+            analystCandidates,
           );
 
         return buildAnalystBrief({
@@ -148,11 +184,91 @@ export default function HomeDashboard({
       },
       [
         open,
-        activeSymbol,
-        watchlist,
+        analystCandidateSignature,
         alerts,
+        analystBriefRevision,
       ],
     );
+
+  useEffect(() => {
+    if (
+      !open ||
+      analystCandidates.length ===
+        0
+    ) {
+      return undefined;
+    }
+
+    const cached =
+      loadAnalystRadarCache(
+        analystCandidates,
+      );
+
+    if (
+      !isAnalystRadarCacheStale(
+        cached,
+      )
+    ) {
+      return undefined;
+    }
+
+    const controller =
+      new AbortController();
+
+    setAnalystBriefRefreshing(
+      true,
+    );
+
+    void scanAnalystRadar(
+      analystCandidates,
+      {
+        signal:
+          controller.signal,
+      },
+    )
+      .then((result) => {
+        if (
+          result.items.length >
+          0
+        ) {
+          saveAnalystRadarCache(
+            analystCandidates,
+            result.items,
+            result.scannedAt,
+          );
+          setAnalystBriefRevision(
+            (current) =>
+              current + 1,
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        if (
+          error instanceof Error &&
+          error.name ===
+            "AbortError"
+        ) {
+          return;
+        }
+      })
+      .finally(() => {
+        if (
+          !controller.signal
+            .aborted
+        ) {
+          setAnalystBriefRefreshing(
+            false,
+          );
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    open,
+    analystCandidateSignature,
+  ]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -261,6 +377,9 @@ export default function HomeDashboard({
         <div className="home-dashboard-grid">
           <AnalystBriefCard
             brief={analystBrief}
+            refreshing={
+              analystBriefRefreshing
+            }
             onSelectSymbol={(symbol) => {
               onSelectSymbol(symbol);
               onClose();
