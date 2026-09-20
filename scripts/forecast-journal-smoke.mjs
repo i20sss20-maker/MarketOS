@@ -22,6 +22,8 @@ const moduleUrl =
   Buffer.from(compiled).toString("base64");
 
 const {
+  maturedForecastSymbols,
+  resolveForecastJournalWithPrice,
   updateForecastJournal,
   summarizeForecastJournal,
 } = await import(moduleUrl);
@@ -132,6 +134,44 @@ assert.equal(
 assert.equal(
   journal[0].expectedOutcome,
   "bull",
+);
+assert.equal(
+  journal[0].symbol?.id,
+  "NASDAQ:TEST",
+);
+
+const dueAt =
+  journal[0].dueAt;
+
+const tooEarly =
+  resolveForecastJournalWithPrice(
+    journal,
+    {
+      symbolId:
+        "NASDAQ:TEST",
+      price: 103,
+      timestamp:
+        dueAt - 1,
+      dataMode:
+        "provider",
+    },
+  );
+
+assert.equal(
+  tooEarly[0].status,
+  "pending",
+);
+
+const maturedSymbols =
+  maturedForecastSymbols(
+    journal,
+    dueAt + 1,
+    "provider",
+  );
+
+assert.equal(
+  maturedSymbols[0]?.id,
+  "NASDAQ:TEST",
 );
 
 journal =
