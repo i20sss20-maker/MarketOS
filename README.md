@@ -61,6 +61,7 @@ This repository is **fully isolated** from every other project:
 - Analyst Performance dashboard with provider-only realized accuracy, Brier score, confidence calibration, direction/symbol breakdowns and quote-based matured forecast verification
 - Analyst Brief on MarketOS Home combining top Radar setup, scan-over-scan change, structured catalyst impact, matching Forecast Watch alerts and realized analyst performance
 - Analyst Brief V2 auto-refresh using the shared cancellable Radar Scanner: fresh cache restores instantly and stale Home intelligence refreshes in place
+- Analyst Brief V3 sequential Home intelligence refresh: stale Radar scan first, then throttled matured Forecast Journal verification so realized accuracy/Brier stay current without duplicate provider load
 - Quant Catalyst Impact that uses only realized non-demo structured earnings surprises as a bounded directional input; textual releases remain context-only
 - Forecast Watch bridge that turns Analyst resistance/support scenario triggers into guarded Advanced Alerts with duplicate prevention and background-monitoring compatibility
 - analyst coverage model for stocks, ETFs, indices, forex, crypto, futures and commodities, subject to configured market-data licensing
