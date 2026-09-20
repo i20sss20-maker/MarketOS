@@ -85,7 +85,7 @@ export async function getAnalystForecast(
   signal?: AbortSignal,
 ): Promise<AnalystForecastResponse> {
   const response = await fetch(
-    `${API_BASE_URL}/analyst/forecast`,
+    `${API_BASE_URL}${import.meta.env.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" ? "/user/forecasts" : "/analyst/forecast"}`,
     {
       method: "POST",
       headers: {
@@ -95,6 +95,7 @@ export async function getAnalystForecast(
       },
       body: JSON.stringify({
         symbol,
+        requestId: crypto.randomUUID(),
       }),
       signal,
     },

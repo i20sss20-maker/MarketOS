@@ -146,7 +146,9 @@ function quoteFromPayload(payload: QuoteResponse, symbol: MarketSymbol, source: 
     percentChange: numberOrUndefined(payload.percent_change),
     volume: numberOrUndefined(payload.volume),
     currency: payload.currency || symbol.currency,
-    timestamp: payload.timestamp ?? Math.floor(Date.now() / 1000),
+    timestamp: Number.isSafeInteger(payload.timestamp) && (payload.timestamp ?? 0) > 0
+      ? payload.timestamp!
+      : 0,
     isMarketOpen: payload.is_market_open,
     isExtendedHours: payload.is_extended_hours,
     source,

@@ -1,3 +1,4 @@
+import { ProductionGateError, realDataRequired } from "../production/policy.js";
 import type { HttpResponseInit } from "@azure/functions";
 
 const allowedOrigin = process.env.MARKETOS_WEB_ORIGIN?.trim() || "*";
@@ -31,6 +32,8 @@ export function preflight(): HttpResponseInit {
 }
 
 export function marketError(error: unknown): HttpResponseInit {
+  if (error instanceof ProductionGateError) return json(error.status, { ok: false, code: error.code, error: error.message });
+  if (realDataRequired()) return json(502, { ok: false, code: "MARKET_DATA_UNAVAILABLE", error: "Real market data is unavailable. No demo data was substituted." });
   const message = error instanceof Error ? error.message : "Unknown market data error.";
   const status = message.startsWith("Missing ") ? 400 : 502;
 

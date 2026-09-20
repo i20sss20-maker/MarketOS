@@ -1,3 +1,4 @@
+import { guardEventsProvider } from "../production/providerGuard.js";
 import type { MarketEventsProvider } from "./types.js";
 import { DemoEventsProvider } from "./demoEventsProvider.js";
 import { TwelveDataEventsProvider } from "./twelveDataEventsProvider.js";
@@ -13,4 +14,4 @@ function createEventsProvider(): MarketEventsProvider {
   return new DemoEventsProvider();
 }
 
-export const marketEventsProvider = createEventsProvider();
+export const marketEventsProvider = guardEventsProvider(createEventsProvider());
