@@ -145,6 +145,10 @@ assert.equal(
   journal[0].evaluationTimeframe,
   "1h",
 );
+assert.equal(
+  journal[0].evaluationBars,
+  2,
+);
 
 const dueAt =
   journal[0].dueAt;
@@ -205,6 +209,8 @@ const legacyRecords = [
     ...journal[0],
     evaluationTimeframe:
       undefined,
+    evaluationBars:
+      undefined,
   },
 ];
 
@@ -244,6 +250,43 @@ assert.equal(
   "quote",
 );
 
+const v2Records = [
+  {
+    ...journal[0],
+    evaluationBars:
+      undefined,
+  },
+];
+
+const v2Resolved =
+  resolveForecastJournalWithCandles(
+    v2Records,
+    {
+      symbolId:
+        "NASDAQ:TEST",
+      timeframe: "1h",
+      dataMode:
+        "provider",
+      candles: [
+        {
+          time:
+            dueAt + 120,
+          close: 103,
+        },
+      ],
+    },
+  );
+
+assert.equal(
+  v2Resolved[0].status,
+  "resolved",
+);
+assert.equal(
+  v2Resolved[0]
+    .evaluationMethod,
+  "horizon-candle",
+);
+
 journal =
   updateForecastJournal(
     journal,
@@ -269,7 +312,7 @@ assert.equal(
   "pending",
 );
 
-const tooLateCandle =
+const noAnchor =
   resolveForecastJournalWithCandles(
     journal,
     {
@@ -290,13 +333,16 @@ const tooLateCandle =
   );
 
 assert.equal(
-  tooLateCandle.find(
+  noAnchor.find(
     (item) =>
       item.generatedAt ===
       1_800_000_000,
   )?.status,
   "pending",
 );
+
+const generatedAt =
+  1_800_000_000;
 
 journal =
   resolveForecastJournalWithCandles(
@@ -310,12 +356,19 @@ journal =
       candles: [
         {
           time:
-            dueAt - 60,
-          close: 102,
+            generatedAt,
+          close: 100,
         },
         {
           time:
-            dueAt + 120,
+            generatedAt +
+            60 * 60,
+          close: 101,
+        },
+        {
+          time:
+            generatedAt +
+            10 * 60 * 60,
           close: 103,
         },
       ],
@@ -345,17 +398,19 @@ assert.equal(
 assert.equal(
   resolved.realizedReturnPercent,
   3,
-);assert.equal(
+);
+assert.equal(
   resolved.evaluationMethod,
-  "horizon-candle",
+  "horizon-bars",
 );
 assert.equal(
   resolved.evaluatedAt,
-  dueAt + 120,
+  generatedAt +
+    10 * 60 * 60,
 );
 assert.equal(
   resolved.evaluationDelaySeconds,
-  120,
+  8 * 60 * 60,
 );
 
 const summary =
