@@ -9,11 +9,26 @@ import {
   buildDashboardModel,
 } from "../lib/dashboard";
 import type { SavedWorkspace } from "../lib/workspace";
+import {
+  prepareRadarSymbols,
+  rankAnalystRadar,
+} from "../lib/analystRadar";
+import {
+  isAnalystRadarCacheStale,
+  loadAnalystRadarCache,
+} from "../lib/analystRadarCache";
+import {
+  loadForecastJournal,
+} from "../lib/forecastJournal";
+import {
+  buildForecastPerformance,
+} from "../lib/forecastPerformance";
 
 type Props = {
   open: boolean;
   autoOpenEnabled: boolean;
   activeSymbol: MarketSymbol;
+  watchlist: MarketSymbol[];
   overview: MarketOverviewItem[];
   overviewLoading: boolean;
   overviewProvider: string;
@@ -32,6 +47,7 @@ type Props = {
   onOpenAlerts: () => void;
   onOpenInbox: () => void;
   onOpenEvents: () => void;
+  onOpenAnalyst: () => void;
   onRestoreWorkspace: (workspace: SavedWorkspace) => void;
   onOpenCommandPalette: () => void;
 };
@@ -71,6 +87,7 @@ export default function HomeDashboard({
   open,
   autoOpenEnabled,
   activeSymbol,
+  watchlist,
   overview,
   overviewLoading,
   overviewProvider,
@@ -89,6 +106,7 @@ export default function HomeDashboard({
   onOpenAlerts,
   onOpenInbox,
   onOpenEvents,
+  onOpenAnalyst,
   onRestoreWorkspace,
   onOpenCommandPalette,
 }: Props) {
@@ -102,6 +120,46 @@ export default function HomeDashboard({
       ),
     [overview, events, alertEvents, workspaces],
   );
+
+  const analystPulse =
+    useMemo(
+      () => {
+        const candidates =
+          prepareRadarSymbols(
+            activeSymbol,
+            watchlist,
+            5,
+          );
+        const cache =
+          loadAnalystRadarCache(
+            candidates,
+          );
+        const performance =
+          buildForecastPerformance(
+            loadForecastJournal(),
+          );
+
+        return {
+          radar:
+            rankAnalystRadar(
+              cache?.items ?? [],
+            ).slice(0, 3),
+          radarUpdatedAt:
+            cache?.updatedAt ??
+            null,
+          radarStale:
+            isAnalystRadarCacheStale(
+              cache,
+            ),
+          performance,
+        };
+      },
+      [
+        open,
+        activeSymbol.id,
+        watchlist,
+      ],
+    );
 
   useEffect(() => {
     if (!open) return undefined;
@@ -208,6 +266,171 @@ export default function HomeDashboard({
         </div>
 
         <div className="home-dashboard-grid">
+          <section className="home-dashboard-card home-dashboard-analyst-pulse">
+            <div className="home-dashboard-card-head">
+              <div>
+                <span>
+                  ANALYST PULSE
+                </span>
+                <strong>
+                  ملخص المحلل
+                </strong>
+              </div>
+              <button
+                onClick={onOpenAnalyst}
+              >
+                المحلل ←
+              </button>
+            </div>
+
+            <div className="home-analyst-pulse-metrics">
+              <div>
+                <span>الدقة</span>
+                <strong>
+                  {analystPulse
+                    .performance
+                    .summary
+                    .providerAccuracy ===
+                  null
+                    ? "—"
+                    : `${analystPulse.performance.summary.providerAccuracy}%`}
+                </strong>
+                <small>
+                  Provider
+                </small>
+              </div>
+              <div>
+                <span>Brier</span>
+                <strong>
+                  {analystPulse
+                    .performance
+                    .summary
+                    .providerBrierScore ??
+                    "—"}
+                </strong>
+                <small>
+                  الأقل أفضل
+                </small>
+              </div>
+              <div>
+                <span>قيد التحقق</span>
+                <strong>
+                  {analystPulse
+                    .performance
+                    .summary
+                    .pending}
+                </strong>
+                <small>
+                  Forecasts
+                </small>
+              </div>
+            </div>
+
+            <div className="home-analyst-pulse-list">
+              {analystPulse.radar.map(
+                (item, index) => (
+                  <button
+                    key={
+                      item.symbol.id
+                    }
+                    onClick={() => {
+                      onSelectSymbol(
+                        item.symbol,
+                      );
+                      onClose();
+                    }}
+                  >
+                    <span className="home-analyst-rank">
+                      {index + 1}
+                    </span>
+                    <span className="home-analyst-symbol">
+                      <strong>
+                        {
+                          item.symbol
+                            .ticker
+                        }
+                      </strong>
+                      <small>
+                        {item.forecast
+                          .dataMode ===
+                        "provider"
+                          ? item.forecast
+                              .dataProvider
+                          : "Demo"}
+                      </small>
+                    </span>
+                    <span
+                      className={
+                        `home-analyst-direction ${item.direction}`
+                      }
+                    >
+                      <strong>
+                        {item.direction ===
+                        "bull"
+                          ? "صاعد"
+                          : item.direction ===
+                              "bear"
+                            ? "هابط"
+                            : "محايد"}
+                      </strong>
+                      <small>
+                        {
+                          item.directionProbability
+                        }
+                        %
+                      </small>
+                    </span>
+                    <span className="home-analyst-clarity">
+                      <strong>
+                        {item.clarity}%
+                      </strong>
+                      <small>
+                        وضوح
+                      </small>
+                    </span>
+                  </button>
+                ),
+              )}
+
+              {analystPulse.radar.length ===
+              0 ? (
+                <div className="home-analyst-pulse-empty">
+                  شغّل Analyst Radar مرة
+                  واحدة لعرض أقوى الحالات
+                  هنا بدون طلب بيانات
+                  إضافي.
+                </div>
+              ) : null}
+            </div>
+
+            <footer className="home-analyst-pulse-footer">
+              <span>
+                Radar{" "}
+                {analystPulse
+                  .radarStale
+                  ? "قديم"
+                  : "حديث"}
+              </span>
+              <span>
+                {analystPulse
+                  .radarUpdatedAt
+                  ? new Date(
+                      analystPulse
+                        .radarUpdatedAt,
+                    ).toLocaleTimeString(
+                      "ar-SA",
+                      {
+                        hour:
+                          "2-digit",
+                        minute:
+                          "2-digit",
+                      },
+                    )
+                  : "—"}
+              </span>
+            </footer>
+          </section>
+
           <section className="home-dashboard-card home-dashboard-movers">
             <div className="home-dashboard-card-head">
               <div>
