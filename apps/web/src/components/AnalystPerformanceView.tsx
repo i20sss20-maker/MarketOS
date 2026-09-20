@@ -17,7 +17,9 @@ import {
   type ForecastOutcome,
 } from "../lib/forecastJournal";
 import {
+  FORECAST_MONITOR_FORECAST_MONITOR_AUTO_CHECK_KEY,
   refreshMaturedForecasts,
+  shouldAutoRefreshForecastMonitor,
 } from "../lib/forecastMonitor";
 
 type Props = {
@@ -25,11 +27,6 @@ type Props = {
     (symbol: MarketSymbol) =>
       void;
 };
-
-const AUTO_CHECK_KEY =
-  "marketos:forecast-performance-last-check";
-const AUTO_CHECK_INTERVAL =
-  10 * 60 * 1000;
 
 function outcomeLabel(
   outcome: ForecastOutcome,
@@ -169,7 +166,7 @@ export default function AnalystPerformanceView({
             "undefined"
           ) {
             window.localStorage.setItem(
-              AUTO_CHECK_KEY,
+              FORECAST_MONITOR_AUTO_CHECK_KEY,
               String(Date.now()),
             );
           }
@@ -213,30 +210,13 @@ export default function AnalystPerformanceView({
     );
 
   useEffect(() => {
-    const now =
-      Math.floor(
-        Date.now() / 1000,
-      );
-    const hasMatured =
-      records.some(
-        (record) =>
-          record.status ===
-            "pending" &&
-          Boolean(record.symbol) &&
-          record.dueAt <= now,
-      );
-
-    if (!hasMatured) {
-      return;
-    }
-
     let last = 0;
 
     try {
       last =
         Number(
           window.localStorage.getItem(
-            AUTO_CHECK_KEY,
+            FORECAST_MONITOR_AUTO_CHECK_KEY,
           ),
         ) || 0;
     } catch {
@@ -244,8 +224,10 @@ export default function AnalystPerformanceView({
     }
 
     if (
-      Date.now() - last <
-      AUTO_CHECK_INTERVAL
+      !shouldAutoRefreshForecastMonitor(
+        records,
+        last,
+      )
     ) {
       return;
     }
