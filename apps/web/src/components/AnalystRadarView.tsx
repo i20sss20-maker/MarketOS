@@ -9,11 +9,7 @@ import type {
   MarketSymbol,
 } from "@marketos/market-core";
 import {
-  getAnalystForecast,
-} from "../lib/aiApi";
-import {
   buildAnalystRadarDeltas,
-  buildAnalystRadarItem,
   prepareRadarSymbols,
   rankAnalystRadar,
   type AnalystRadarFailure,
@@ -25,6 +21,9 @@ import {
   loadAnalystRadarCache,
   saveAnalystRadarCache,
 } from "../lib/analystRadarCache";
+import {
+  scanAnalystRadar,
+} from "../lib/analystRadarScanner";
 
 type Props = {
   activeSymbol:
@@ -270,87 +269,58 @@ export default function AnalystRadarView({
           candidates.length,
       });
 
-      const nextItems:
-        AnalystRadarItem[] = [];
-      const nextFailures:
-        AnalystRadarFailure[] = [];
-
-      for (
-        let index = 0;
-        index <
-        candidates.length;
-        index += 1
-      ) {
-        const symbol =
-          candidates[index];
-
-        try {
-          const forecast =
-            await getAnalystForecast(
-              symbol,
-            );
-
-          nextItems.push(
-            buildAnalystRadarItem(
-              symbol,
-              forecast,
-            ),
+      try {
+        const result =
+          await scanAnalystRadar(
+            candidates,
+            {
+              onProgress:
+                (snapshot) => {
+                  setProgress({
+                    done:
+                      snapshot.done,
+                    total:
+                      snapshot.total,
+                  });
+                  setItems(
+                    snapshot.items,
+                  );
+                  setFailures(
+                    snapshot.failures,
+                  );
+                },
+            },
           );
-          setItems(
-            rankAnalystRadar(
-              [...nextItems],
-            ),
+
+        setItems(
+          result.items,
+        );
+        setFailures(
+          result.failures,
+        );
+        setUpdatedAt(
+          result.scannedAt,
+        );
+
+        const saved =
+          saveAnalystRadarCache(
+            candidates,
+            result.items,
+            result.scannedAt,
           );
-        } catch (error) {
-          nextFailures.push({
-            symbol,
-            error:
-              error instanceof
-              Error
-                ? error.message
-                : "تعذر التحليل.",
-          });
-          setFailures([
-            ...nextFailures,
-          ]);
-        } finally {
-          setProgress({
-            done: index + 1,
-            total:
-              candidates.length,
-          });
+
+        if (saved) {
+          setPreviousItems(
+            saved.previousItems,
+          );
+          setPreviousUpdatedAt(
+            saved.previousUpdatedAt ??
+              null,
+          );
         }
+      } finally {
+        setLoading(false);
       }
-
-      const finalItems =
-        rankAnalystRadar(
-          [...nextItems],
-        );
-      const finishedAt =
-        Date.now();
-
-      setItems(finalItems);
-      setUpdatedAt(
-        finishedAt,
-      );
-      const saved =
-        saveAnalystRadarCache(
-          candidates,
-          finalItems,
-          finishedAt,
-        );
-
-      if (saved) {
-        setPreviousItems(
-          saved.previousItems,
-        );
-        setPreviousUpdatedAt(
-          saved.previousUpdatedAt ??
-            null,
-        );
-      }
-
-      setLoading(false);
     };
 
   useEffect(() => {
