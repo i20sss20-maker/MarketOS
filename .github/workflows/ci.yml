@@ -36,6 +36,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Strict browser data and server history tests
+        run: pnpm smoke:production-client
+
       - name: Market data runtime smoke test
         run: pnpm smoke:market
 
