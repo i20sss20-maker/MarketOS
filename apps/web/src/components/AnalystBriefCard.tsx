@@ -8,6 +8,7 @@ import type {
 type Props = {
   brief:
     AnalystBriefSnapshot;
+  refreshing: boolean;
   onSelectSymbol:
     (symbol: MarketSymbol) =>
       void;
@@ -88,6 +89,7 @@ function timeLabel(
 
 export default function AnalystBriefCard({
   brief,
+  refreshing,
   onSelectSymbol,
   onOpenAnalyst,
 }: Props) {
@@ -108,13 +110,25 @@ export default function AnalystBriefCard({
         </div>
 
         <div className="home-analyst-brief-head-actions">
-          <span>
-            Radar{" "}
-            {brief.radarUpdatedAt
-              ? timeLabel(
-                  brief.radarUpdatedAt,
-                )
-              : "غير مفحوص"}
+          <span
+            className={
+              refreshing
+                ? "refreshing"
+                : ""
+            }
+          >
+            {refreshing
+              ? "Radar يحدّث…"
+              : (
+                  <>
+                    Radar{" "}
+                    {brief.radarUpdatedAt
+                      ? timeLabel(
+                          brief.radarUpdatedAt,
+                        )
+                      : "غير مفحوص"}
+                  </>
+                )}
           </span>
           <button
             onClick={
