@@ -542,6 +542,22 @@ assert.equal(
   brief.performance.pending,
   1,
 );
+assert.equal(
+  brief.performance.driftStatus,
+  "insufficient",
+);
+assert.equal(
+  brief.performance.driftAccuracyDelta,
+  null,
+);
+assert.equal(
+  brief.performance.driftRecentSize,
+  2,
+);
+assert.equal(
+  brief.performance.driftBaselineSize,
+  0,
+);
 
 const matureJournal = [
   ...journal,
@@ -604,6 +620,10 @@ assert.equal(
 assert.equal(
   matureBrief.performance.accuracyHigh95,
   96,
+);
+assert.equal(
+  matureBrief.performance.driftStatus,
+  "insufficient",
 );
 assert.equal(
   brief.radarProviderCount,
@@ -689,6 +709,14 @@ assert.match(
 assert.match(
   card,
   /accuracyLow95/,
+);
+assert.match(
+  card,
+  /performanceDriftLabel/,
+);
+assert.match(
+  card,
+  /driftAccuracyDelta/,
 );
 assert.match(
   card,
