@@ -44,6 +44,7 @@
     "smoke:analyst-calibration": "node scripts/analyst-calibration-smoke.mjs",
     "smoke:forecast-journal": "node scripts/forecast-journal-smoke.mjs",
     "smoke:analyst-radar": "node scripts/analyst-radar-smoke.mjs",
+    "smoke:analyst-radar-scanner": "node scripts/analyst-radar-scanner-smoke.mjs",
     "smoke:analyst-radar-cache": "node scripts/analyst-radar-cache-smoke.mjs",
     "smoke:analyst-performance": "node scripts/analyst-performance-smoke.mjs",
     "smoke:analyst-brief": "node scripts/analyst-brief-smoke.mjs",
