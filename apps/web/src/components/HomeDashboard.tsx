@@ -34,7 +34,13 @@ import {
 } from "../lib/analystRadarScanner";
 import {
   loadForecastJournal,
+  saveForecastJournal,
 } from "../lib/forecastJournal";
+import {
+  FORECAST_MONITOR_AUTO_CHECK_KEY,
+  refreshMaturedForecasts,
+  shouldAutoRefreshForecastMonitor,
+} from "../lib/forecastMonitor";
 
 type Props = {
   open: boolean;
@@ -140,9 +146,13 @@ export default function HomeDashboard({
     setAnalystBriefRevision,
   ] = useState(0);
   const [
-    analystBriefRefreshing,
-    setAnalystBriefRefreshing,
-  ] = useState(false);
+    analystBriefRefreshStage,
+    setAnalystBriefRefreshStage,
+  ] = useState<
+    "radar" |
+    "performance" |
+    null
+  >(null);
 
   const analystCandidates =
     useMemo(
@@ -191,57 +201,116 @@ export default function HomeDashboard({
     );
 
   useEffect(() => {
-    if (
-      !open ||
-      analystCandidates.length ===
-        0
-    ) {
-      return undefined;
-    }
-
-    const cached =
-      loadAnalystRadarCache(
-        analystCandidates,
-      );
-
-    if (
-      !isAnalystRadarCacheStale(
-        cached,
-      )
-    ) {
+    if (!open) {
       return undefined;
     }
 
     const controller =
       new AbortController();
 
-    setAnalystBriefRefreshing(
-      true,
-    );
-
-    void scanAnalystRadar(
-      analystCandidates,
-      {
-        signal:
-          controller.signal,
-      },
-    )
-      .then((result) => {
-        if (
-          result.items.length >
-          0
-        ) {
-          saveAnalystRadarCache(
+    const refreshIntelligence =
+      async () => {
+        const cached =
+          loadAnalystRadarCache(
             analystCandidates,
-            result.items,
-            result.scannedAt,
           );
-          setAnalystBriefRevision(
-            (current) =>
-              current + 1,
+
+        if (
+          analystCandidates.length >
+            0 &&
+          isAnalystRadarCacheStale(
+            cached,
+          )
+        ) {
+          setAnalystBriefRefreshStage(
+            "radar",
           );
+
+          const radarResult =
+            await scanAnalystRadar(
+              analystCandidates,
+              {
+                signal:
+                  controller.signal,
+              },
+            );
+
+          if (
+            radarResult.items.length >
+            0
+          ) {
+            saveAnalystRadarCache(
+              analystCandidates,
+              radarResult.items,
+              radarResult.scannedAt,
+            );
+            setAnalystBriefRevision(
+              (current) =>
+                current + 1,
+            );
+          }
         }
-      })
+
+        if (
+          controller.signal.aborted
+        ) {
+          return;
+        }
+
+        const journal =
+          loadForecastJournal();
+        let lastCheck = 0;
+
+        try {
+          lastCheck =
+            Number(
+              window.localStorage.getItem(
+                FORECAST_MONITOR_AUTO_CHECK_KEY,
+              ),
+            ) || 0;
+        } catch {
+          lastCheck = 0;
+        }
+
+        if (
+          !shouldAutoRefreshForecastMonitor(
+            journal,
+            lastCheck,
+          )
+        ) {
+          return;
+        }
+
+        setAnalystBriefRefreshStage(
+          "performance",
+        );
+
+        const monitorResult =
+          await refreshMaturedForecasts(
+            journal,
+            controller.signal,
+          );
+
+        saveForecastJournal(
+          monitorResult.records,
+        );
+
+        try {
+          window.localStorage.setItem(
+            FORECAST_MONITOR_AUTO_CHECK_KEY,
+            String(Date.now()),
+          );
+        } catch {
+          // Storage throttle is best effort.
+        }
+
+        setAnalystBriefRevision(
+          (current) =>
+            current + 1,
+        );
+      };
+
+    void refreshIntelligence()
       .catch((error: unknown) => {
         if (
           error instanceof Error &&
@@ -256,8 +325,8 @@ export default function HomeDashboard({
           !controller.signal
             .aborted
         ) {
-          setAnalystBriefRefreshing(
-            false,
+          setAnalystBriefRefreshStage(
+            null,
           );
         }
       });
@@ -378,7 +447,7 @@ export default function HomeDashboard({
           <AnalystBriefCard
             brief={analystBrief}
             refreshing={
-              analystBriefRefreshing
+              analystBriefRefreshStage
             }
             onSelectSymbol={(symbol) => {
               onSelectSymbol(symbol);
