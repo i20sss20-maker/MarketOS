@@ -106,7 +106,7 @@ const view = readFileSync(
 
 assert.match(
   forecastEngine,
-  /marketos-forecast-v2/,
+  /marketos-forecast-v3/,
 );
 assert.match(
   forecastEngine,
