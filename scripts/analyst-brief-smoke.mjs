@@ -510,6 +510,18 @@ assert.match(
   /loadForecastJournal/,
 );
 assert.match(
+  home,
+  /scanAnalystRadar/,
+);
+assert.match(
+  home,
+  /isAnalystRadarCacheStale/,
+);
+assert.match(
+  home,
+  /analystBriefRefreshing/,
+);
+assert.match(
   card,
   /MARKETOS ANALYST BRIEF/,
 );
