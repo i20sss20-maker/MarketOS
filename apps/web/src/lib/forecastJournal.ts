@@ -1,5 +1,6 @@
 import type {
   AnalystForecastResponse,
+  MarketSymbol,
   Timeframe,
 } from "@marketos/market-core";
 
@@ -12,6 +13,7 @@ export type ForecastJournalRecord = {
   id: string;
   symbolId: string;
   ticker: string;
+  symbol?: MarketSymbol;
   generatedAt: number;
   dueAt: number;
   referencePrice: number;
@@ -191,6 +193,42 @@ function normalizeRecord(
       item.symbolId.slice(0, 160),
     ticker:
       item.ticker.slice(0, 80),
+    symbol:
+      item.symbol &&
+      typeof item.symbol === "object" &&
+      typeof item.symbol.id === "string" &&
+      typeof item.symbol.ticker === "string" &&
+      typeof item.symbol.name === "string" &&
+      typeof item.symbol.exchange === "string" &&
+      typeof item.symbol.assetClass === "string" &&
+      typeof item.symbol.currency === "string"
+        ? {
+            id:
+              item.symbol.id.slice(0, 160),
+            ticker:
+              item.symbol.ticker.slice(0, 80),
+            name:
+              item.symbol.name.slice(0, 180),
+            exchange:
+              item.symbol.exchange.slice(0, 100),
+            assetClass:
+              item.symbol.assetClass,
+            currency:
+              item.symbol.currency.slice(0, 20),
+            providerSymbol:
+              typeof item.symbol.providerSymbol === "string"
+                ? item.symbol.providerSymbol.slice(0, 100)
+                : undefined,
+            micCode:
+              typeof item.symbol.micCode === "string"
+                ? item.symbol.micCode.slice(0, 20)
+                : undefined,
+            country:
+              typeof item.symbol.country === "string"
+                ? item.symbol.country.slice(0, 80)
+                : undefined,
+          }
+        : undefined,
     generatedAt:
       Math.floor(item.generatedAt),
     dueAt:
@@ -444,6 +482,8 @@ function createRecord(
       result.symbol.id,
     ticker:
       result.symbol.ticker,
+    symbol:
+      result.symbol,
     generatedAt:
       result.generatedAt,
     dueAt:
@@ -598,6 +638,121 @@ export function updateForecastJournal(
       0,
       MAX_FORECAST_JOURNAL_RECORDS,
     );
+}
+
+export function resolveForecastJournalWithPrice(
+  current:
+    ForecastJournalRecord[],
+  input: {
+    symbolId: string;
+    price: number;
+    timestamp: number;
+    dataMode:
+      "demo" | "provider";
+  },
+) {
+  if (
+    !Number.isFinite(input.price) ||
+    input.price <= 0 ||
+    !Number.isFinite(
+      input.timestamp,
+    )
+  ) {
+    return current;
+  }
+
+  return current.map(
+    (record) => {
+      if (
+        record.status !==
+          "pending" ||
+        record.symbolId !==
+          input.symbolId ||
+        record.dueAt >
+          input.timestamp ||
+        record.dataMode !==
+          input.dataMode
+      ) {
+        return record;
+      }
+
+      const realizedReturnPercent =
+        record.referencePrice === 0
+          ? 0
+          : (
+              (
+                input.price -
+                record.referencePrice
+              ) /
+              record.referencePrice
+            ) *
+              100;
+
+      const realizedOutcome =
+        classifyOutcome(
+          realizedReturnPercent,
+          record.thresholdPercent,
+        );
+
+      return {
+        ...record,
+        status:
+          "resolved" as const,
+        evaluatedAt:
+          Math.floor(
+            input.timestamp,
+          ),
+        evaluationPrice:
+          input.price,
+        realizedReturnPercent:
+          round(
+            realizedReturnPercent,
+            2,
+          ),
+        realizedOutcome,
+        correct:
+          realizedOutcome ===
+          record.expectedOutcome,
+      };
+    },
+  );
+}
+
+export function maturedForecastSymbols(
+  records:
+    ForecastJournalRecord[],
+  timestamp: number,
+  dataMode:
+    "demo" | "provider",
+) {
+  const unique =
+    new Map<
+      string,
+      MarketSymbol
+    >();
+
+  for (const record of records) {
+    if (
+      record.status !==
+        "pending" ||
+      record.dataMode !==
+        dataMode ||
+      record.dueAt >
+        timestamp ||
+      !record.symbol
+    ) {
+      continue;
+    }
+
+    unique.set(
+      record.symbol.id,
+      record.symbol,
+    );
+  }
+
+  return [
+    ...unique.values(),
+  ];
 }
 
 function brierScore(
