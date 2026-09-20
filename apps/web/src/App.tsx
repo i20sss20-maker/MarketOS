@@ -5453,6 +5453,8 @@ export default function App() {
         events={marketEvents}
         eventsLoading={eventsLoading}
         alertEvents={alertInboxEvents}
+        watchlist={watchlist}
+        alerts={alerts}
         signedIn={Boolean(authUser)}
         workspaces={savedWorkspaces}
         planName={entitlement.definition.name}
@@ -5491,6 +5493,14 @@ export default function App() {
           setCommandSymbolResults([]);
           setCommandNewTabMode(false);
           setShowCommandPalette(true);
+        }}
+        onOpenAnalyst={() => {
+          setShowHomeDashboard(false);
+          setAiPanelOpen(true);
+          saveSetting(
+            "marketos:ui-ai",
+            "on",
+          );
         }}
       />
 
