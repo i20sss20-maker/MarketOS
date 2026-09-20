@@ -1,5 +1,7 @@
 import {
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type {
@@ -16,6 +18,11 @@ import {
   type AnalystRadarFailure,
   type AnalystRadarItem,
 } from "../lib/analystRadar";
+import {
+  isAnalystRadarCacheStale,
+  loadAnalystRadarCache,
+  saveAnalystRadarCache,
+} from "../lib/analystRadarCache";
 
 type Props = {
   activeSymbol:
@@ -107,6 +114,14 @@ export default function AnalystRadarView({
     done: 0,
     total: 0,
   });
+  const [
+    updatedAt,
+    setUpdatedAt,
+  ] = useState<
+    number | null
+  >(null);
+  const autoBootstrapRef =
+    useRef(false);
 
   const candidates =
     useMemo(
@@ -140,11 +155,15 @@ export default function AnalystRadarView({
     ).length;
 
   const runRadar =
-    async () => {
+    async (
+      automatic = false,
+    ) => {
       if (loading) return;
 
       setLoading(true);
-      setItems([]);
+      if (!automatic) {
+        setItems([]);
+      }
       setFailures([]);
       setProgress({
         done: 0,
@@ -204,8 +223,58 @@ export default function AnalystRadarView({
         }
       }
 
+      const finalItems =
+        rankAnalystRadar(
+          [...nextItems],
+        );
+      const finishedAt =
+        Date.now();
+
+      setItems(finalItems);
+      setUpdatedAt(
+        finishedAt,
+      );
+      saveAnalystRadarCache(
+        candidates,
+        finalItems,
+        finishedAt,
+      );
       setLoading(false);
     };
+
+  useEffect(() => {
+    if (
+      autoBootstrapRef.current
+    ) {
+      return;
+    }
+
+    autoBootstrapRef.current =
+      true;
+
+    const cached =
+      loadAnalystRadarCache(
+        candidates,
+      );
+
+    if (cached) {
+      setItems(
+        cached.items,
+      );
+      setUpdatedAt(
+        cached.updatedAt,
+      );
+    }
+
+    if (
+      candidates.length > 0 &&
+      isAnalystRadarCacheStale(
+        cached,
+      )
+    ) {
+      void runRadar(true);
+    }
+  }, []);
 
   return (
     <section
@@ -231,7 +300,7 @@ export default function AnalystRadarView({
 
         <button
           onClick={() =>
-            void runRadar()
+            void runRadar(false)
           }
           disabled={
             loading ||
@@ -261,6 +330,22 @@ export default function AnalystRadarView({
           {failures.length}
           {" "}
           تعذر
+        </span>
+        <span>
+          آخر تحديث{" "}
+          {updatedAt
+            ? new Date(
+                updatedAt,
+              ).toLocaleTimeString(
+                "ar-SA",
+                {
+                  hour:
+                    "2-digit",
+                  minute:
+                    "2-digit",
+                },
+              )
+            : "—"}
         </span>
       </div>
 
@@ -452,6 +537,9 @@ export default function AnalystRadarView({
       ) : null}
 
       <footer className="analyst-radar-note">
+        النتائج تُحفظ محليًا لمدة 15
+        دقيقة وتُحدّث تلقائيًا عند فتح
+        الرادار إذا انتهت صلاحيتها.
         ترتيب «الوضوح» مقياس داخلي
         لتنظيم الحالات وليس توصية شراء
         أو بيع. راجع السيناريو والتفعيل
