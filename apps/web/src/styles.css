@@ -13507,3 +13507,50 @@ button.bear:hover {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Analyst Radar V3 deltas ------------------------------------------------- */
+.analyst-radar-change {
+  display: inline-flex !important;
+  width: fit-content;
+  margin-top: 4px;
+  border: 1px solid rgba(148,163,184,.06);
+  border-radius: 999px;
+  padding: 2px 5px;
+  background: rgba(148,163,184,.025);
+  color: #667489 !important;
+  font-size: 5px !important;
+  line-height: 1.2;
+}
+
+.analyst-radar-change.strengthening {
+  border-color: rgba(34,197,94,.13);
+  background: rgba(34,197,94,.035);
+  color: #79a98a !important;
+}
+
+.analyst-radar-change.weakening {
+  border-color: rgba(248,113,113,.12);
+  background: rgba(248,113,113,.03);
+  color: #b07d83 !important;
+}
+
+.analyst-radar-change.reversal {
+  border-color: rgba(245,158,11,.16);
+  background: rgba(245,158,11,.04);
+  color: #b89b69 !important;
+}
+
+.analyst-radar-change.new {
+  border-color: rgba(56,189,248,.12);
+  background: rgba(56,189,248,.03);
+  color: #789daf !important;
+}
+
+.analyst-radar-previous-time {
+  margin-top: 7px;
+  border-top: 1px solid rgba(148,163,184,.04);
+  padding-top: 6px;
+  color: #526075;
+  font-size: 5.5px;
+}
