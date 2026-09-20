@@ -325,6 +325,18 @@ assert.equal(
   "insufficient",
 );
 assert.equal(
+  report.drift.status,
+  "insufficient",
+);
+assert.equal(
+  report.drift.engine,
+  "marketos-forecast-v3",
+);
+assert.equal(
+  report.drift.reason.length,
+  1,
+);
+assert.equal(
   report.currentEnginePerformance?.averageExpectedProbability,
   61.5,
 );
@@ -372,6 +384,111 @@ assert.equal(
 assert.equal(
   report.engines[1].sampleStatus,
   "insufficient",
+);
+
+const driftRecords = [
+  ...Array.from(
+    { length: 8 },
+    (_, index) =>
+      record({
+        id:
+          `drift-recent-${index}`,
+        symbolId: "DRIFT",
+        ticker: "DRIFT",
+        expectedOutcome:
+          "bull",
+        expectedProbability:
+          70,
+        confidence: 75,
+        correct:
+          index < 2,
+        realizedReturnPercent:
+          index < 2
+            ? 3
+            : -3,
+        evaluatedAt:
+          2_000 -
+          index,
+        engine:
+          "marketos-forecast-v3",
+      }),
+  ),
+  ...Array.from(
+    { length: 8 },
+    (_, index) =>
+      record({
+        id:
+          `drift-base-${index}`,
+        symbolId: "DRIFT",
+        ticker: "DRIFT",
+        expectedOutcome:
+          "bull",
+        expectedProbability:
+          70,
+        confidence: 75,
+        correct:
+          index < 7,
+        realizedReturnPercent:
+          index < 7
+            ? 3
+            : -3,
+        evaluatedAt:
+          1_900 -
+          index,
+        engine:
+          "marketos-forecast-v3",
+      }),
+  ),
+];
+
+const driftReport =
+  buildForecastPerformance(
+    driftRecords,
+  );
+
+assert.equal(
+  driftReport.drift.status,
+  "degrading",
+);
+assert.equal(
+  driftReport.drift.recentSize,
+  8,
+);
+assert.equal(
+  driftReport.drift.baselineSize,
+  8,
+);
+assert.equal(
+  driftReport.drift.recentAccuracy,
+  25,
+);
+assert.equal(
+  driftReport.drift.baselineAccuracy,
+  88,
+);
+assert.equal(
+  driftReport.drift.accuracyDelta,
+  -63,
+);
+assert.equal(
+  driftReport.drift.recentBrier,
+  1.075,
+);
+assert.equal(
+  driftReport.drift.baselineBrier,
+  0.3,
+);
+assert.equal(
+  driftReport.drift.brierDelta,
+  0.775,
+);
+assert.equal(
+  driftReport.drift.calibrationGapDelta,
+  27,
+);
+assert.ok(
+  driftReport.drift.reason.length >=
+    1,
 );
 
 const bull =
@@ -463,6 +580,18 @@ assert.match(
 assert.match(
   view,
   /عينة غير كافية/,
+);
+assert.match(
+  view,
+  /Performance Drift/,
+);
+assert.match(
+  view,
+  /performance\.drift/,
+);
+assert.match(
+  view,
+  /driftLabel/,
 );
 assert.match(
   view,

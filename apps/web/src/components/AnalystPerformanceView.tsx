@@ -80,6 +80,33 @@ function sampleLabel(
   return "عينة مستقرة";
 }
 
+function driftLabel(
+  status:
+    "insufficient" |
+    "stable" |
+    "improving" |
+    "watch" |
+    "degrading",
+) {
+  if (status === "improving") {
+    return "يتحسن";
+  }
+
+  if (status === "watch") {
+    return "تحت المراقبة";
+  }
+
+  if (status === "degrading") {
+    return "يتدهور";
+  }
+
+  if (status === "stable") {
+    return "مستقر";
+  }
+
+  return "عينة غير كافية";
+}
+
 function dateLabel(
   timestamp?: number,
 ) {
@@ -428,6 +455,90 @@ export default function AnalystPerformanceView({
           تحقق فعليًا. يحتاج هذا المقياس
           عينة كافية قبل الحكم عليه.
         </p>
+      </div>
+
+      <div className="analyst-performance-section-head">
+        <strong>
+          Performance Drift
+        </strong>
+        <small>
+          المحرك الحالي · حديث مقابل سابق
+        </small>
+      </div>
+
+      <div
+        className={
+          `analyst-performance-drift drift-${performance.drift.status}`
+        }
+      >
+        <header>
+          <span>
+            <strong>
+              {performance.drift.engine ??
+                "لا يوجد محرك حالي"}
+            </strong>
+            <b>
+              {driftLabel(
+                performance.drift.status,
+              )}
+            </b>
+          </span>
+          <small>
+            حديث{" "}
+            {performance.drift.recentSize}
+            {" · "}
+            أساس{" "}
+            {performance.drift.baselineSize}
+          </small>
+        </header>
+
+        <div className="analyst-performance-drift-grid">
+          <div>
+            <span>الدقة الحديثة</span>
+            <strong>
+              {performance.drift.recentAccuracy ===
+              null
+                ? "—"
+                : `${performance.drift.recentAccuracy}%`}
+            </strong>
+          </div>
+          <div>
+            <span>خط الأساس</span>
+            <strong>
+              {performance.drift.baselineAccuracy ===
+              null
+                ? "—"
+                : `${performance.drift.baselineAccuracy}%`}
+            </strong>
+          </div>
+          <div>
+            <span>فرق الدقة</span>
+            <strong>
+              {signed(
+                performance.drift.accuracyDelta,
+                " نقطة",
+              )}
+            </strong>
+          </div>
+          <div>
+            <span>فرق Brier</span>
+            <strong>
+              {signed(
+                performance.drift.brierDelta,
+              )}
+            </strong>
+          </div>
+        </div>
+
+        <div className="analyst-performance-drift-reasons">
+          {performance.drift.reason.map(
+            (reason) => (
+              <span key={reason}>
+                {reason}
+              </span>
+            ),
+          )}
+        </div>
       </div>
 
       <div className="analyst-performance-section-head">

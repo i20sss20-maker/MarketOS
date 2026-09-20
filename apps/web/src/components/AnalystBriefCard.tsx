@@ -97,6 +97,29 @@ function attentionKindLabel(
   return "تحقق";
 }
 
+function performanceDriftLabel(
+  status:
+    AnalystBriefSnapshot["performance"]["driftStatus"],
+) {
+  if (status === "improving") {
+    return "الأداء الحديث يتحسن";
+  }
+
+  if (status === "watch") {
+    return "الأداء تحت المراقبة";
+  }
+
+  if (status === "degrading") {
+    return "الأداء الحديث يتدهور";
+  }
+
+  if (status === "stable") {
+    return "الأداء مستقر";
+  }
+
+  return "Drift: عينة غير كافية";
+}
+
 function timeLabel(
   value: number | null,
 ) {
@@ -425,6 +448,19 @@ export default function AnalystBriefCard({
                   brief.performance
                     .pending
                 }
+                <br />
+                {performanceDriftLabel(
+                  brief.performance
+                    .driftStatus,
+                )}
+                {brief.performance.driftAccuracyDelta !==
+                null
+                  ? ` · دقة ${signed(
+                      brief.performance
+                        .driftAccuracyDelta,
+                      " نقطة",
+                    )}`
+                  : ""}
               </small>
             </div>
           </div>
