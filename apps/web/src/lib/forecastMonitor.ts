@@ -71,11 +71,8 @@ export async function refreshMaturedForecasts(
         ).length;
 
       const timestamp =
-        Math.max(
-          now,
-          response.quote
-            .timestamp,
-        );
+        response.quote
+          .timestamp;
 
       records =
         resolveForecastJournalWithPrice(
