@@ -519,7 +519,19 @@ assert.match(
 );
 assert.match(
   home,
-  /analystBriefRefreshing/,
+  /analystBriefRefreshStage/,
+);
+assert.match(
+  home,
+  /refreshMaturedForecasts/,
+);
+assert.match(
+  home,
+  /shouldAutoRefreshForecastMonitor/,
+);
+assert.match(
+  home,
+  /saveForecastJournal/,
 );
 assert.match(
   card,
@@ -528,6 +540,10 @@ assert.match(
 assert.match(
   card,
   /Forecast Watch/,
+);
+assert.match(
+  card,
+  /النتائج تتحقق/,
 );
 assert.match(
   app,
