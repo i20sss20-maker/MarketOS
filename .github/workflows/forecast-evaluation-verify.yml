@@ -1,0 +1,71 @@
+name: Server Forecast Evaluation Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/server-forecast-evaluation-20260920]
+  pull_request:
+    branches: [main]
+    paths:
+      - services/api/src/forecasts/**
+      - scripts/server-forecast-evaluation-smoke.mjs
+      - .github/workflows/forecast-evaluation-verify.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forecast-evaluation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: git archive --format=tar.gz --output=/tmp/marketos-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketos-evaluation-source
+          path: /tmp/marketos-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+        env:
+          VITE_MARKETOS_REQUIRE_REAL_DATA: 'true'
+      - run: pnpm smoke:production-client
+      - run: pnpm smoke:production-foundation
+      - run: node scripts/production-sdk-smoke.mjs
+      - name: Server evaluation runtime tests
+        run: |
+          if [ -f scripts/server-forecast-evaluation-smoke.mjs ]; then
+            node scripts/server-forecast-evaluation-smoke.mjs
+          else
+            echo 'Evaluation implementation not present in source snapshot yet.'
+          fi
+      - run: pnpm prepare:azure-api && pnpm smoke:azure
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: server-evaluation-test-evidence
+          path: artifacts/*tests.json
+          retention-days: 7
+          if-no-files-found: warn
