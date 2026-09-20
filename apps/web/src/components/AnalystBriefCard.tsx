@@ -139,6 +139,25 @@ function reliabilityBriefLabel(
   return "المعايرة تجمع عينة";
 }
 
+function modelHealthBriefLabel(
+  status:
+    AnalystBriefSnapshot["modelHealth"]["status"],
+) {
+  if (status === "healthy") {
+    return "صحة المحرك: جيدة";
+  }
+
+  if (status === "watch") {
+    return "صحة المحرك: مراقبة";
+  }
+
+  if (status === "degraded") {
+    return "صحة المحرك: متدهورة";
+  }
+
+  return "صحة المحرك: يتعلم";
+}
+
 function timeLabel(
   value: number | null,
 ) {
@@ -444,6 +463,16 @@ export default function AnalystBriefCard({
                 {brief.performance.engine
                   ? ` · ${brief.performance.engine}`
                   : ""}
+                <br />
+                <span
+                  className={
+                    `home-model-health health-${brief.modelHealth.status}`
+                  }
+                >
+                  {modelHealthBriefLabel(
+                    brief.modelHealth.status,
+                  )}
+                </span>
                 <br />
                 {brief.performance.scope ===
                 "current-engine"

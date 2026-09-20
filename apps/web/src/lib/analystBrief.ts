@@ -28,6 +28,10 @@ import {
   buildAnalystAttentionQueue,
   type AnalystAttentionQueue,
 } from "./analystAttention";
+import {
+  buildAnalystModelHealth,
+  type AnalystModelHealth,
+} from "./analystModelHealth";
 
 export type AnalystBriefSetup = {
   symbol: MarketSymbol;
@@ -79,6 +83,8 @@ export type AnalystBriefSnapshot = {
   watchCount: number;
   attention:
     AnalystAttentionQueue;
+  modelHealth:
+    AnalystModelHealth;
   performance: {
     engine: string | null;
     scope:
@@ -412,6 +418,10 @@ export function buildAnalystBrief(
     buildForecastPerformance(
       input.journal,
     );
+  const modelHealth =
+    buildAnalystModelHealth(
+      input.journal,
+    );
 
   return {
     available:
@@ -484,6 +494,7 @@ export function buildAnalystBrief(
         overviewMode:
           input.overviewMode,
       }),
+    modelHealth,
     performance: {
       engine:
         performance

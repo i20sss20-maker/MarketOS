@@ -14363,3 +14363,167 @@ button.bear:hover {
       repeat(2,minmax(0,1fr));
   }
 }
+
+
+/* Analyst Model Health V1 ------------------------------------------------ */
+.analyst-model-health {
+  margin-top: 8px;
+  border: 1px solid rgba(148,163,184,.05);
+  border-radius: 9px;
+  padding: 9px;
+  background: rgba(2,6,15,.25);
+}
+
+.analyst-model-health.health-healthy {
+  border-color: rgba(34,197,94,.13);
+  background:
+    linear-gradient(180deg, rgba(34,197,94,.026), rgba(2,6,15,.25));
+}
+
+.analyst-model-health.health-watch {
+  border-color: rgba(245,158,11,.13);
+  background:
+    linear-gradient(180deg, rgba(245,158,11,.025), rgba(2,6,15,.25));
+}
+
+.analyst-model-health.health-degraded {
+  border-color: rgba(248,113,113,.14);
+  background:
+    linear-gradient(180deg, rgba(248,113,113,.027), rgba(2,6,15,.25));
+}
+
+.analyst-model-health > header {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.analyst-model-health > header span,
+.analyst-model-health > header strong {
+  display: block;
+}
+
+.analyst-model-health > header span {
+  color: #6b75a8;
+  font-size: 5.5px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.analyst-model-health > header strong {
+  margin-top: 2px;
+  color: #9eaabb;
+  font-size: 7px;
+}
+
+.analyst-model-health > header b {
+  border: 1px solid rgba(148,163,184,.07);
+  border-radius: 999px;
+  padding: 3px 6px;
+  color: #6d7a8f;
+  font-size: 5.5px;
+}
+
+.health-healthy > header b {
+  border-color: rgba(34,197,94,.13);
+  color: #76a689;
+}
+
+.health-watch > header b {
+  border-color: rgba(245,158,11,.13);
+  color: #b19868;
+}
+
+.health-degraded > header b {
+  border-color: rgba(248,113,113,.13);
+  color: #b47d84;
+}
+
+.analyst-model-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.analyst-model-health-grid > div {
+  border-top: 1px solid rgba(148,163,184,.035);
+  padding-top: 6px;
+}
+
+.analyst-model-health-grid span,
+.analyst-model-health-grid strong,
+.analyst-model-health-grid small {
+  display: block;
+}
+
+.analyst-model-health-grid span {
+  color: #536176;
+  font-size: 5px;
+}
+
+.analyst-model-health-grid strong {
+  margin-top: 2px;
+  color: #9ca8b9;
+  font-size: 7px;
+}
+
+.analyst-model-health-grid small {
+  margin-top: 2px;
+  color: #4f5d71;
+  font-size: 4.8px;
+}
+
+.analyst-model-health-notes {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.analyst-model-health-notes small {
+  color: #58667a;
+  font-size: 5.3px;
+  line-height: 1.5;
+}
+
+.analyst-model-health > p {
+  margin: 7px 0 0;
+  border-top: 1px solid rgba(148,163,184,.035);
+  padding-top: 6px;
+  color: #536176;
+  font-size: 5.3px;
+  line-height: 1.6;
+}
+
+.home-model-health {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 5px;
+  background: rgba(148,163,184,.03);
+  color: #6b788c;
+  font-size: 5.2px;
+}
+
+.home-model-health.health-healthy {
+  background: rgba(34,197,94,.04);
+  color: #75a486;
+}
+
+.home-model-health.health-watch {
+  background: rgba(245,158,11,.04);
+  color: #ae9567;
+}
+
+.home-model-health.health-degraded {
+  background: rgba(248,113,113,.04);
+  color: #b27c82;
+}
+
+@media (max-width: 760px) {
+  .analyst-model-health-grid {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
