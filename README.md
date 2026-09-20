@@ -53,6 +53,7 @@ This repository is **fully isolated** from every other project:
 - probabilistic Analyst Forecast with multi-timeframe scoring, EMA/RSI/ATR/MACD evidence, support/resistance, scenarios, catalysts and confidence
 - Historical Analog calibration that measures similar prior setups, forward returns, sample reliability and blends them into scenario probabilities
 - Forecast Journal + Scorecard with pending/resolved outcomes, provider-only directional accuracy and multi-class Brier scoring
+- Forecast Journal V2 exact-horizon evaluation using the first valid historical candle after each forecast horizon, with market-session tolerance and provider-identity guards
 - Analyst Radar that scans up to five watchlist symbols through the full probabilistic forecast engine and ranks setup clarity without emitting trade orders
 - Analyst Radar V2 local cache with 15-minute freshness, instant restore and automatic stale refresh on open
 - Analyst Radar V3 scan-over-scan tracking for strengthening, weakening and direction reversals with exact candidate-signature isolation
