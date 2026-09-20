@@ -193,6 +193,46 @@ export default function AnalystRadarView({
       [items],
     );
 
+  const deltas =
+    useMemo(
+      () =>
+        buildAnalystRadarDeltas(
+          ranked,
+          previousItems,
+        ),
+      [
+        ranked,
+        previousItems,
+      ],
+    );
+
+  const deltaBySymbol =
+    useMemo(
+      () =>
+        new Map(
+          deltas.map(
+            (delta) => [
+              delta.symbolId,
+              delta,
+            ],
+          ),
+        ),
+      [deltas],
+    );
+
+  const strengtheningCount =
+    deltas.filter(
+      (item) =>
+        item.change ===
+        "strengthening",
+    ).length;
+  const reversalCount =
+    deltas.filter(
+      (item) =>
+        item.change ===
+        "reversal",
+    ).length;
+
   const providerCount =
     ranked.filter(
       (item) =>
@@ -281,11 +321,23 @@ export default function AnalystRadarView({
       setUpdatedAt(
         finishedAt,
       );
-      saveAnalystRadarCache(
-        candidates,
-        finalItems,
-        finishedAt,
-      );
+      const saved =
+        saveAnalystRadarCache(
+          candidates,
+          finalItems,
+          finishedAt,
+        );
+
+      if (saved) {
+        setPreviousItems(
+          saved.previousItems,
+        );
+        setPreviousUpdatedAt(
+          saved.previousUpdatedAt ??
+            null,
+        );
+      }
+
       setLoading(false);
     };
 
@@ -310,6 +362,13 @@ export default function AnalystRadarView({
       );
       setUpdatedAt(
         cached.updatedAt,
+      );
+      setPreviousItems(
+        cached.previousItems,
+      );
+      setPreviousUpdatedAt(
+        cached.previousUpdatedAt ??
+          null,
       );
     }
 
