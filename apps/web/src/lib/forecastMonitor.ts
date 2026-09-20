@@ -35,6 +35,71 @@ export type ForecastMonitorResult = {
     ForecastMonitorFailure[];
 };
 
+const secondsByTimeframe = {
+  "1m": 60,
+  "5m": 5 * 60,
+  "15m": 15 * 60,
+  "1h": 60 * 60,
+  "4h": 4 * 60 * 60,
+  "1d": 24 * 60 * 60,
+  "1w": 7 * 24 * 60 * 60,
+  "1M": 30 * 24 * 60 * 60,
+} as const;
+
+function historyLimitForGroup(
+  records:
+    ForecastJournalRecord[],
+  symbolId: string,
+  timeframe:
+    keyof typeof secondsByTimeframe,
+  now: number,
+) {
+  const generatedTimes =
+    records
+      .filter(
+        (record) =>
+          record.status ===
+            "pending" &&
+          record.symbolId ===
+            symbolId &&
+          record.evaluationTimeframe ===
+            timeframe,
+      )
+      .map(
+        (record) =>
+          record.generatedAt,
+      );
+
+  if (
+    generatedTimes.length === 0
+  ) {
+    return 320;
+  }
+
+  const earliest =
+    Math.min(
+      ...generatedTimes,
+    );
+  const approximateBars =
+    Math.ceil(
+      Math.max(
+        0,
+        now - earliest,
+      ) /
+        secondsByTimeframe[
+          timeframe
+        ],
+    );
+
+  return Math.max(
+    120,
+    Math.min(
+      1500,
+      approximateBars + 80,
+    ),
+  );
+}
+
 export async function refreshMaturedForecasts(
   current:
     ForecastJournalRecord[],
@@ -74,7 +139,12 @@ export async function refreshMaturedForecasts(
         await getMarketCandles(
           group.symbol,
           group.timeframe,
-          320,
+          historyLimitForGroup(
+            records,
+            group.symbol.id,
+            group.timeframe,
+            now,
+          ),
           signal,
         );
 
