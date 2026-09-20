@@ -14,6 +14,7 @@ export type ForecastJournalRecord = {
   symbolId: string;
   ticker: string;
   symbol?: MarketSymbol;
+  engine?: string;
   generatedAt: number;
   dueAt: number;
   evaluationTimeframe?: Timeframe;
@@ -296,6 +297,14 @@ function normalizeRecord(
       item.symbolId.slice(0, 160),
     ticker:
       item.ticker.slice(0, 80),
+    engine:
+      typeof item.engine ===
+      "string"
+        ? item.engine
+            .trim()
+            .slice(0, 120) ||
+          undefined
+        : undefined,
     symbol:
       item.symbol &&
       typeof item.symbol === "object" &&
@@ -629,6 +638,8 @@ function createRecord(
       result.symbol.ticker,
     symbol:
       result.symbol,
+    engine:
+      result.engine,
     generatedAt:
       result.generatedAt,
     dueAt:
