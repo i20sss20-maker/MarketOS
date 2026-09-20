@@ -1,5 +1,6 @@
 import type {
   AnalystCatalyst,
+  AnalystCatalystImpact,
   AnalystForecastCalibration,
   AnalystForecastBias,
   AnalystForecastResponse,
@@ -316,6 +317,171 @@ function catalystsFrom(
   return catalysts.slice(0, 6);
 }
 
+function finiteNumber(
+  value: unknown,
+): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value)
+  );
+}
+
+function eventSurprisePercent(
+  event: MarketEvent,
+) {
+  if (
+    finiteNumber(
+      event.surprisePercent,
+    )
+  ) {
+    return event.surprisePercent;
+  }
+
+  if (
+    finiteNumber(
+      event.epsActual,
+    ) &&
+    finiteNumber(
+      event.epsEstimate,
+    ) &&
+    event.epsEstimate !== 0
+  ) {
+    return (
+      (
+        event.epsActual -
+        event.epsEstimate
+      ) /
+      Math.abs(
+        event.epsEstimate,
+      )
+    ) *
+      100;
+  }
+
+  return undefined;
+}
+
+function catalystImpactFrom(
+  events: MarketEvent[],
+): AnalystCatalystImpact | undefined {
+  const today =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
+  const seen =
+    new Set<string>();
+
+  const samples =
+    events
+      .filter(
+        (event) => {
+          if (
+            event.type !==
+              "earnings" ||
+            event.date > today ||
+            event.source
+              .toLowerCase()
+              .includes("demo") ||
+            seen.has(event.id)
+          ) {
+            return false;
+          }
+
+          const surprise =
+            eventSurprisePercent(
+              event,
+            );
+
+          if (
+            surprise ===
+            undefined
+          ) {
+            return false;
+          }
+
+          seen.add(event.id);
+          return true;
+        },
+      )
+      .map(
+        (event) => ({
+          event,
+          surprise:
+            eventSurprisePercent(
+              event,
+            )!,
+        }),
+      )
+      .sort(
+        (a, b) =>
+          b.event.date.localeCompare(
+            a.event.date,
+          ),
+      );
+
+  if (samples.length === 0) {
+    return undefined;
+  }
+
+  const normalized =
+    samples.map(
+      (sample) =>
+        clamp(
+          sample.surprise /
+            20,
+          -1,
+          1,
+        ),
+    );
+  const score =
+    average(normalized);
+  const averageSurprise =
+    average(
+      samples.map(
+        (sample) =>
+          sample.surprise,
+      ),
+    );
+  const direction =
+    score >= 0.12
+      ? "positive"
+      : score <= -0.12
+        ? "negative"
+        : "neutral";
+  const weight =
+    samples.length >= 2
+      ? 0.15
+      : 0.12;
+
+  return {
+    method:
+      "structured-earnings",
+    direction,
+    score:
+      round(score, 3),
+    weight,
+    sampleSize:
+      samples.length,
+    averageSurprisePercent:
+      round(
+        averageSurprise,
+        2,
+      ),
+    latestSurprisePercent:
+      round(
+        samples[0].surprise,
+        2,
+      ),
+    evidence:
+      samples
+        .slice(0, 3)
+        .map(
+          (sample) =>
+            `${sample.event.title}: مفاجأة أرباح ${sample.surprise >= 0 ? "+" : ""}${round(sample.surprise, 2)}٪ (${sample.event.source}).`,
+        ),
+  };
+}
+
 export function buildAnalystForecast(
   input: ForecastInput,
 ): AnalystForecastResponse {
@@ -345,11 +511,27 @@ export function buildAnalystForecast(
     totalWeight += weight;
   }
 
-  const score =
+  const technicalScore =
     totalWeight > 0
       ? weightedScore /
         totalWeight
       : 0;
+  const catalystImpact =
+    catalystImpactFrom(
+      input.events,
+    );
+  const score =
+    catalystImpact
+      ? clamp(
+          technicalScore *
+            (1 -
+              catalystImpact.weight) +
+            catalystImpact.score *
+              catalystImpact.weight,
+          -1,
+          1,
+        )
+      : technicalScore;
 
   const bias =
     biasFromScore(score);
@@ -420,10 +602,17 @@ export function buildAnalystForecast(
   const averageAtrPercent =
     average(atrPercents);
 
+  const todayIso =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
   const highImpactEvents =
     input.events.filter(
       (event) =>
-        event.importance === "high",
+        event.importance ===
+          "high" &&
+        event.date >=
+          todayIso,
     ).length;
 
   const risk =
@@ -490,6 +679,24 @@ export function buildAnalystForecast(
           : -2
       : 0;
 
+  const catalystConfidenceAdjustment =
+    !catalystImpact ||
+    Math.abs(
+      catalystImpact.score,
+    ) < 0.12 ||
+    Math.abs(
+      technicalScore,
+    ) < 0.05
+      ? 0
+      : Math.sign(
+            catalystImpact.score,
+          ) ===
+          Math.sign(
+            technicalScore,
+          )
+        ? 2
+        : -3;
+
   const probabilitySeparation =
     Math.max(
       probabilities.bull,
@@ -502,6 +709,7 @@ export function buildAnalystForecast(
       clamp(
         baseConfidence +
           calibrationAdjustment +
+          catalystConfidenceAdjustment +
           probabilitySeparation *
             0.08,
         35,
@@ -663,6 +871,12 @@ export function buildAnalystForecast(
     );
   }
 
+  if (catalystImpact) {
+    evidence.push(
+      `الأثر الكمي للمحفزات: ${catalystImpact.direction === "positive" ? "إيجابي" : catalystImpact.direction === "negative" ? "سلبي" : "محايد"}، بوزن ${Math.round(catalystImpact.weight * 100)}٪ ومتوسط مفاجأة أرباح ${catalystImpact.averageSurprisePercent >= 0 ? "+" : ""}${catalystImpact.averageSurprisePercent}٪.`,
+    );
+  }
+
   if (input.events.length > 0) {
     evidence.push(
       `يوجد ${input.events.length} حدث سوقي قريب ضمن نافذة التحليل.`,
@@ -683,7 +897,7 @@ export function buildAnalystForecast(
         : "محايد";
 
   return {
-    engine: "marketos-forecast-v2",
+    engine: "marketos-forecast-v3",
     generatedAt:
       Math.floor(Date.now() / 1000),
     symbol: input.symbol,
@@ -727,6 +941,7 @@ export function buildAnalystForecast(
     calibration:
       input.calibration ??
       undefined,
+    catalystImpact,
     catalysts:
       catalystsFrom(
         input.events,
