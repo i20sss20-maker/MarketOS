@@ -58,6 +58,28 @@ function signed(
   return `${value > 0 ? "+" : ""}${value}${suffix}`;
 }
 
+function sampleLabel(
+  status:
+    "insufficient" |
+    "early" |
+    "established",
+) {
+  if (
+    status ===
+    "insufficient"
+  ) {
+    return "عينة غير كافية";
+  }
+
+  if (
+    status === "early"
+  ) {
+    return "عينة مبكرة";
+  }
+
+  return "عينة مستقرة";
+}
+
 function dateLabel(
   timestamp?: number,
 ) {
@@ -455,6 +477,26 @@ export default function AnalystPerformanceView({
                       ? "—"
                       : `${engine.accuracy}%`}
                   </strong>
+                  <small>
+                    95%{" "}
+                    {engine.accuracyLow95 ===
+                      null ||
+                    engine.accuracyHigh95 ===
+                      null
+                      ? "—"
+                      : `${engine.accuracyLow95}–${engine.accuracyHigh95}%`}
+                  </small>
+                </div>
+                <div>
+                  <span>حجم العينة</span>
+                  <strong>
+                    {engine.resolved}
+                  </strong>
+                  <small>
+                    {sampleLabel(
+                      engine.sampleStatus,
+                    )}
+                  </small>
                 </div>
                 <div>
                   <span>Brier</span>
@@ -462,15 +504,9 @@ export default function AnalystPerformanceView({
                     {engine.brierScore ??
                       "—"}
                   </strong>
-                </div>
-                <div>
-                  <span>متوسط الاحتمال</span>
-                  <strong>
-                    {engine.averageExpectedProbability ===
-                    null
-                      ? "—"
-                      : `${engine.averageExpectedProbability}%`}
-                  </strong>
+                  <small>
+                    الأقل أفضل
+                  </small>
                 </div>
                 <div>
                   <span>فجوة المعايرة</span>
@@ -480,6 +516,13 @@ export default function AnalystPerformanceView({
                       "%",
                     )}
                   </strong>
+                  <small>
+                    احتمال{" "}
+                    {engine.averageExpectedProbability ===
+                    null
+                      ? "—"
+                      : `${engine.averageExpectedProbability}%`}
+                  </small>
                 </div>
               </div>
             </div>
@@ -752,6 +795,14 @@ export default function AnalystPerformanceView({
           القديم.
         </div>
       ) : null}
+
+      <div className="analyst-performance-confidence-note">
+        نطاق 95% يوضح عدم اليقين في
+        نسبة الدقة؛ كلما صغرت العينة
+        اتسع النطاق. لا تُقارن 100% من
+        نتيجة أو نتيجتين مع 100% من
+        عشرات النتائج.
+      </div>
 
       <footer className="analyst-performance-note">
         التوقعات الجديدة تُقيّم بعد
