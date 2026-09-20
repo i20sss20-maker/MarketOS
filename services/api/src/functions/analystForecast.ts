@@ -1,3 +1,4 @@
+import { makeEvaluationPlan } from "../forecasts/evaluation.js";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { ProductionGateError, realDataRequired, assertRealProvider } from "../production/policy.js";
 import {
@@ -419,6 +420,7 @@ export async function analystForecast(
     return json(200, {
       ok: true,
       forecast,
+      evaluationPlan: realDataRequired() && calibrationCandles ? makeEvaluationPlan(forecast, calibrationCandles, quote) : undefined,
       providers: {
         market:
           marketDataProvider.id,

@@ -55,13 +55,9 @@ jobs:
       - run: pnpm smoke:production-foundation
       - run: node scripts/production-sdk-smoke.mjs
       - name: Server evaluation runtime tests
-        run: |
-          if [ -f scripts/server-forecast-evaluation-smoke.mjs ]; then
-            node scripts/server-forecast-evaluation-smoke.mjs
-          else
-            echo 'Evaluation implementation not present in source snapshot yet.'
-          fi
+        run: node scripts/server-forecast-evaluation-smoke.mjs
       - run: pnpm prepare:azure-api && pnpm smoke:azure
+      - run: pnpm prepare:alert-worker && pnpm smoke:alert-worker-package
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,3 +1,4 @@
+import { realDataRequired } from "../production/policy.js";
 import type {
   AssetClass,
   Candle,
@@ -68,6 +69,7 @@ type TimeSeriesValue = {
 };
 
 type TimeSeriesResponse = ApiError & {
+  meta?: { symbol?: string; interval?: string; mic_code?: string };
   values?: TimeSeriesValue[];
 };
 
@@ -130,6 +132,9 @@ function symbolCacheKey(symbol: MarketSymbol) {
 }
 
 function quoteFromPayload(payload: QuoteResponse, symbol: MarketSymbol, source: string): Quote {
+  if (realDataRequired() && (!payload.symbol || normalizedSymbol(payload.symbol) !== normalizedSymbol(requestSymbol(symbol)))) {
+    throw new Error("Provider quote instrument mismatch.");
+  }
   const price = numberOrUndefined(payload.close);
   if (price === undefined) {
     throw new Error(`Market data provider did not return a valid quote price for ${symbol.ticker}.`);
@@ -260,6 +265,12 @@ export class TwelveDataMarketDataProvider implements MarketDataProvider {
           exchange: symbol.micCode ? undefined : symbol.exchange,
         });
 
+        if (realDataRequired() && (!payload.meta?.symbol ||
+            normalizedSymbol(payload.meta.symbol) !== normalizedSymbol(requestSymbol(symbol)) ||
+            payload.meta.interval !== intervalByTimeframe[timeframe] ||
+            (symbol.micCode && payload.meta.mic_code?.toUpperCase() !== symbol.micCode.toUpperCase()))) {
+          throw new Error("Provider candle instrument or interval mismatch.");
+        }
         return (payload.values ?? []).flatMap((value) => {
           const time = timestampFromDateTime(value.datetime);
           const open = numberOrUndefined(value.open);
@@ -274,6 +285,7 @@ export class TwelveDataMarketDataProvider implements MarketDataProvider {
             low === undefined ||
             close === undefined
           ) {
+            if (realDataRequired()) throw new Error("Provider candle series contains an incomplete bar.");
             return [];
           }
 

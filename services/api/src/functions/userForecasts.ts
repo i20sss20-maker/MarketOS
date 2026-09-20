@@ -1,3 +1,4 @@
+import type { EvaluationPlan } from "../forecasts/evaluation.js";
 import azureFunctions, { type HttpRequest, type HttpResponseInit } from "@azure/functions";
 const { app, HttpRequest: AzureHttpRequest } = azureFunctions;
 import { randomUUID } from "node:crypto";
@@ -67,11 +68,11 @@ export function createUserForecastsHandler(deps = {
       const generated = await deps.generate(new AzureHttpRequest({ method: "POST", url: request.url,
         headers: { "content-type": "application/json", "x-ms-client-principal": request.headers.get("x-ms-client-principal") ?? "" },
         body: { string: JSON.stringify({ symbol }) } }));
-      const payload = generated.jsonBody as { ok?: boolean; forecast?: AnalystForecastResponse } | undefined;
+      const payload = generated.jsonBody as { ok?: boolean; forecast?: AnalystForecastResponse; evaluationPlan?: EvaluationPlan } | undefined;
       if (generated.status !== 200 || !payload?.ok || !payload.forecast) {
         return json(502, { ok: false, code: "FORECAST_GENERATION_FAILED", error: "A real-data forecast could not be generated. Nothing was recorded." });
       }
-      const record = createForecastRecord(owner, id, payload.forecast);
+      const record = createForecastRecord(owner, id, payload.forecast, Date.now(), payload.evaluationPlan);
       assertSameRequest(record, owner, symbol);
       const saved = await store.create(record);
       assertSameRequest(saved, owner, symbol);

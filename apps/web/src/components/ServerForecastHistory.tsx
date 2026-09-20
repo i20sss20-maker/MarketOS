@@ -49,14 +49,22 @@ export default function ServerForecastHistory({onSelectSymbol}: {onSelectSymbol:
     <header><div><span>SERVER FORECAST JOURNAL</span><h2>سجل التوقعات المحفوظة</h2></div>
       <button onClick={() => setRevision(v => v + 1)} disabled={loading}>تحديث السجل</button></header>
     <p>تقارير أنشأها الخادم وحفظها لحسابك. لا تُحتسب إحصاءات المتصفح المحلية كأداء موثّق.</p>
-    <aside className="server-journal-notice">التقييم الآلي لنتائج هذه التقارير على الخادم لم يُفعّل بعد. «بانتظار التقييم» لا تعني نجاح التوقع أو فشله.</aside>
+    <aside className="server-journal-notice">النتيجة تظهر بعد حفظ تقييم الخادم وفق الأفق المسجل واكتمال الشموع. التفعيل يتطلب تشغيل عامل التقييم؛ «بانتظار التقييم» ليست نجاحًا أو فشلًا.</aside>
     {error ? <div role="alert"><p>{error}</p>{loginRequired ? <a href="/.auth/login/aad?post_login_redirect_uri=/">تسجيل الدخول</a> : <button disabled={loading} onClick={() => setRevision(v => v + 1)}>إعادة المحاولة</button>}</div> : null}
     {loading ? <p role="status">جارٍ جلب سجل الخادم…</p> : null}
     {!loading && !error && records.length === 0 ? <p>لا توجد توقعات محفوظة في حسابك بعد. اطلب تحليلًا في وضع البيانات الحقيقية.</p> : null}
+    {!error && records.length > 0 ? <p>ضمن التقارير المعروضة: {records.filter(r => r.evaluation).length} مقيمة · {records.filter(r => !r.evaluation).length} بانتظار التقييم.</p> : null}
     {!error && records.map(record => <article key={record.id}>
-      <header><button onClick={() => onSelectSymbol(record.forecast.symbol)}>{record.forecast.symbol.ticker}</button><span>بانتظار التقييم</span></header>
+      <header><button onClick={() => onSelectSymbol(record.forecast.symbol)}>{record.forecast.symbol.ticker}</button><span>{record.evaluation ? "تم التقييم على الخادم" : "بانتظار التقييم"}</span></header>
       <p>{record.forecast.symbol.name}</p>
       <small>حُفظ: {date(record.recordedAt)} · المصدر: {record.forecast.dataProvider}</small>
+      {record.evaluation ? <div className="server-evaluation-result">
+        <strong>{record.evaluation.correct ? "الاتجاه طابق التوقع" : "الاتجاه خالف التوقع"}</strong>
+        <p>الحركة: {record.evaluation.realizedReturnPercent.toFixed(2)}% · سعر التقييم: {record.evaluation.evaluationPrice.toLocaleString("ar-SA")}</p>
+        <small>حُفظ التقييم: {date(record.evaluation.confirmedAt)} · Brier: {record.evaluation.brierScore.toFixed(3)}</small>
+        <p>قياس اتجاه الحركة بعد الأفق المحدد، وليس ربح صفقة أو ضمان تحقق شروط السيناريو.</p>
+      </div> : null}
+      {record.evaluationPlan ? <small>الأفق المحفوظ: {record.evaluationPlan.horizonBars} شموع ({record.evaluationPlan.timeframe}) · حد الاتجاه: {record.evaluationPlan.thresholdPercent}%.</small> : <small>هذا التقرير لا يحتوي خطة تقييم مثبتة وقت إنشائه؛ لن نخترع له أفقًا لاحقًا.</small>}
       <details><summary>عرض التقرير الأصلي</summary>
         <p>{record.forecast.summary}</p>
         <p>السعر المرجعي: {record.forecast.referencePrice.toLocaleString("ar-SA")} {record.forecast.symbol.currency}</p>

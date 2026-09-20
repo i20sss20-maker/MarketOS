@@ -1,3 +1,4 @@
+import { digest, validEvaluationPlan, type EvaluationPlan, type ForecastEvaluation } from "./evaluation.js";
 import { createHash } from "node:crypto";
 import type { AnalystForecastResponse, MarketSymbol } from "@marketos/market-core";
 import type { AuthenticatedUser } from "../auth/clientPrincipal.js";
@@ -11,6 +12,10 @@ export type ForecastRecord = {
   recordedAt: number;
   forecastHash: string;
   forecast: AnalystForecastResponse;
+  evaluationPlan?: EvaluationPlan;
+  planHash?: string;
+  evaluation?: ForecastEvaluation;
+  _etag?: string;
 };
 
 export interface ForecastLedger {
@@ -33,7 +38,7 @@ export function assertSameRequest(record: ForecastRecord, owner: string, symbol:
   }
 }
 
-export function createForecastRecord(owner: string, id: string, forecast: AnalystForecastResponse, recordedAt = Date.now()): ForecastRecord {
+export function createForecastRecord(owner: string, id: string, forecast: AnalystForecastResponse, recordedAt = Date.now(), plan?: EvaluationPlan): ForecastRecord {
   const outcomes = new Set(forecast.scenarios.map(item => item.id));
   const probabilities = forecast.scenarios.map(item => item.probability);
   if (forecast.dataMode !== "provider" || !forecast.dataProvider || /demo/i.test(forecast.dataProvider) ||
@@ -45,16 +50,19 @@ export function createForecastRecord(owner: string, id: string, forecast: Analys
       Math.abs(probabilities.reduce((sum, value) => sum + value, 0) - 100) > 0.01) {
     throw new ProductionGateError("INVALID_FORECAST", "The generated forecast could not be recorded as a real-data forecast.", 502);
   }
+  if (plan && !validEvaluationPlan(plan, forecast)) throw new ProductionGateError("INVALID_EVALUATION_PLAN", "Invalid fixed forecast evaluation policy.", 502);
   const serialized = JSON.stringify(forecast);
   if (Buffer.byteLength(serialized, "utf8") > 256_000) {
     throw new ProductionGateError("FORECAST_TOO_LARGE", "The generated forecast exceeded the journal size limit.", 502);
   }
   return { id, userId: owner, kind: "marketos-forecast-v1", requestSymbolHash: symbolHash(forecast.symbol),
-    recordedAt, forecastHash: hash(serialized), forecast: JSON.parse(serialized) as AnalystForecastResponse };
+    recordedAt, forecastHash: hash(serialized), forecast: JSON.parse(serialized) as AnalystForecastResponse,
+    ...(plan ? { evaluationPlan: structuredClone(plan), planHash: digest(plan) } : {}) };
 }
 
 // Identity never comes from the browser body. The complete forecast is server-generated.
 export function publicForecastRecord(record: ForecastRecord) {
   return { id: record.id, recordedAt: record.recordedAt, forecastHash: record.forecastHash,
-    evaluationStatus: "pending" as const, forecast: record.forecast };
+    evaluationStatus: record.evaluation ? "resolved" as const : "pending" as const,
+    evaluation: record.evaluation, evaluationPlan: record.evaluationPlan, planHash: record.planHash, forecast: record.forecast };
 }
