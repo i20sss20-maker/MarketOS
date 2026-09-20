@@ -73,6 +73,11 @@ import {
 import { buildDataWindowSnapshot } from "./lib/dataWindow";
 import { buildHorizontalDrawingAlertSpec } from "./lib/drawingAlerts";
 import {
+  buildForecastWatchSpec,
+  hasForecastWatchAlert,
+  type ForecastWatchSide,
+} from "./lib/forecastWatch";
+import {
   buildReplaySessionStats,
   defaultReplayStartIndex,
   isReplaySpeed,
@@ -4011,6 +4016,101 @@ export default function App() {
     }
   };
 
+  const createForecastWatch = (
+    side: ForecastWatchSide,
+  ) => {
+    if (
+      !forecastResult ||
+      forecastResult.symbol.id !==
+        active.id
+    ) {
+      return "حدّث تحليل الأصل أولًا قبل إنشاء مراقبة للسيناريو.";
+    }
+
+    const spec =
+      buildForecastWatchSpec(
+        forecastResult,
+        side,
+      );
+
+    if (!spec) {
+      return side === "bull"
+        ? "المقاومة متحققة أو قريبة جدًا من السعر المرجعي الآن؛ حدّث التحليل قبل إنشاء مراقبة اختراق."
+        : "الدعم متحقق أو قريب جدًا من السعر المرجعي الآن؛ حدّث التحليل قبل إنشاء مراقبة كسر.";
+    }
+
+    if (
+      hasForecastWatchAlert(
+        alerts,
+        active.id,
+        timeframe,
+        spec,
+      )
+    ) {
+      return `مراقبة ${spec.label} عند ${formatPrice(spec.value)} موجودة مسبقًا على ${timeframe.toUpperCase()}.`;
+    }
+
+    if (
+      alerts.length >=
+      planLimits.alerts
+    ) {
+      showPlanRequirement(
+        `وصلت حد التنبيهات في خطة ${entitlement.definition.name}: ${planLimits.alerts} تنبيه.`,
+      );
+      return "وصلت حد التنبيهات في خطتك الحالية.";
+    }
+
+    const alert =
+      createAdvancedAlert(
+        active,
+        timeframe,
+        "all",
+        [
+          {
+            id:
+              createAlertConditionId(),
+            type: "numeric",
+            metric: "price",
+            operator:
+              spec.operator,
+            value:
+              spec.value,
+          },
+        ],
+      );
+
+    setAlerts((current) => {
+      const next = [
+        alert,
+        ...current,
+      ].slice(0, 100);
+      saveAlerts(next);
+      return next;
+    });
+
+    setAlertCheckMessage(
+      `Forecast Watch: ${active.ticker} · ${spec.label} عند ${formatPrice(spec.value)} · ${timeframe.toUpperCase()}.`,
+    );
+
+    const backgroundHint =
+      canUseFeature(
+        entitlement,
+        "backgroundAlerts",
+      )
+        ? authUser
+          ? " يمكن مزامنته عبر الفحص السحابي ليعمل مع مراقبة الخلفية."
+          : " سجّل الدخول ثم استخدم الفحص السحابي لتفعيل مراقبة الخلفية."
+        : " المراقبة بالخلفية تتطلب خطة تدعم Background Alerts.";
+
+    const modeHint =
+      forecastResult.dataMode ===
+      "provider"
+        ? ""
+        : " هذا Forecast مبني على Demo حاليًا.";
+
+    return `تم إنشاء مراقبة ${spec.label} عند ${formatPrice(spec.value)} (احتمال السيناريو ${spec.probability}٪).${modeHint}${backgroundHint}`;
+  };
+
   const runMultiTimeframeReading = async () => {
     if (
       !requireFeature(
@@ -6598,6 +6698,7 @@ export default function App() {
           providerMessage={providerStatus?.message}
           onClose={toggleAiPanel}
           onForecast={() => void runAnalystForecast()}
+          onWatchForecast={createForecastWatch}
           onRadarSelect={chooseSymbol}
           onPromptChange={setAiPrompt}
           onRead={(prompt) => void runChartReading(prompt)}
