@@ -35,12 +35,31 @@ export type ForecastPerformanceSymbol = {
   averageReturn: number;
 };
 
+export type ForecastPerformanceEngine = {
+  engine: string;
+  resolved: number;
+  correct: number;
+  accuracy: number | null;
+  brierScore: number | null;
+  averageExpectedProbability:
+    number | null;
+  calibrationGap:
+    number | null;
+  lastEvaluatedAt: number;
+  isCurrent: boolean;
+};
+
 export type ForecastPerformanceReport = {
   summary:
     ReturnType<
       typeof summarizeForecastJournal
     >;
   providerRecords: number;
+  currentEngine: string | null;
+  currentEnginePerformance:
+    ForecastPerformanceEngine | null;
+  engines:
+    ForecastPerformanceEngine[];
   averageExpectedProbability:
     number | null;
   calibrationGap:
@@ -95,6 +114,222 @@ function accuracy(
           100,
       )
     : null;
+}
+
+function recordBrierScore(
+  record:
+    ForecastJournalRecord,
+) {
+  if (
+    record.status !==
+      "resolved" ||
+    !record.realizedOutcome
+  ) {
+    return null;
+  }
+
+  const probabilities = {
+    bull:
+      record.probabilities
+        .bull / 100,
+    base:
+      record.probabilities
+        .base / 100,
+    bear:
+      record.probabilities
+        .bear / 100,
+  };
+
+  const outcomes = {
+    bull:
+      record.realizedOutcome ===
+      "bull"
+        ? 1
+        : 0,
+    base:
+      record.realizedOutcome ===
+      "base"
+        ? 1
+        : 0,
+    bear:
+      record.realizedOutcome ===
+      "bear"
+        ? 1
+        : 0,
+  };
+
+  return (
+    (
+      probabilities.bull -
+      outcomes.bull
+    ) ** 2 +
+    (
+      probabilities.base -
+      outcomes.base
+    ) ** 2 +
+    (
+      probabilities.bear -
+      outcomes.bear
+    ) ** 2
+  );
+}
+
+function engineLabel(
+  record:
+    ForecastJournalRecord,
+) {
+  return (
+    record.engine?.trim() ||
+    "legacy"
+  );
+}
+
+function currentEngineFrom(
+  records:
+    ForecastJournalRecord[],
+) {
+  const newest =
+    records
+      .filter(
+        (record) =>
+          record.dataMode ===
+            "provider" &&
+          Boolean(
+            record.engine
+              ?.trim(),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          b.generatedAt -
+          a.generatedAt,
+      )[0];
+
+  return (
+    newest?.engine?.trim() ??
+    null
+  );
+}
+
+function enginePerformance(
+  records:
+    ForecastJournalRecord[],
+  currentEngine: string | null,
+): ForecastPerformanceEngine[] {
+  const groups =
+    new Map<
+      string,
+      ForecastJournalRecord[]
+    >();
+
+  for (const record of records) {
+    const engine =
+      engineLabel(record);
+    const group =
+      groups.get(engine) ?? [];
+
+    group.push(record);
+    groups.set(
+      engine,
+      group,
+    );
+  }
+
+  return [
+    ...groups.entries(),
+  ]
+    .map(
+      ([engine, items]) => {
+        const correct =
+          items.filter(
+            (item) =>
+              item.correct ===
+              true,
+          ).length;
+        const observed =
+          accuracy(
+            correct,
+            items.length,
+          );
+        const expected =
+          average(
+            items.map(
+              (item) =>
+                item.expectedProbability,
+            ),
+          );
+        const brierValues =
+          items
+            .map(
+              recordBrierScore,
+            )
+            .filter(
+              (
+                value,
+              ): value is number =>
+                value !== null,
+            );
+        const brier =
+          average(
+            brierValues,
+          );
+
+        return {
+          engine,
+          resolved:
+            items.length,
+          correct,
+          accuracy:
+            observed,
+          brierScore:
+            brier === null
+              ? null
+              : round(
+                  brier,
+                  3,
+                ),
+          averageExpectedProbability:
+            expected === null
+              ? null
+              : round(
+                  expected,
+                  1,
+                ),
+          calibrationGap:
+            expected === null ||
+            observed === null
+              ? null
+              : round(
+                  observed -
+                    expected,
+                  1,
+                ),
+          lastEvaluatedAt:
+            Math.max(
+              ...items.map(
+                (item) =>
+                  item.evaluatedAt ??
+                  item.generatedAt,
+              ),
+            ),
+          isCurrent:
+            currentEngine !== null &&
+            engine ===
+              currentEngine,
+        };
+      },
+    )
+    .sort(
+      (a, b) =>
+        Number(
+          b.isCurrent,
+        ) -
+          Number(
+            a.isCurrent,
+          ) ||
+        b.lastEvaluatedAt -
+          a.lastEvaluatedAt,
+    );
 }
 
 function providerResolved(
@@ -397,6 +632,23 @@ export function buildForecastPerformance(
     summarizeForecastJournal(
       records,
     );
+  const currentEngine =
+    currentEngineFrom(
+      records,
+    );
+  const engines =
+    enginePerformance(
+      resolved,
+      currentEngine,
+    );
+  const currentEnginePerformance =
+    currentEngine === null
+      ? null
+      : engines.find(
+          (item) =>
+            item.engine ===
+            currentEngine,
+        ) ?? null;
   const expected =
     average(
       resolved.map(
@@ -413,6 +665,9 @@ export function buildForecastPerformance(
     summary,
     providerRecords:
       resolved.length,
+    currentEngine,
+    currentEnginePerformance,
+    engines,
     averageExpectedProbability:
       expected === null
         ? null
