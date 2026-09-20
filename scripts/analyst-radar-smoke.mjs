@@ -23,6 +23,8 @@ const moduleUrl =
 
 const {
   analystRadarClarity,
+  buildAnalystRadarDelta,
+  buildAnalystRadarDeltas,
   buildAnalystRadarItem,
   prepareRadarSymbols,
   rankAnalystRadar,
@@ -256,6 +258,79 @@ assert.equal(
   64,
 );
 
+const previousStrong =
+  buildAnalystRadarItem(
+    symbols[0],
+    forecast({
+      ticker: "A",
+      top: "bull",
+      confidence: 60,
+      risk: "medium",
+    }),
+  );
+
+const strengthening =
+  buildAnalystRadarDelta(
+    ranked[0],
+    previousStrong,
+  );
+
+assert.equal(
+  strengthening.change,
+  "strengthening",
+);
+assert.equal(
+  strengthening.directionChanged,
+  false,
+);
+assert.ok(
+  strengthening.clarityDelta > 0,
+);
+
+const previousBear =
+  buildAnalystRadarItem(
+    symbols[0],
+    forecast({
+      ticker: "A",
+      top: "bear",
+      confidence: 72,
+    }),
+  );
+
+const reversal =
+  buildAnalystRadarDelta(
+    ranked[0],
+    previousBear,
+  );
+
+assert.equal(
+  reversal.change,
+  "reversal",
+);
+assert.equal(
+  reversal.directionChanged,
+  true,
+);
+assert.equal(
+  reversal.previousDirection,
+  "bear",
+);
+
+const deltas =
+  buildAnalystRadarDeltas(
+    ranked,
+    [previousStrong],
+  );
+
+assert.equal(
+  deltas.length,
+  ranked.length,
+);
+assert.equal(
+  deltas[0].change,
+  "strengthening",
+);
+
 const panel = readFileSync(
   "apps/web/src/components/CommercialAiPanel.tsx",
   "utf8",
@@ -288,6 +363,14 @@ assert.match(
 assert.match(
   view,
   /getAnalystForecast/,
+);
+assert.match(
+  view,
+  /analyst-radar-change/,
+);
+assert.match(
+  view,
+  /candidateSignature/,
 );
 
 console.log(
