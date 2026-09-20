@@ -15,6 +15,9 @@ import {
 import type {
   ForecastWatchSide,
 } from "../lib/forecastWatch";
+import {
+  buildAnalystModelHealth,
+} from "../lib/analystModelHealth";
 
 type Props = {
   result: AnalystForecastResponse | null;
@@ -124,6 +127,77 @@ function outcomeLabel(
   return "محايد";
 }
 
+function modelHealthLabel(
+  status:
+    "learning" |
+    "healthy" |
+    "watch" |
+    "degraded",
+) {
+  if (status === "healthy") {
+    return "صحي";
+  }
+
+  if (status === "watch") {
+    return "تحت المراقبة";
+  }
+
+  if (status === "degraded") {
+    return "متدهور";
+  }
+
+  return "يتعلم";
+}
+
+function modelDriftLabel(
+  status:
+    "insufficient" |
+    "stable" |
+    "improving" |
+    "watch" |
+    "degrading",
+) {
+  if (status === "stable") {
+    return "مستقر";
+  }
+
+  if (status === "improving") {
+    return "يتحسن";
+  }
+
+  if (status === "watch") {
+    return "مراقبة";
+  }
+
+  if (status === "degrading") {
+    return "يتدهور";
+  }
+
+  return "عينة غير كافية";
+}
+
+function modelReliabilityLabel(
+  status:
+    "insufficient" |
+    "good" |
+    "watch" |
+    "poor",
+) {
+  if (status === "good") {
+    return "جيدة";
+  }
+
+  if (status === "watch") {
+    return "مراقبة";
+  }
+
+  if (status === "poor") {
+    return "ضعيفة";
+  }
+
+  return "عينة غير كافية";
+}
+
 export default function AnalystForecastView({
   result,
   loading,
@@ -183,6 +257,15 @@ export default function AnalystForecastView({
           symbolJournal,
         ),
       [symbolJournal],
+    );
+
+  const modelHealth =
+    useMemo(
+      () =>
+        buildAnalystModelHealth(
+          journal,
+        ),
+      [journal],
     );
 
   return (
@@ -299,6 +382,104 @@ export default function AnalystForecastView({
                 : "Demo"}
             </small>
           </div>
+          <div
+            className={
+              `analyst-model-health health-${modelHealth.status}`
+            }
+          >
+            <header>
+              <div>
+                <span>
+                  MODEL HEALTH
+                </span>
+                <strong>
+                  صحة المحرك
+                </strong>
+              </div>
+              <b>
+                {modelHealthLabel(
+                  modelHealth.status,
+                )}
+              </b>
+            </header>
+
+            <div className="analyst-model-health-grid">
+              <div>
+                <span>Engine</span>
+                <strong>
+                  {modelHealth.engine ??
+                    result.engine}
+                </strong>
+                <small>
+                  {modelHealth.resolved}
+                  {" "}
+                  نتيجة Provider
+                </small>
+              </div>
+              <div>
+                <span>الدقة</span>
+                <strong>
+                  {modelHealth.accuracy ===
+                  null
+                    ? "—"
+                    : `${modelHealth.accuracy}%`}
+                </strong>
+                <small>
+                  {modelHealth.accuracyLow95 !==
+                    null &&
+                  modelHealth.accuracyHigh95 !==
+                    null
+                    ? `95%: ${modelHealth.accuracyLow95}–${modelHealth.accuracyHigh95}%`
+                    : "العينة ما زالت محدودة"}
+                </small>
+              </div>
+              <div>
+                <span>Drift</span>
+                <strong>
+                  {modelDriftLabel(
+                    modelHealth.driftStatus,
+                  )}
+                </strong>
+                <small>
+                  {modelHealth.driftAccuracyDelta ===
+                  null
+                    ? "—"
+                    : `${modelHealth.driftAccuracyDelta > 0 ? "+" : ""}${modelHealth.driftAccuracyDelta} نقطة`}
+                </small>
+              </div>
+              <div>
+                <span>Reliability</span>
+                <strong>
+                  {modelReliabilityLabel(
+                    modelHealth.reliabilityStatus,
+                  )}
+                </strong>
+                <small>
+                  {modelHealth.reliabilityEce ===
+                  null
+                    ? `${modelHealth.reliabilityResolved}/20`
+                    : `ECE ${modelHealth.reliabilityEce}`}
+                </small>
+              </div>
+            </div>
+
+            <div className="analyst-model-health-notes">
+              {modelHealth.notes.map(
+                (note) => (
+                  <small key={note}>
+                    • {note}
+                  </small>
+                ),
+              )}
+            </div>
+
+            <p>
+              صحة المحرك تقيس أداءه التاريخي
+              منفصلة عن ثقة السيناريو الحالي،
+              ولا تغيّر احتمالات هذا التقرير.
+            </p>
+          </div>
+
 
           {result.calibration ? (
             <div className="analyst-calibration">
