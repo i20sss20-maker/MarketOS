@@ -49,6 +49,7 @@
     "smoke:analyst-performance": "node scripts/analyst-performance-smoke.mjs",
     "smoke:forecast-monitor-policy": "node scripts/forecast-monitor-policy-smoke.mjs",
     "smoke:analyst-brief": "node scripts/analyst-brief-smoke.mjs",
+    "smoke:analyst-attention": "node scripts/analyst-attention-smoke.mjs",
     "smoke:analyst-catalyst-impact": "node scripts/analyst-catalyst-impact-smoke.mjs",
     "smoke:forecast-watch": "node scripts/forecast-watch-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
