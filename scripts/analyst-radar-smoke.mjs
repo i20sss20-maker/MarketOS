@@ -362,6 +362,10 @@ assert.match(
 );
 assert.match(
   view,
+  /scanAnalystRadar/,
+);
+assert.doesNotMatch(
+  view,
   /getAnalystForecast/,
 );
 assert.match(
