@@ -313,6 +313,18 @@ assert.equal(
   75,
 );
 assert.equal(
+  report.currentEnginePerformance?.accuracyLow95,
+  30,
+);
+assert.equal(
+  report.currentEnginePerformance?.accuracyHigh95,
+  95,
+);
+assert.equal(
+  report.currentEnginePerformance?.sampleStatus,
+  "insufficient",
+);
+assert.equal(
   report.currentEnginePerformance?.averageExpectedProbability,
   61.5,
 );
@@ -348,6 +360,18 @@ assert.equal(
 assert.equal(
   report.engines[1].accuracy,
   50,
+);
+assert.equal(
+  report.engines[1].accuracyLow95,
+  9,
+);
+assert.equal(
+  report.engines[1].accuracyHigh95,
+  91,
+);
+assert.equal(
+  report.engines[1].sampleStatus,
+  "insufficient",
 );
 
 const bull =
@@ -427,6 +451,18 @@ assert.match(
 assert.match(
   view,
   /engine\.isCurrent/,
+);
+assert.match(
+  view,
+  /95%/,
+);
+assert.match(
+  view,
+  /sampleLabel/,
+);
+assert.match(
+  view,
+  /عينة غير كافية/,
 );
 assert.match(
   view,
