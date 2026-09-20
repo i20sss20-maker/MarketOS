@@ -61,6 +61,7 @@ This repository is **fully isolated** from every other project:
 - Analyst Performance dashboard with provider-only realized accuracy, Brier score, confidence calibration, direction/symbol breakdowns and quote-based matured forecast verification
 - Forecast Performance V2 engine-aware scorecards separating realized accuracy, Brier and calibration by Analyst engine version, with current-engine metrics preferred in Home Brief
 - Forecast Performance V3 sample-aware engine scorecards with Wilson 95% accuracy intervals and a 5-result minimum before Home switches to current-engine metrics
+- Forecast Performance V4 current-engine drift monitoring that compares recent vs prior realized windows across accuracy, Brier and calibration with a 12-result minimum before classifying stable/improving/watch/degrading
 - Analyst Brief on MarketOS Home combining top Radar setup, scan-over-scan change, structured catalyst impact, matching Forecast Watch alerts and realized analyst performance
 - Analyst Brief V2 auto-refresh using the shared cancellable Radar Scanner: fresh cache restores instantly and stale Home intelligence refreshes in place
 - Analyst Brief V3 sequential Home intelligence refresh: stale Radar scan first, then throttled matured Forecast Journal verification so realized accuracy/Brier stay current without duplicate provider load
