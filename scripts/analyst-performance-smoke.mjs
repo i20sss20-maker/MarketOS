@@ -369,6 +369,10 @@ assert.match(
   /resolvedByLegacyQuote/,
 );
 assert.match(
+  monitor,
+  /response\.provider !==\s*status\.provider/,
+);
+assert.match(
   view,
   /شمعة نهاية الأفق/,
 );
