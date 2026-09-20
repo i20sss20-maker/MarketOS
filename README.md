@@ -63,6 +63,7 @@ This repository is **fully isolated** from every other project:
 - Analyst Brief V2 auto-refresh using the shared cancellable Radar Scanner: fresh cache restores instantly and stale Home intelligence refreshes in place
 - Analyst Brief V3 sequential Home intelligence refresh: stale Radar scan first, then throttled matured Forecast Journal verification so realized accuracy/Brier stay current without duplicate provider load
 - Analyst Attention Queue on Home prioritizing Radar reversals, meaningful strengthening, near Forecast Watch levels, structured catalysts and matured forecast verification without issuing trade orders
+- Analyst Attention Queue V2 source-matched live Watchlist proximity for Forecast Watch levels, with per-symbol Demo fallback rejection and Radar-reference fallback
 - Quant Catalyst Impact that uses only realized non-demo structured earnings surprises as a bounded directional input; textual releases remain context-only
 - Forecast Watch bridge that turns Analyst resistance/support scenario triggers into guarded Advanced Alerts with duplicate prevention and background-monitoring compatibility
 - analyst coverage model for stocks, ETFs, indices, forex, crypto, futures and commodities, subject to configured market-data licensing

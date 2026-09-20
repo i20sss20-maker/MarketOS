@@ -1,5 +1,6 @@
 import type {
   AnalystForecastResponse,
+  MarketOverviewItem,
   MarketSymbol,
 } from "@marketos/market-core";
 import type {
@@ -358,6 +359,10 @@ export function buildAnalystBrief(
       ForecastJournalRecord[];
     alerts:
       AdvancedAlert[];
+    overview?:
+      MarketOverviewItem[];
+    overviewMode?:
+      "demo" | "provider";
   },
 ): AnalystBriefSnapshot {
   const ranked =
@@ -440,6 +445,10 @@ export function buildAnalystBrief(
           input.journal,
         alerts:
           input.alerts,
+        overview:
+          input.overview,
+        overviewMode:
+          input.overviewMode,
       }),
     performance: {
       accuracy:

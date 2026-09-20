@@ -321,6 +321,20 @@ const queue =
     radarCache: cache,
     journal,
     alerts,
+    overview: [
+      {
+        symbol: symbolA,
+        quote: {
+          symbol: "A",
+          price: 100.5,
+          timestamp: 1000,
+          source:
+            "test-provider",
+        },
+      },
+    ],
+    overviewMode:
+      "provider",
     nowSeconds: 1000,
     limit: 6,
   });
@@ -339,16 +353,77 @@ assert.equal(
   symbolA.id,
 );
 
-assert.ok(
-  queue.items.some(
+const liveWatch =
+  queue.items.find(
     (item) =>
       item.kind ===
-      "watch-near" &&
+        "watch-near" &&
       item.symbol.id ===
-        symbolA.id &&
-      item.distancePercent ===
-        1,
-  ),
+        symbolA.id,
+  );
+
+assert.ok(liveWatch);
+assert.equal(
+  liveWatch.proximitySource,
+  "live",
+);
+assert.equal(
+  liveWatch.proximityPrice,
+  100.5,
+);
+assert.equal(
+  liveWatch.distancePercent,
+  0.5,
+);
+assert.match(
+  liveWatch.detail,
+  /السعر الحالي/,
+);
+
+const demoFallbackQueue =
+  buildAnalystAttentionQueue({
+    radarCache: cache,
+    journal,
+    alerts,
+    overview: [
+      {
+        symbol: symbolA,
+        quote: {
+          symbol: "A",
+          price: 100.5,
+          timestamp: 1000,
+          source:
+            "browser-demo",
+        },
+      },
+    ],
+    overviewMode:
+      "provider",
+    nowSeconds: 1000,
+    limit: 6,
+  });
+
+const fallbackWatch =
+  demoFallbackQueue.items.find(
+    (item) =>
+      item.kind ===
+        "watch-near" &&
+      item.symbol.id ===
+        symbolA.id,
+  );
+
+assert.ok(fallbackWatch);
+assert.equal(
+  fallbackWatch.proximitySource,
+  "radar",
+);
+assert.equal(
+  fallbackWatch.distancePercent,
+  1,
+);
+assert.match(
+  fallbackWatch.detail,
+  /سعر الرادار/,
 );
 
 assert.ok(
@@ -414,12 +489,31 @@ assert.match(
   /attention:/,
 );
 assert.match(
+  brief,
+  /overviewMode/,
+);
+assert.match(
   card,
   /ATTENTION QUEUE/,
 );
 assert.match(
   card,
   /home-analyst-attention-list/,
+);
+
+const home =
+  readFileSync(
+    "apps/web/src/components/HomeDashboard.tsx",
+    "utf8",
+  );
+
+assert.match(
+  home,
+  /overviewMode:/,
+);
+assert.match(
+  home,
+  /overviewProvider/,
 );
 
 console.log(

@@ -190,12 +190,21 @@ export default function HomeDashboard({
           journal:
             loadForecastJournal(),
           alerts,
+          overview,
+          overviewMode:
+            /demo/i.test(
+              overviewProvider,
+            )
+              ? "demo"
+              : "provider",
         });
       },
       [
         open,
         analystCandidateSignature,
         alerts,
+        overview,
+        overviewProvider,
         analystBriefRevision,
       ],
     );

@@ -1,5 +1,6 @@
 import type {
   AnalystForecastResponse,
+  MarketOverviewItem,
   MarketSymbol,
 } from "@marketos/market-core";
 import type {
@@ -39,6 +40,8 @@ export type AnalystAttentionItem = {
   direction?: "bull" | "base" | "bear";
   probability?: number;
   distancePercent?: number;
+  proximityPrice?: number;
+  proximitySource?: "live" | "radar";
   dueAt?: number;
 };
 
@@ -86,12 +89,16 @@ function directionLabel(
 function matchingWatch(
   alerts: AdvancedAlert[],
   item: AnalystRadarItem,
+  livePrice?: number,
 ) {
   const matches: Array<{
     side: ForecastWatchSide;
     distancePercent: number;
     probability: number;
     value: number;
+    proximityPrice: number;
+    proximitySource:
+      "live" | "radar";
   }> = [];
 
   for (
@@ -142,15 +149,23 @@ function matchingWatch(
       continue;
     }
 
+    const proximityPrice =
+      livePrice !== undefined &&
+      Number.isFinite(
+        livePrice,
+      ) &&
+      livePrice > 0
+        ? livePrice
+        : item.forecast
+            .referencePrice;
+
     const distancePercent =
       Math.abs(
         (
           spec.value -
-          item.forecast
-            .referencePrice
+          proximityPrice
         ) /
-          item.forecast
-            .referencePrice,
+          proximityPrice,
       ) * 100;
 
     matches.push({
@@ -164,6 +179,15 @@ function matchingWatch(
         spec.probability,
       value:
         spec.value,
+      proximityPrice,
+      proximitySource:
+        livePrice !== undefined &&
+        Number.isFinite(
+          livePrice,
+        ) &&
+        livePrice > 0
+          ? "live"
+          : "radar",
     });
   }
 
@@ -318,6 +342,8 @@ function watchAttention(
   cache:
     AnalystRadarCache | null,
   alerts: AdvancedAlert[],
+  livePrices:
+    Map<string, number>,
 ) {
   if (!cache) {
     return [];
@@ -334,6 +360,9 @@ function watchAttention(
           matchingWatch(
             alerts,
             item,
+            livePrices.get(
+              item.symbol.id,
+            ),
           );
 
         if (
@@ -358,7 +387,7 @@ function watchAttention(
           title:
             "Forecast Watch قريب",
           detail:
-            `${sideLabel} على بُعد ${watch.distancePercent}% · احتمال السيناريو ${watch.probability}%`,
+            `${sideLabel} على بُعد ${watch.distancePercent}% من ${watch.proximitySource === "live" ? "السعر الحالي" : "سعر الرادار"} · احتمال السيناريو ${watch.probability}%`,
           priority:
             86 -
             Math.min(
@@ -375,6 +404,10 @@ function watchAttention(
             watch.probability,
           distancePercent:
             watch.distancePercent,
+          proximityPrice:
+            watch.proximityPrice,
+          proximitySource:
+            watch.proximitySource,
         };
       },
     )
@@ -559,6 +592,10 @@ export function buildAnalystAttentionQueue(
       ForecastJournalRecord[];
     alerts:
       AdvancedAlert[];
+    overview?:
+      MarketOverviewItem[];
+    overviewMode?:
+      "demo" | "provider";
     nowSeconds?: number;
     limit?: number;
   },
@@ -577,6 +614,50 @@ export function buildAnalystAttentionQueue(
       ),
     );
 
+  const livePrices =
+    new Map<string, number>();
+
+  for (
+    const overviewItem
+    of input.overview ?? []
+  ) {
+    const radarItem =
+      input.radarCache
+        ?.items.find(
+          (item) =>
+            item.symbol.id ===
+            overviewItem.symbol.id,
+        );
+
+    const quoteMode =
+      /demo/i.test(
+        overviewItem.quote
+          .source ?? "",
+      )
+        ? "demo"
+        : input.overviewMode;
+
+    if (
+      !radarItem ||
+      !Number.isFinite(
+        overviewItem.quote
+          .price,
+      ) ||
+      overviewItem.quote
+        .price <= 0 ||
+      quoteMode !==
+        radarItem.forecast
+          .dataMode
+    ) {
+      continue;
+    }
+
+    livePrices.set(
+      overviewItem.symbol.id,
+      overviewItem.quote.price,
+    );
+  }
+
   const items = [
     ...deltaAttention(
       input.radarCache,
@@ -584,6 +665,7 @@ export function buildAnalystAttentionQueue(
     ...watchAttention(
       input.radarCache,
       input.alerts,
+      livePrices,
     ),
     ...catalystAttention(
       input.radarCache,
