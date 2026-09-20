@@ -12,6 +12,7 @@ import {
   getAnalystForecast,
 } from "../lib/aiApi";
 import {
+  buildAnalystRadarDeltas,
   buildAnalystRadarItem,
   prepareRadarSymbols,
   rankAnalystRadar,
@@ -68,6 +69,40 @@ function riskLabel(
   return "مخاطرة منخفضة";
 }
 
+function changeLabel(
+  change:
+    "new" |
+    "strengthening" |
+    "weakening" |
+    "stable" |
+    "reversal",
+) {
+  if (change === "strengthening") {
+    return "تقوّت";
+  }
+
+  if (change === "weakening") {
+    return "ضعفت";
+  }
+
+  if (change === "reversal") {
+    return "انعكاس";
+  }
+
+  if (change === "new") {
+    return "جديد";
+  }
+
+  return "ثابت";
+}
+
+function signedDelta(
+  value: number,
+) {
+  if (value === 0) return "0";
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
 function formatPrice(
   value: number,
 ) {
@@ -117,6 +152,18 @@ export default function AnalystRadarView({
   const [
     updatedAt,
     setUpdatedAt,
+  ] = useState<
+    number | null
+  >(null);
+  const [
+    previousItems,
+    setPreviousItems,
+  ] = useState<
+    AnalystRadarItem[]
+  >([]);
+  const [
+    previousUpdatedAt,
+    setPreviousUpdatedAt,
   ] = useState<
     number | null
   >(null);
