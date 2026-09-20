@@ -5446,6 +5446,7 @@ export default function App() {
         open={showHomeDashboard}
         autoOpenEnabled={homeAutoOpen}
         activeSymbol={active}
+        watchlist={watchlist}
         overview={watchlistOverview}
         overviewLoading={watchlistLoading}
         overviewProvider={watchlistProvider}
@@ -5483,6 +5484,14 @@ export default function App() {
         onOpenEvents={() => {
           setShowHomeDashboard(false);
           openEvents();
+        }}
+        onOpenAnalyst={() => {
+          setShowHomeDashboard(false);
+          setAiPanelOpen(true);
+          saveSetting(
+            "marketos:ui-ai",
+            "on",
+          );
         }}
         onRestoreWorkspace={restoreWorkspace}
         onOpenCommandPalette={() => {
