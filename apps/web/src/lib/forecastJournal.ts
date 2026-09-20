@@ -813,7 +813,7 @@ export function resolveForecastJournalWithPrice(
         evaluationPrice:
           input.price,
         evaluationMethod:
-          "quote",
+          "quote" as const,
         evaluationDelaySeconds:
           Math.max(
             0,
