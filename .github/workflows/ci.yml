@@ -150,6 +150,9 @@ jobs:
       - name: Analyst Brief home intelligence smoke test
         run: pnpm smoke:analyst-brief
 
+      - name: Analyst Attention Queue smoke test
+        run: pnpm smoke:analyst-attention
+
       - name: Structured Catalyst Impact smoke test
         run: pnpm smoke:analyst-catalyst-impact
 
