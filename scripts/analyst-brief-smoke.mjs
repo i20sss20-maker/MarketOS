@@ -87,12 +87,6 @@ let attentionCompiled =
     .replaceAll(
       '"./forecastWatch"',
       JSON.stringify(watchUrl),
-    )
-    .replaceAll(
-      '"./analystAttention"',
-      JSON.stringify(
-        attentionUrl,
-      ),
     );
 
 const attentionUrl =
@@ -123,6 +117,12 @@ briefCompiled =
     .replaceAll(
       '"./forecastWatch"',
       JSON.stringify(watchUrl),
+    )
+    .replaceAll(
+      '"./analystAttention"',
+      JSON.stringify(
+        attentionUrl,
+      ),
     );
 
 const briefUrl =
