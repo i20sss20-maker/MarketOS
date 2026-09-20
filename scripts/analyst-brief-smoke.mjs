@@ -508,23 +508,102 @@ assert.equal(
 );
 assert.equal(
   brief.performance.scope,
-  "current-engine",
+  "all-history",
+);
+assert.equal(
+  brief.performance.sampleStatus,
+  "insufficient",
+);
+assert.equal(
+  brief.performance.currentEngineResolved,
+  2,
 );
 assert.equal(
   brief.performance.accuracy,
-  100,
+  67,
 );
 assert.equal(
   brief.performance.resolved,
-  2,
+  3,
 );
 assert.equal(
   brief.performance.correct,
   2,
 );
 assert.equal(
+  brief.performance.accuracyLow95,
+  null,
+);
+assert.equal(
+  brief.performance.accuracyHigh95,
+  null,
+);
+assert.equal(
   brief.performance.pending,
   1,
+);
+
+const matureJournal = [
+  ...journal,
+  resolvedRecord(
+    "4",
+    true,
+    62,
+    "marketos-forecast-v3",
+  ),
+  resolvedRecord(
+    "5",
+    false,
+    67,
+    "marketos-forecast-v3",
+  ),
+  resolvedRecord(
+    "6",
+    true,
+    71,
+    "marketos-forecast-v3",
+  ),
+];
+
+const matureBrief =
+  buildAnalystBrief({
+    radarCache,
+    journal:
+      matureJournal,
+    alerts,
+  });
+
+assert.equal(
+  matureBrief.performance.scope,
+  "current-engine",
+);
+assert.equal(
+  matureBrief.performance.currentEngineResolved,
+  5,
+);
+assert.equal(
+  matureBrief.performance.sampleStatus,
+  "early",
+);
+assert.equal(
+  matureBrief.performance.accuracy,
+  80,
+);
+assert.equal(
+  matureBrief.performance.correct,
+  4,
+);
+assert.equal(
+  matureBrief.performance.resolved,
+  5,
+);
+assert.equal(
+  matureBrief.performance.accuracyLow95,
+  38,
+);
+assert.equal(
+  matureBrief.performance.accuracyHigh95,
+  96,
 );
 assert.equal(
   brief.radarProviderCount,
@@ -602,6 +681,14 @@ assert.match(
 assert.match(
   card,
   /brief\.performance\.engine/,
+);
+assert.match(
+  card,
+  /يجمع عينة/,
+);
+assert.match(
+  card,
+  /accuracyLow95/,
 );
 assert.match(
   card,
