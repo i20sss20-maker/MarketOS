@@ -354,11 +354,27 @@ assert.match(
 );
 assert.match(
   monitor,
-  /response\.quote\s*\.timestamp/,
+  /getMarketCandles/,
 );
-assert.doesNotMatch(
+assert.match(
   monitor,
-  /Math\.max\(\s*now,\s*response\.quote/,
+  /resolveForecastJournalWithCandles/,
+);
+assert.match(
+  monitor,
+  /resolvedByCandles/,
+);
+assert.match(
+  monitor,
+  /resolvedByLegacyQuote/,
+);
+assert.match(
+  view,
+  /شمعة نهاية الأفق/,
+);
+assert.match(
+  view,
+  /شمعة الأفق/,
 );
 
 console.log(
