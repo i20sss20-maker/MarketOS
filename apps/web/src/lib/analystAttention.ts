@@ -629,6 +629,14 @@ export function buildAnalystAttentionQueue(
             overviewItem.symbol.id,
         );
 
+    const quoteMode =
+      /demo/i.test(
+        overviewItem.quote
+          .source ?? "",
+      )
+        ? "demo"
+        : input.overviewMode;
+
     if (
       !radarItem ||
       !Number.isFinite(
@@ -637,7 +645,7 @@ export function buildAnalystAttentionQueue(
       ) ||
       overviewItem.quote
         .price <= 0 ||
-      input.overviewMode !==
+      quoteMode !==
         radarItem.forecast
           .dataMode
     ) {
