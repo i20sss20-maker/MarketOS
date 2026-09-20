@@ -20,6 +20,7 @@ import {
   type AnalystRadarItem,
 } from "../lib/analystRadar";
 import {
+  analystRadarSignature,
   isAnalystRadarCacheStale,
   loadAnalystRadarCache,
   saveAnalystRadarCache,
@@ -167,8 +168,10 @@ export default function AnalystRadarView({
   ] = useState<
     number | null
   >(null);
-  const autoBootstrapRef =
-    useRef(false);
+  const lastSignatureRef =
+    useRef<string | null>(
+      null,
+    );
 
   const candidates =
     useMemo(
@@ -182,6 +185,15 @@ export default function AnalystRadarView({
         activeSymbol,
         symbols,
       ],
+    );
+
+  const candidateSignature =
+    useMemo(
+      () =>
+        analystRadarSignature(
+          candidates,
+        ),
+      [candidates],
     );
 
   const ranked =
@@ -343,13 +355,14 @@ export default function AnalystRadarView({
 
   useEffect(() => {
     if (
-      autoBootstrapRef.current
+      lastSignatureRef.current ===
+      candidateSignature
     ) {
       return;
     }
 
-    autoBootstrapRef.current =
-      true;
+    lastSignatureRef.current =
+      candidateSignature;
 
     const cached =
       loadAnalystRadarCache(
@@ -370,6 +383,11 @@ export default function AnalystRadarView({
         cached.previousUpdatedAt ??
           null,
       );
+    } else {
+      setItems([]);
+      setUpdatedAt(null);
+      setPreviousItems([]);
+      setPreviousUpdatedAt(null);
     }
 
     if (
@@ -380,7 +398,7 @@ export default function AnalystRadarView({
     ) {
       void runRadar(true);
     }
-  }, []);
+  }, [candidateSignature]);
 
   return (
     <section
