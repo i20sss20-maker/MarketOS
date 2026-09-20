@@ -95,7 +95,9 @@ export async function getAnalystForecast(
       },
       body: JSON.stringify({
         symbol,
-        requestId: crypto.randomUUID(),
+        ...(import.meta.env.VITE_MARKETOS_REQUIRE_REAL_DATA === "true"
+          ? { requestId: crypto.randomUUID() }
+          : {}),
       }),
       signal,
     },

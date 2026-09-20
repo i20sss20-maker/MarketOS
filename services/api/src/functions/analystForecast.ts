@@ -303,7 +303,9 @@ export async function analystForecast(
           failures.push({
             timeframe,
             error:
-              result.reason instanceof
+              realDataRequired()
+                ? "Market data is unavailable for this timeframe."
+                : result.reason instanceof
               Error
                 ? result.reason
                     .message

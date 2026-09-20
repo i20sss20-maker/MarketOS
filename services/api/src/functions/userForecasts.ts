@@ -64,7 +64,8 @@ export function createUserForecastsHandler(deps = {
       }
       assertRealProvider(deps.provider);
       const generated = await deps.generate(new HttpRequest({ method: "POST", url: request.url,
-        headers: request.headers, body: { string: JSON.stringify({ symbol }) } }));
+        headers: { "content-type": "application/json", "x-ms-client-principal": request.headers.get("x-ms-client-principal") ?? "" },
+        body: { string: JSON.stringify({ symbol }) } }));
       const payload = generated.jsonBody as { ok?: boolean; forecast?: AnalystForecastResponse } | undefined;
       if (generated.status !== 200 || !payload?.ok || !payload.forecast) {
         return json(502, { ok: false, code: "FORECAST_GENERATION_FAILED", error: "A real-data forecast could not be generated. Nothing was recorded." });
