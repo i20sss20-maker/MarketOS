@@ -238,7 +238,7 @@ assert.ok(
 );
 assert.equal(
   bullish.engine,
-  "marketos-forecast-v2",
+  "marketos-forecast-v3",
 );
 assert.equal(
   bullish.calibration?.sampleSize,

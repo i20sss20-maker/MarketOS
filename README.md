@@ -56,6 +56,7 @@ This repository is **fully isolated** from every other project:
 - Analyst Radar that scans up to five watchlist symbols through the full probabilistic forecast engine and ranks setup clarity without emitting trade orders
 - Analyst Radar V2 local cache with 15-minute freshness, instant restore and automatic stale refresh on open
 - Analyst Performance dashboard with provider-only realized accuracy, Brier score, confidence calibration, direction/symbol breakdowns and quote-based matured forecast verification
+- Quant Catalyst Impact that uses only realized non-demo structured earnings surprises as a bounded directional input; textual releases remain context-only
 - analyst coverage model for stocks, ETFs, indices, forex, crypto, futures and commodities, subject to configured market-data licensing
 - Multiple Watchlists with safe legacy migration, named lists, active-list switching and Cloud Sync
 - Market Screener + Heatmap + breadth

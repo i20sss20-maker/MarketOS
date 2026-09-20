@@ -86,6 +86,23 @@ function calibrationReliabilityLabel(
   return "عينة محدودة";
 }
 
+function catalystImpactLabel(
+  direction:
+    NonNullable<
+      AnalystForecastResponse["catalystImpact"]
+    >["direction"],
+) {
+  if (direction === "positive") {
+    return "أثر إيجابي";
+  }
+
+  if (direction === "negative") {
+    return "أثر سلبي";
+  }
+
+  return "أثر محايد";
+}
+
 function outcomeLabel(
   outcome:
     "bull" | "base" | "bear",
@@ -367,6 +384,119 @@ export default function AnalystForecastView({
                 {" · "}
                 حد تصنيف الحركة ±
                 {result.calibration.outcomeThresholdPercent}%
+              </p>
+            </div>
+          ) : null}
+
+          {result.catalystImpact ? (
+            <div
+              className={
+                `analyst-catalyst-impact ${result.catalystImpact.direction}`
+              }
+            >
+              <header>
+                <div>
+                  <span>
+                    QUANT CATALYST
+                  </span>
+                  <strong>
+                    أثر المحفزات الرقمية الموثقة
+                  </strong>
+                </div>
+                <b>
+                  {catalystImpactLabel(
+                    result.catalystImpact
+                      .direction,
+                  )}
+                </b>
+              </header>
+
+              <div className="analyst-catalyst-impact-grid">
+                <div>
+                  <span>الدرجة</span>
+                  <strong>
+                    {result.catalystImpact.score > 0
+                      ? "+"
+                      : ""}
+                    {result.catalystImpact.score}
+                  </strong>
+                  <small>
+                    من -1 إلى +1
+                  </small>
+                </div>
+                <div>
+                  <span>وزن الدمج</span>
+                  <strong>
+                    {Math.round(
+                      result.catalystImpact.weight *
+                        100,
+                    )}
+                    %
+                  </strong>
+                  <small>
+                    محدود عمدًا
+                  </small>
+                </div>
+                <div>
+                  <span>العينة</span>
+                  <strong>
+                    {result.catalystImpact.sampleSize}
+                  </strong>
+                  <small>
+                    نتائج فعلية
+                  </small>
+                </div>
+                <div>
+                  <span>متوسط المفاجأة</span>
+                  <strong>
+                    {result.catalystImpact.averageSurprisePercent >
+                    0
+                      ? "+"
+                      : ""}
+                    {result.catalystImpact.averageSurprisePercent}
+                    %
+                  </strong>
+                  <small>
+                    EPS surprise
+                  </small>
+                </div>
+              </div>
+
+              {result.catalystImpact.latestSurprisePercent !==
+              undefined ? (
+                <p className="analyst-catalyst-latest">
+                  آخر مفاجأة أرباح:{" "}
+                  <b>
+                    {result.catalystImpact.latestSurprisePercent >
+                    0
+                      ? "+"
+                      : ""}
+                    {result.catalystImpact.latestSurprisePercent}
+                    %
+                  </b>
+                </p>
+              ) : null}
+
+              <div className="analyst-catalyst-evidence">
+                {result.catalystImpact.evidence.map(
+                  (item, index) => (
+                    <small
+                      key={
+                        `catalyst-impact-${index}`
+                      }
+                    >
+                      • {item}
+                    </small>
+                  ),
+                )}
+              </div>
+
+              <p className="analyst-catalyst-note">
+                التأثير الاتجاهي هنا يعتمد فقط
+                على بيانات Earnings رقمية
+                مكتملة من مصدر غير تجريبي.
+                الإفصاحات النصية لا تُصنّف
+                تلقائيًا كإيجابية أو سلبية.
               </p>
             </div>
           ) : null}

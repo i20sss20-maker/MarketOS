@@ -167,9 +167,17 @@ function isoDate(
 }
 
 function eventWindow() {
-  const start = new Date();
+  const now = new Date();
+  const start = new Date(
+    now.getTime() -
+      3 *
+        24 *
+        60 *
+        60 *
+        1000,
+  );
   const end = new Date(
-    start.getTime() +
+    now.getTime() +
       7 *
         24 *
         60 *
