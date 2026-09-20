@@ -337,12 +337,14 @@ function resolvedRecord(
   id,
   correct,
   probability,
+  engine,
 ) {
   return {
     id,
     symbolId: symbolA.id,
     ticker: symbolA.ticker,
     symbol: symbolA,
+    engine,
     generatedAt: 1000,
     dueAt: 2000,
     referencePrice: 100,
@@ -372,14 +374,31 @@ function resolvedRecord(
 }
 
 const journal = [
-  resolvedRecord("1", true, 60),
-  resolvedRecord("2", true, 65),
-  resolvedRecord("3", false, 70),
+  resolvedRecord(
+    "1",
+    true,
+    60,
+    "marketos-forecast-v3",
+  ),
+  resolvedRecord(
+    "2",
+    true,
+    65,
+    "marketos-forecast-v3",
+  ),
+  resolvedRecord(
+    "3",
+    false,
+    70,
+    "marketos-forecast-v2",
+  ),
   {
     id: "pending",
     symbolId: symbolB.id,
     ticker: symbolB.ticker,
     symbol: symbolB,
+    engine:
+      "marketos-forecast-v3",
     generatedAt: 5000,
     dueAt: 9000,
     referencePrice: 100,
@@ -484,12 +503,20 @@ assert.equal(
   1,
 );
 assert.equal(
+  brief.performance.engine,
+  "marketos-forecast-v3",
+);
+assert.equal(
+  brief.performance.scope,
+  "current-engine",
+);
+assert.equal(
   brief.performance.accuracy,
-  67,
+  100,
 );
 assert.equal(
   brief.performance.resolved,
-  3,
+  2,
 );
 assert.equal(
   brief.performance.correct,
@@ -567,6 +594,14 @@ assert.match(
 assert.match(
   card,
   /Forecast Watch/,
+);
+assert.match(
+  card,
+  /المحرك الحالي/,
+);
+assert.match(
+  card,
+  /brief\.performance\.engine/,
 );
 assert.match(
   card,

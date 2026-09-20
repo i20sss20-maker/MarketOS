@@ -80,6 +80,10 @@ export type AnalystBriefSnapshot = {
   attention:
     AnalystAttentionQueue;
   performance: {
+    engine: string | null;
+    scope:
+      | "current-engine"
+      | "all-history";
     accuracy: number | null;
     resolved: number;
     correct: number;
@@ -451,24 +455,62 @@ export function buildAnalystBrief(
           input.overviewMode,
       }),
     performance: {
+      engine:
+        performance
+          .currentEnginePerformance
+          ?.engine ??
+        performance.currentEngine,
+      scope:
+        performance
+          .currentEnginePerformance
+          ?.resolved
+          ? "current-engine"
+          : "all-history",
       accuracy:
-        performance.summary
-          .providerAccuracy,
+        performance
+          .currentEnginePerformance
+          ?.resolved
+          ? performance
+              .currentEnginePerformance
+              .accuracy
+          : performance.summary
+              .providerAccuracy,
       resolved:
+        performance
+          .currentEnginePerformance
+          ?.resolved ??
         performance.summary
           .providerResolved,
       correct:
-        performance.summary
-          .providerCorrect,
+        performance
+          .currentEnginePerformance
+          ?.resolved
+          ? performance
+              .currentEnginePerformance
+              .correct
+          : performance.summary
+              .providerCorrect,
       brier:
-        performance.summary
-          .providerBrierScore,
+        performance
+          .currentEnginePerformance
+          ?.resolved
+          ? performance
+              .currentEnginePerformance
+              .brierScore
+          : performance.summary
+              .providerBrierScore,
       pending:
         performance.summary
           .pending,
       calibrationGap:
         performance
-          .calibrationGap,
+          .currentEnginePerformance
+          ?.resolved
+          ? performance
+              .currentEnginePerformance
+              .calibrationGap
+          : performance
+              .calibrationGap,
     },
   };
 }

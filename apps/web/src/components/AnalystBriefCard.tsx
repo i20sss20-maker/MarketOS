@@ -395,6 +395,14 @@ export default function AnalystBriefCard({
                 }
               </b>
               <small>
+                {brief.performance.scope ===
+                "current-engine"
+                  ? "المحرك الحالي"
+                  : "إجمالي التاريخ"}
+                {brief.performance.engine
+                  ? ` · ${brief.performance.engine}`
+                  : ""}
+                <br />
                 Brier{" "}
                 {brief.performance
                   .brier ?? "—"}

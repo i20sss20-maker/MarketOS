@@ -59,6 +59,7 @@ This repository is **fully isolated** from every other project:
 - Analyst Radar V2 local cache with 15-minute freshness, instant restore and automatic stale refresh on open
 - Analyst Radar V3 scan-over-scan tracking for strengthening, weakening and direction reversals with exact candidate-signature isolation
 - Analyst Performance dashboard with provider-only realized accuracy, Brier score, confidence calibration, direction/symbol breakdowns and quote-based matured forecast verification
+- Forecast Performance V2 engine-aware scorecards separating realized accuracy, Brier and calibration by Analyst engine version, with current-engine metrics preferred in Home Brief
 - Analyst Brief on MarketOS Home combining top Radar setup, scan-over-scan change, structured catalyst impact, matching Forecast Watch alerts and realized analyst performance
 - Analyst Brief V2 auto-refresh using the shared cancellable Radar Scanner: fresh cache restores instantly and stale Home intelligence refreshes in place
 - Analyst Brief V3 sequential Home intelligence refresh: stale Radar scan first, then throttled matured Forecast Journal verification so realized accuracy/Brier stay current without duplicate provider load

@@ -78,6 +78,7 @@ function record({
   correct,
   realizedReturnPercent,
   evaluatedAt,
+  engine,
   dataMode = "provider",
 }) {
   const probabilities =
@@ -113,6 +114,7 @@ function record({
     id,
     symbolId,
     ticker,
+    engine,
     generatedAt:
       evaluatedAt - 3600,
     dueAt:
@@ -156,6 +158,7 @@ const records = [
     correct: true,
     realizedReturnPercent: 4,
     evaluatedAt: 106,
+    engine: "marketos-forecast-v3",
   }),
   record({
     id: "a2",
@@ -167,6 +170,7 @@ const records = [
     correct: false,
     realizedReturnPercent: 3,
     evaluatedAt: 105,
+    engine: "marketos-forecast-v2",
   }),
   record({
     id: "b1",
@@ -178,6 +182,7 @@ const records = [
     correct: true,
     realizedReturnPercent: -2,
     evaluatedAt: 104,
+    engine: "marketos-forecast-v3",
   }),
   record({
     id: "b2",
@@ -189,6 +194,7 @@ const records = [
     correct: true,
     realizedReturnPercent: 0.2,
     evaluatedAt: 103,
+    engine: "marketos-forecast-v3",
   }),
   record({
     id: "c1",
@@ -200,6 +206,7 @@ const records = [
     correct: false,
     realizedReturnPercent: -3,
     evaluatedAt: 102,
+    engine: "marketos-forecast-v3",
   }),
   record({
     id: "c2",
@@ -211,6 +218,7 @@ const records = [
     correct: true,
     realizedReturnPercent: 2,
     evaluatedAt: 101,
+    engine: "marketos-forecast-v2",
   }),
   record({
     id: "demo",
@@ -222,12 +230,14 @@ const records = [
     correct: true,
     realizedReturnPercent: 8,
     evaluatedAt: 100,
+    engine: "marketos-forecast-v3",
     dataMode: "demo",
   }),
   {
     id: "pending",
     symbolId: "P",
     ticker: "PEND",
+    engine: "marketos-forecast-v3",
     generatedAt: 99,
     dueAt: 200,
     referencePrice: 10,
@@ -280,6 +290,64 @@ assert.equal(
 assert.equal(
   report.calibrationGap,
   6.3,
+);
+
+assert.equal(
+  report.currentEngine,
+  "marketos-forecast-v3",
+);
+assert.equal(
+  report.currentEnginePerformance?.engine,
+  "marketos-forecast-v3",
+);
+assert.equal(
+  report.currentEnginePerformance?.resolved,
+  4,
+);
+assert.equal(
+  report.currentEnginePerformance?.correct,
+  3,
+);
+assert.equal(
+  report.currentEnginePerformance?.accuracy,
+  75,
+);
+assert.equal(
+  report.currentEnginePerformance?.averageExpectedProbability,
+  61.5,
+);
+assert.equal(
+  report.currentEnginePerformance?.calibrationGap,
+  13.5,
+);
+assert.ok(
+  report.currentEnginePerformance?.brierScore !==
+    null,
+);
+
+assert.equal(
+  report.engines.length,
+  2,
+);
+assert.equal(
+  report.engines[0].engine,
+  "marketos-forecast-v3",
+);
+assert.equal(
+  report.engines[0].isCurrent,
+  true,
+);
+assert.equal(
+  report.engines[1].engine,
+  "marketos-forecast-v2",
+);
+assert.equal(
+  report.engines[1].resolved,
+  2,
+);
+assert.equal(
+  report.engines[1].accuracy,
+  50,
 );
 
 const bull =
@@ -347,6 +415,18 @@ assert.match(
 assert.match(
   view,
   /ANALYST PERFORMANCE/,
+);
+assert.match(
+  view,
+  /حسب إصدار المحلل/,
+);
+assert.match(
+  view,
+  /performance\.engines/,
+);
+assert.match(
+  view,
+  /engine\.isCurrent/,
 );
 assert.match(
   view,

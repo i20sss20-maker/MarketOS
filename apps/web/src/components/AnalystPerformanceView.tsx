@@ -410,6 +410,94 @@ export default function AnalystPerformanceView({
 
       <div className="analyst-performance-section-head">
         <strong>
+          حسب إصدار المحلل
+        </strong>
+        <small>
+          فصل أداء كل Engine عن الآخر
+        </small>
+      </div>
+
+      <div className="analyst-engine-performance">
+        {performance.engines.map(
+          (engine) => (
+            <div
+              key={engine.engine}
+              className={
+                engine.isCurrent
+                  ? "current"
+                  : ""
+              }
+            >
+              <header>
+                <span>
+                  <strong>
+                    {engine.engine}
+                  </strong>
+                  {engine.isCurrent ? (
+                    <b>
+                      الحالي
+                    </b>
+                  ) : null}
+                </span>
+                <span>
+                  {engine.resolved}
+                  {" "}
+                  نتيجة
+                </span>
+              </header>
+
+              <div className="analyst-engine-performance-grid">
+                <div>
+                  <span>الدقة</span>
+                  <strong>
+                    {engine.accuracy ===
+                    null
+                      ? "—"
+                      : `${engine.accuracy}%`}
+                  </strong>
+                </div>
+                <div>
+                  <span>Brier</span>
+                  <strong>
+                    {engine.brierScore ??
+                      "—"}
+                  </strong>
+                </div>
+                <div>
+                  <span>متوسط الاحتمال</span>
+                  <strong>
+                    {engine.averageExpectedProbability ===
+                    null
+                      ? "—"
+                      : `${engine.averageExpectedProbability}%`}
+                  </strong>
+                </div>
+                <div>
+                  <span>فجوة المعايرة</span>
+                  <strong>
+                    {signed(
+                      engine.calibrationGap,
+                      "%",
+                    )}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          ),
+        )}
+
+        {performance.engines.length ===
+        0 ? (
+          <div className="analyst-performance-empty">
+            ما فيه نتائج Provider محسومة
+            كافية لمقارنة إصدارات المحلل
+            حتى الآن.
+          </div>
+        ) : null}
+      </div>
+
+      <div className="analyst-performance-section-head">
+        <strong>
           الأداء حسب الاتجاه
         </strong>
         <small>
@@ -634,6 +722,9 @@ export default function AnalystPerformanceView({
                         "horizon-candle"
                       ? "أفق زمني V2"
                       : "Legacy"}
+                  {" · "}
+                  {record.engine ??
+                    "legacy"}
                 </small>
               </span>
             </div>
