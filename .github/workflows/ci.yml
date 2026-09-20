@@ -135,6 +135,9 @@ jobs:
       - name: Analyst Radar ranking and integration smoke test
         run: pnpm smoke:analyst-radar
 
+      - name: Analyst Performance and forecast monitor smoke test
+        run: pnpm smoke:analyst-performance
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 
