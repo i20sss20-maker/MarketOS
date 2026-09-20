@@ -22,7 +22,9 @@ const moduleUrl =
   Buffer.from(compiled).toString("base64");
 
 const {
+  maturedForecastGroups,
   maturedForecastSymbols,
+  resolveForecastJournalWithCandles,
   resolveForecastJournalWithPrice,
   updateForecastJournal,
   summarizeForecastJournal,
@@ -139,6 +141,10 @@ assert.equal(
   journal[0].symbol?.id,
   "NASDAQ:TEST",
 );
+assert.equal(
+  journal[0].evaluationTimeframe,
+  "1h",
+);
 
 const dueAt =
   journal[0].dueAt;
@@ -170,8 +176,72 @@ const maturedSymbols =
   );
 
 assert.equal(
-  maturedSymbols[0]?.id,
+  maturedSymbols.length,
+  0,
+);
+
+const maturedGroups =
+  maturedForecastGroups(
+    journal,
+    dueAt + 1,
+    "provider",
+  );
+
+assert.equal(
+  maturedGroups.length,
+  1,
+);
+assert.equal(
+  maturedGroups[0].symbol.id,
   "NASDAQ:TEST",
+);
+assert.equal(
+  maturedGroups[0].timeframe,
+  "1h",
+);
+
+const legacyRecords = [
+  {
+    ...journal[0],
+    evaluationTimeframe:
+      undefined,
+  },
+];
+
+const legacySymbols =
+  maturedForecastSymbols(
+    legacyRecords,
+    dueAt + 1,
+    "provider",
+  );
+
+assert.equal(
+  legacySymbols[0]?.id,
+  "NASDAQ:TEST",
+);
+
+const legacyResolved =
+  resolveForecastJournalWithPrice(
+    legacyRecords,
+    {
+      symbolId:
+        "NASDAQ:TEST",
+      price: 104,
+      timestamp:
+        dueAt + 60,
+      dataMode:
+        "provider",
+    },
+  );
+
+assert.equal(
+  legacyResolved[0].status,
+  "resolved",
+);
+assert.equal(
+  legacyResolved[0]
+    .evaluationMethod,
+  "quote",
 );
 
 journal =
@@ -184,6 +254,72 @@ journal =
         1,
       price: 103,
     }),
+  );
+
+const stillPending =
+  journal.find(
+    (item) =>
+      item.generatedAt ===
+      1_800_000_000,
+  );
+
+assert.ok(stillPending);
+assert.equal(
+  stillPending.status,
+  "pending",
+);
+
+const tooLateCandle =
+  resolveForecastJournalWithCandles(
+    journal,
+    {
+      symbolId:
+        "NASDAQ:TEST",
+      timeframe: "1h",
+      dataMode:
+        "provider",
+      candles: [
+        {
+          time:
+            dueAt +
+            9 * 60 * 60,
+          close: 103,
+        },
+      ],
+    },
+  );
+
+assert.equal(
+  tooLateCandle.find(
+    (item) =>
+      item.generatedAt ===
+      1_800_000_000,
+  )?.status,
+  "pending",
+);
+
+journal =
+  resolveForecastJournalWithCandles(
+    journal,
+    {
+      symbolId:
+        "NASDAQ:TEST",
+      timeframe: "1h",
+      dataMode:
+        "provider",
+      candles: [
+        {
+          time:
+            dueAt - 60,
+          close: 102,
+        },
+        {
+          time:
+            dueAt + 120,
+          close: 103,
+        },
+      ],
+    },
   );
 
 const resolved =
@@ -209,6 +345,17 @@ assert.equal(
 assert.equal(
   resolved.realizedReturnPercent,
   3,
+);assert.equal(
+  resolved.evaluationMethod,
+  "horizon-candle",
+);
+assert.equal(
+  resolved.evaluatedAt,
+  dueAt + 120,
+);
+assert.equal(
+  resolved.evaluationDelaySeconds,
+  120,
 );
 
 const summary =

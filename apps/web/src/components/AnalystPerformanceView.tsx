@@ -115,7 +115,7 @@ export default function AnalystPerformanceView({
       [records],
     );
 
-  const maturedWithoutSymbol =
+  const legacyMatured =
     useMemo(
       () => {
         const now =
@@ -128,7 +128,10 @@ export default function AnalystPerformanceView({
             record.status ===
               "pending" &&
             record.dueAt <= now &&
-            !record.symbol,
+            (
+              !record.symbol ||
+              !record.evaluationTimeframe
+            ),
         ).length;
       },
       [records],
@@ -178,6 +181,12 @@ export default function AnalystPerformanceView({
               : [
                   `تم فحص ${result.checkedSymbols} رمز`,
                   `حُسم ${result.resolvedRecords} توقع`,
+                  result.resolvedByCandles > 0
+                    ? `أفق تاريخي ${result.resolvedByCandles}`
+                    : "",
+                  result.resolvedByLegacyQuote > 0
+                    ? `Legacy ${result.resolvedByLegacyQuote}`
+                    : "",
                   result.failures.length >
                   0
                     ? `تعذر ${result.failures.length}`
@@ -259,7 +268,8 @@ export default function AnalystPerformanceView({
           </h2>
           <p>
             يقيس توقعات بيانات المزود
-            بعد انتهاء أفقها. الدقة هنا
+            عند شمعة نهاية الأفق نفسها،
+            وليس بسعر اليوم. الدقة هنا
             نتيجة تاريخية فعلية وليست
             درجة ثقة داخلية.
           </p>
@@ -634,6 +644,11 @@ export default function AnalystPerformanceView({
                     record
                       .evaluatedAt,
                   )}
+                  {" · "}
+                  {record.evaluationMethod ===
+                  "horizon-candle"
+                    ? "شمعة الأفق"
+                    : "Legacy"}
                 </small>
               </span>
             </div>
@@ -650,22 +665,25 @@ export default function AnalystPerformanceView({
         ) : null}
       </div>
 
-      {maturedWithoutSymbol > 0 ? (
+      {legacyMatured > 0 ? (
         <div className="analyst-performance-legacy">
           يوجد{" "}
-          {maturedWithoutSymbol}
+          {legacyMatured}
           {" "}
-          توقع قديم من قبل إضافة حفظ
-          بيانات الرمز. يُحسم عند تحليل
-          نفس الرمز مرة أخرى.
+          توقع قديم من قبل نظام تقييم
+          الأفق الدقيق. يُستخدم له
+          fallback متوافق مع السجل
+          القديم.
         </div>
       ) : null}
 
       <footer className="analyst-performance-note">
-        هذه إحصاءات تاريخية لأداء
-        السيناريوهات وليست ضمانًا
-        للنتائج المستقبلية. نتائج Demo
-        لا تدخل في الدقة الرسمية.
+        التوقعات الجديدة تُقيّم على أول
+        شمعة مناسبة بعد نهاية الأفق ضمن
+        هامش جلسات السوق، لا على السعر
+        الحالي. هذه إحصاءات تاريخية
+        وليست ضمانًا للمستقبل، ونتائج
+        Demo لا تدخل في الدقة الرسمية.
       </footer>
     </section>
   );
