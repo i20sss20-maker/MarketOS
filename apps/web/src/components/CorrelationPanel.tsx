@@ -1,3 +1,4 @@
+import { REQUIRE_REAL_DATA } from "../lib/productionMode";
 import { useEffect, useMemo, useState } from "react";
 import {
   calculateCorrelationMatrix,
@@ -71,7 +72,6 @@ export default function CorrelationPanel({
     [selectedIds, watchlist, activeSymbol],
   );
 
-  if (!open) return null;
 
   const toggleSymbol = (symbol: MarketSymbol) => {
     setSelectedIds((current) => {
@@ -120,6 +120,10 @@ export default function CorrelationPanel({
 
     let sourceSeries = successful;
 
+    if (successful.length < 2 && REQUIRE_REAL_DATA) {
+      setResult(null); setFailures(failedSymbols); setLoading(false);
+      return;
+    }
     if (successful.length < 2) {
       sourceSeries = selectedSymbols.map((symbol) => ({
         symbol,
@@ -155,6 +159,8 @@ export default function CorrelationPanel({
     }
     return map;
   }, [result]);
+
+  if (!open) return null;
 
   return (
     <div className="correlation-overlay" role="dialog" aria-modal="true" aria-label="Correlation Matrix">

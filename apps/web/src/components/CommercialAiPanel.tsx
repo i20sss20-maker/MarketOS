@@ -1,3 +1,5 @@
+import { REQUIRE_REAL_DATA } from "../lib/productionMode";
+import ServerForecastHistory from "./ServerForecastHistory";
 import { useState } from "react";
 import type {
   AnalystForecastResponse,
@@ -125,7 +127,7 @@ export default function CommercialAiPanel({
           الرادار
         </button>
         <button className={tab === "performance" ? "active" : ""} onClick={() => setTab("performance")}>
-          الأداء
+          {REQUIRE_REAL_DATA ? "سجل الخادم" : "الأداء"}
         </button>
         <button className={tab === "ask" ? "active" : ""} onClick={() => setTab("ask")}>
           اسأل
@@ -156,9 +158,9 @@ export default function CommercialAiPanel({
       ) : null}
 
       {tab === "performance" ? (
-        <AnalystPerformanceView
-          onSelectSymbol={onRadarSelect}
-        />
+        REQUIRE_REAL_DATA
+          ? <ServerForecastHistory onSelectSymbol={onRadarSelect} />
+          : <AnalystPerformanceView onSelectSymbol={onRadarSelect} />
       ) : null}
 
       {tab === "ask" ? (

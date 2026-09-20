@@ -1,0 +1,65 @@
+name: Strict Client and Deployment Access
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'scripts/production-client-smoke.mjs'
+      - '.github/workflows/production-client-verify.yml'
+permissions:
+  contents: read
+concurrency:
+  group: strict-client-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm typecheck
+      - name: Build real-data browser and API
+        run: pnpm build
+        env:
+          VITE_MARKETOS_REQUIRE_REAL_DATA: 'true'
+      - run: pnpm smoke:production-client
+      - run: pnpm smoke:production-foundation
+      - run: node scripts/production-sdk-smoke.mjs
+      - run: pnpm prepare:azure-api
+      - run: pnpm smoke:azure
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: strict-client-test-evidence
+          path: artifacts/production-*-tests.json
+          retention-days: 7
+          if-no-files-found: warn
+  deployment-access:
+    # Same-repository PRs only. No checkout or application code receives this credential.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: azure-preview
+    timeout-minutes: 2
+    steps:
+      - name: Check deployment credential presence without exposing it
+        env:
+          DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          if [ -n "$DEPLOYMENT_TOKEN" ]; then
+            echo 'DEPLOYMENT_TOKEN_PRESENT=true'
+            echo 'Deployment token is configured; Azure resource, data subscription and database acceptance still require verification.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'DEPLOYMENT_TOKEN_PRESENT=false'
+            echo '::warning::MarketOS deployment is blocked: AZURE_STATIC_WEB_APPS_API_TOKEN is not configured in the azure-preview scope.'
+            echo 'Deployment blocked: AZURE_STATIC_WEB_APPS_API_TOKEN is absent. No credential value was printed and nothing was deployed.' >> "$GITHUB_STEP_SUMMARY"
+          fi

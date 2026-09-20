@@ -223,7 +223,7 @@ export default function AnalystForecastView({
   useEffect(() => {
     setWatchMessage(null);
 
-    if (!result) return;
+    if (!result || import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true") return;
 
     setJournal((current) => {
       const next =
@@ -299,6 +299,9 @@ export default function AnalystForecastView({
         </button>
       </div>
 
+      {import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" ? (
+        <p className="server-journal-notice">التقرير المحفوظ متاح في «سجل الخادم». إحصاءات المتصفح المحلية مستبعدة؛ التقييم الآلي على الخادم لم يُفعّل بعد.</p>
+      ) : null}
       {error ? (
         <div className="analyst-error">
           {error}

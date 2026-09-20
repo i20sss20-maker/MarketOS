@@ -1,3 +1,10 @@
+const strictMode = import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true";
+const sessionCache = new Map<string, string>();
+let cacheOwner: string | null = null;
+export function resetAnalystRadarSession(owner: string | null) {
+  if (cacheOwner !== owner) sessionCache.clear();
+  cacheOwner = owner;
+}
 import type {
   AnalystRadarItem,
 } from "./analystRadar";
@@ -29,6 +36,11 @@ function storage() {
   }
 
   try {
+    if (strictMode && !cacheOwner) return null;
+    if (strictMode) return {
+      getItem: (key: string) => sessionCache.get(key) ?? null,
+      setItem: (key: string, value: string) => { sessionCache.set(key, value); },
+    };
     return window.localStorage;
   } catch {
     return null;
@@ -60,6 +72,8 @@ function validItem(
     value as Partial<
       AnalystRadarItem
     >;
+
+  if (strictMode && (item.forecast?.dataMode !== "provider" || /demo/i.test(item.forecast?.dataProvider ?? "demo"))) return false;
 
   return Boolean(
     item.symbol &&

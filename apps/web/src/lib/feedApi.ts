@@ -1,3 +1,4 @@
+import { REQUIRE_REAL_DATA, assertProviderSource } from "./productionMode";
 import type {
   CompanyFeedResult,
   MarketSymbol,
@@ -34,6 +35,11 @@ export async function getCompanyFeed(
     throw new Error(payload?.error || `Company feed request failed (${response.status}).`);
   }
 
+  assertProviderSource(payload.provider);
+  if (REQUIRE_REAL_DATA) {
+    if (!Array.isArray(payload.releases)) throw new Error("استجابة المصدر غير صالحة.");
+    for (const item of payload.releases) assertProviderSource(item.source);
+  }
   return {
     provider: payload.provider,
     generatedAt: payload.generatedAt,

@@ -1,3 +1,5 @@
+import { resetAnalystRadarSession } from "./lib/analystRadarCache";
+import { REQUIRE_REAL_DATA, previewOnly } from "./lib/productionMode";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LogicalRange } from "lightweight-charts";
 import {
@@ -735,14 +737,14 @@ export default function App() {
   const [textDraft, setTextDraft] = useState("");
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
-  const [candles, setCandles] = useState<Candle[]>(() => createDemoCandles(initialSymbols[0].ticker, "1h"));
+  const [candles, setCandles] = useState<Candle[]>(() => previewOnly(() => createDemoCandles(initialSymbols[0].ticker, "1h"), []));
   const [quote, setQuote] = useState<Quote | null>(null);
   const [quoteRefreshing, setQuoteRefreshing] = useState(false);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(
     () => readSaved<"on" | "off">("marketos:auto-refresh", "off") === "on",
   );
   const [providerStatus, setProviderStatus] = useState<MarketDataStatus | null>(null);
-  const [dataState, setDataState] = useState<"loading" | "provider" | "fallback">("fallback");
+  const [dataState, setDataState] = useState<"loading" | "provider" | "fallback" | "unavailable">(REQUIRE_REAL_DATA ? "loading" : "fallback");
   const [dataError, setDataError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<MarketSymbol[]>(initialSymbols);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -1217,15 +1219,22 @@ export default function App() {
     }
   };
 
+  const latestQuoteSymbol = useRef(active.id);
+  latestQuoteSymbol.current = active.id;
   const refreshQuote = useCallback(async (showLoading = false) => {
     if (replayActive) return;
 
     if (showLoading) setQuoteRefreshing(true);
     try {
       const response = await getMarketQuote(active);
+      if (latestQuoteSymbol.current !== active.id) return;
       setQuote(response.quote);
       if (response.provider !== "demo") setDataState("provider");
     } catch {
+      if (latestQuoteSymbol.current !== active.id) return;
+      if (REQUIRE_REAL_DATA) {
+        setQuote(null); setDataError("تعذر تحديث السعر من المصدر؛ الشموع المعروضة آخر بيانات تاريخية ناجحة.");
+      }
       // Keep the last successful quote; market-data fallback is handled by the main load flow.
     } finally {
       if (showLoading) setQuoteRefreshing(false);
@@ -1239,6 +1248,7 @@ export default function App() {
       .then(async (user) => {
         if (cancelled) return;
 
+        resetAnalystRadarSession(user ? `${user.identityProvider}:${user.userId}` : null);
         setAuthUser(user);
         setAuthChecked(true);
 
@@ -1376,6 +1386,12 @@ export default function App() {
         if (status.mode === "demo") setDataState((current) => current === "loading" ? "loading" : "fallback");
       })
       .catch(() => {
+        if (controller.signal.aborted) return;
+        if (REQUIRE_REAL_DATA) {
+          setProviderStatus(null);
+          setDataError("تعذر التحقق من مزود البيانات. وضع التشغيل الحقيقي لا يستخدم بديلًا تجريبيًا.");
+          return;
+        }
         setProviderStatus({
           provider: "web-demo",
           configured: true,
@@ -1424,7 +1440,8 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const fallbackCandles = createDemoCandles(active.id, timeframe);
+    const fallbackCandles = previewOnly(() => createDemoCandles(active.id, timeframe), []);
+    if (REQUIRE_REAL_DATA) { setCandles([]); setQuote(null); setHoverCandle(null); }
     setDataState("loading");
     setDataError(null);
 
@@ -1433,6 +1450,7 @@ export default function App() {
       getMarketQuote(active, controller.signal),
     ])
       .then(([candleResponse, quoteResponse]) => {
+        if (controller.signal.aborted) return;
         if (candleResponse.candles.length === 0) {
           throw new Error("The market data provider returned no candles for this symbol.");
         }
@@ -1444,8 +1462,8 @@ export default function App() {
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
         setCandles(fallbackCandles);
-        setQuote(createDemoQuote(active.ticker, active.currency, fallbackCandles));
-        setDataState("fallback");
+        setQuote(previewOnly(() => createDemoQuote(active.ticker, active.currency, fallbackCandles), null));
+        setDataState(REQUIRE_REAL_DATA ? "unavailable" : "fallback");
         setDataError(error instanceof Error ? error.message : "Market data request failed.");
       });
 
@@ -1465,11 +1483,12 @@ export default function App() {
     }
 
     const controller = new AbortController();
+    if (REQUIRE_REAL_DATA) setComparisonCandles([]);
     getMarketCandles(comparisonSymbol, comparisonTimeframe, 300, controller.signal)
-      .then((response) => setComparisonCandles(response.candles))
+      .then((response) => { if (!controller.signal.aborted) setComparisonCandles(response.candles); })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setComparisonCandles(createDemoCandles(comparisonSymbol.id, comparisonTimeframe, 300));
+        setComparisonCandles(previewOnly(() => createDemoCandles(comparisonSymbol.id, comparisonTimeframe, 300), []));
       });
 
     return () => controller.abort();
@@ -1487,11 +1506,12 @@ export default function App() {
     }
 
     const controller = new AbortController();
+    if (REQUIRE_REAL_DATA) setThirdChartCandles([]);
     getMarketCandles(thirdChartSymbol, thirdChartTimeframe, 300, controller.signal)
-      .then((response) => setThirdChartCandles(response.candles))
+      .then((response) => { if (!controller.signal.aborted) setThirdChartCandles(response.candles); })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setThirdChartCandles(createDemoCandles(thirdChartSymbol.id, thirdChartTimeframe, 300));
+        setThirdChartCandles(previewOnly(() => createDemoCandles(thirdChartSymbol.id, thirdChartTimeframe, 300), []));
       });
 
     return () => controller.abort();
@@ -1504,11 +1524,12 @@ export default function App() {
     }
 
     const controller = new AbortController();
+    if (REQUIRE_REAL_DATA) setFourthChartCandles([]);
     getMarketCandles(fourthChartSymbol, fourthChartTimeframe, 300, controller.signal)
-      .then((response) => setFourthChartCandles(response.candles))
+      .then((response) => { if (!controller.signal.aborted) setFourthChartCandles(response.candles); })
       .catch((error: unknown) => {
         if (error instanceof Error && error.name === "AbortError") return;
-        setFourthChartCandles(createDemoCandles(fourthChartSymbol.id, fourthChartTimeframe, 300));
+        setFourthChartCandles(previewOnly(() => createDemoCandles(fourthChartSymbol.id, fourthChartTimeframe, 300), []));
       });
 
     return () => controller.abort();
@@ -1791,7 +1812,7 @@ export default function App() {
       ? "Loading data"
       : dataState === "provider"
         ? providerStatus?.provider ?? quote?.source ?? "Provider"
-        : "Demo fallback";
+        : dataState === "unavailable" ? "البيانات غير متاحة" : "Demo fallback";
 
   const sessionLabel = replayActive
     ? "Replay"
@@ -1813,7 +1834,7 @@ export default function App() {
         ? "closed"
         : "unknown";
 
-  const quoteTimeLabel = quote
+  const quoteTimeLabel = quote && quote.timestamp > 0
     ? new Date(quote.timestamp * 1000).toLocaleTimeString("ar-SA", {
         hour: "2-digit",
         minute: "2-digit",
@@ -2096,6 +2117,7 @@ export default function App() {
   );
 
   const fallbackOverview = useCallback((symbols: MarketSymbol[]) => {
+    if (REQUIRE_REAL_DATA) return [];
     return symbols.slice(0, 25).map((symbol) => {
       const demoCandles = createDemoCandles(symbol.id, "1m", 2);
       return {
@@ -2121,7 +2143,7 @@ export default function App() {
       const response = await getMarketOverview(symbols);
       const returnedIds = new Set(response.items.map((item) => item.symbol.id));
       const missing = symbols.filter((symbol) => !returnedIds.has(symbol.id));
-      const items = missing.length > 0
+      const items = !REQUIRE_REAL_DATA && missing.length > 0
         ? [...response.items, ...fallbackOverview(missing)]
         : response.items;
 
@@ -2130,9 +2152,9 @@ export default function App() {
       setWatchlistUpdatedAt(Date.now());
     } catch {
       setWatchlistOverview(fallbackOverview(symbols));
-      setWatchlistProvider("browser-demo");
+      setWatchlistProvider(REQUIRE_REAL_DATA ? "unavailable" : "browser-demo");
       setWatchlistUpdatedAt(Date.now());
-      setWatchlistError("تعذر تحديث الأسعار المباشرة، تظهر لقطة Demo مؤقتًا.");
+      setWatchlistError(REQUIRE_REAL_DATA ? "تعذر تحديث الأسعار من المصدر؛ لم يتم عرض أسعار تجريبية." : "تعذر تحديث الأسعار المباشرة، تظهر لقطة Demo مؤقتًا.");
     } finally {
       if (showLoading) setWatchlistLoading(false);
     }
@@ -2178,7 +2200,7 @@ export default function App() {
       const response = await getMarketOverview(symbols);
       const returnedIds = new Set(response.items.map((item) => item.symbol.id));
       const missing = symbols.filter((symbol) => !returnedIds.has(symbol.id));
-      const items = missing.length > 0
+      const items = !REQUIRE_REAL_DATA && missing.length > 0
         ? [...response.items, ...fallbackOverview(missing)]
         : response.items;
 
@@ -2186,8 +2208,8 @@ export default function App() {
       setOverviewProvider(response.provider);
     } catch {
       setOverview(fallbackOverview(symbols));
-      setOverviewProvider("browser-demo");
-      setOverviewError("تعذر جلب لقطة السوق المباشرة، لذلك تم تشغيل بيانات العرض التجريبية.");
+      setOverviewProvider(REQUIRE_REAL_DATA ? "unavailable" : "browser-demo");
+      setOverviewError(REQUIRE_REAL_DATA ? "لقطة السوق غير متاحة من المصدر؛ لا يوجد بديل تجريبي." : "تعذر جلب لقطة السوق المباشرة، لذلك تم تشغيل بيانات العرض التجريبية.");
     } finally {
       setOverviewLoading(false);
     }
@@ -2209,9 +2231,9 @@ export default function App() {
       setMarketEvents(result.events);
       setEventsProvider(result.provider);
     } catch {
-      setMarketEvents(createBrowserDemoEvents(watchlist, rangeDays));
-      setEventsProvider("browser-demo-events");
-      setEventsError("تعذر الوصول لمصدر الأحداث، لذلك تظهر بيانات Sample للتجربة فقط.");
+      setMarketEvents(previewOnly(() => createBrowserDemoEvents(watchlist, rangeDays), []));
+      setEventsProvider(REQUIRE_REAL_DATA ? "unavailable" : "browser-demo-events");
+      setEventsError(REQUIRE_REAL_DATA ? "الأحداث غير متاحة من المصدر؛ لم يتم إنشاء أحداث تجريبية." : "تعذر الوصول لمصدر الأحداث، لذلك تظهر بيانات Sample للتجربة فقط.");
     } finally {
       setEventsLoading(false);
     }
@@ -2263,10 +2285,10 @@ export default function App() {
       setCompanyReleases(result.releases);
       setCompanyFeedProvider(result.provider);
     } catch {
-      setCompanyReleases(createBrowserDemoFeed(symbols, 2));
-      setCompanyFeedProvider("browser-demo-company-feed");
+      setCompanyReleases(previewOnly(() => createBrowserDemoFeed(symbols, 2), []));
+      setCompanyFeedProvider(REQUIRE_REAL_DATA ? "unavailable" : "browser-demo-company-feed");
       setCompanyFeedError(
-        "تعذر الوصول لمصدر إعلانات الشركات، لذلك تظهر بيانات Sample للتجربة فقط.",
+        REQUIRE_REAL_DATA ? "إعلانات الشركات غير متاحة من المصدر؛ لم يتم إنشاء أخبار تجريبية." : "تعذر الوصول لمصدر إعلانات الشركات، لذلك تظهر بيانات Sample للتجربة فقط.",
       );
     } finally {
       setCompanyFeedLoading(false);
@@ -4202,6 +4224,10 @@ export default function App() {
         observations: analysis.observations,
       });
     } catch {
+      if (REQUIRE_REAL_DATA) {
+        setAiResult({ engine: "unavailable", summary: "تعذر تشغيل محلل الشارت. لا توجد قراءة بديلة مولّدة في المتصفح.", observations: [] });
+        return;
+      }
       const recent = displayCandles.slice(-20);
       const first = recent[0];
       const last = recent[recent.length - 1];
@@ -5302,7 +5328,7 @@ export default function App() {
   return (
     <main className="shell">
       <CommercialTopBar
-        previewMode={providerStatus?.mode === "demo"}
+        previewMode={!REQUIRE_REAL_DATA && providerStatus?.mode === "demo"}
         connected={dataState !== "loading"}
         sessionLabel={sessionLabel}
         alertCount={activeAlerts.length}
@@ -6704,7 +6730,7 @@ export default function App() {
           source={quote?.source ?? "fallback"}
           dataWindow={dataWindowSnapshot}
           dataError={dataError}
-          previewMode={providerStatus?.mode === "demo"}
+          previewMode={!REQUIRE_REAL_DATA && providerStatus?.mode === "demo"}
           providerMessage={providerStatus?.message}
           onClose={toggleAiPanel}
           onForecast={() => void runAnalystForecast()}
