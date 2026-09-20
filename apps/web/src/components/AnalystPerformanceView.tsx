@@ -17,7 +17,7 @@ import {
   type ForecastOutcome,
 } from "../lib/forecastJournal";
 import {
-  FORECAST_MONITOR_FORECAST_MONITOR_AUTO_CHECK_KEY,
+  FORECAST_MONITOR_AUTO_CHECK_KEY,
   refreshMaturedForecasts,
   shouldAutoRefreshForecastMonitor,
 } from "../lib/forecastMonitor";
