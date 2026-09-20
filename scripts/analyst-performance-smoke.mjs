@@ -337,6 +337,22 @@ assert.equal(
   1,
 );
 assert.equal(
+  report.reliability.status,
+  "insufficient",
+);
+assert.equal(
+  report.reliability.engine,
+  "marketos-forecast-v3",
+);
+assert.equal(
+  report.reliability.resolved,
+  4,
+);
+assert.equal(
+  report.reliability.ece,
+  null,
+);
+assert.equal(
   report.currentEnginePerformance?.averageExpectedProbability,
   61.5,
 );
@@ -491,6 +507,137 @@ assert.ok(
     1,
 );
 
+const reliabilityRecords = [
+  ...Array.from(
+    { length: 10 },
+    (_, index) =>
+      record({
+        id:
+          `rel-60-${index}`,
+        symbolId: "REL",
+        ticker: "REL",
+        expectedOutcome:
+          "bull",
+        expectedProbability:
+          60,
+        confidence: 70,
+        correct:
+          index < 6,
+        realizedReturnPercent:
+          index < 6
+            ? 3
+            : -3,
+        evaluatedAt:
+          3_000 -
+          index,
+        engine:
+          "marketos-forecast-v3",
+      }),
+  ),
+  ...Array.from(
+    { length: 10 },
+    (_, index) =>
+      record({
+        id:
+          `rel-70-${index}`,
+        symbolId: "REL",
+        ticker: "REL",
+        expectedOutcome:
+          "bull",
+        expectedProbability:
+          70,
+        confidence: 78,
+        correct:
+          index < 5,
+        realizedReturnPercent:
+          index < 5
+            ? 3
+            : -3,
+        evaluatedAt:
+          2_900 -
+          index,
+        engine:
+          "marketos-forecast-v3",
+      }),
+  ),
+];
+
+const reliabilityReport =
+  buildForecastPerformance(
+    reliabilityRecords,
+  );
+
+assert.equal(
+  reliabilityReport
+    .reliability.status,
+  "watch",
+);
+assert.equal(
+  reliabilityReport
+    .reliability.resolved,
+  20,
+);
+assert.equal(
+  reliabilityReport
+    .reliability.ece,
+  10,
+);
+assert.equal(
+  reliabilityReport
+    .reliability.maxGap,
+  20,
+);
+
+const bucket60 =
+  reliabilityReport
+    .reliability.buckets
+    .find(
+      (bucket) =>
+        bucket.id ===
+        "60-69",
+    );
+const bucket70 =
+  reliabilityReport
+    .reliability.buckets
+    .find(
+      (bucket) =>
+        bucket.id ===
+        "70-79",
+    );
+
+assert.equal(
+  bucket60?.resolved,
+  10,
+);
+assert.equal(
+  bucket60?.averageExpectedProbability,
+  60,
+);
+assert.equal(
+  bucket60?.observedAccuracy,
+  60,
+);
+assert.equal(
+  bucket60?.gap,
+  0,
+);
+assert.equal(
+  bucket70?.resolved,
+  10,
+);
+assert.equal(
+  bucket70?.averageExpectedProbability,
+  70,
+);
+assert.equal(
+  bucket70?.observedAccuracy,
+  50,
+);
+assert.equal(
+  bucket70?.gap,
+  -20,
+);
+
 const bull =
   report.directions.find(
     (item) =>
@@ -584,6 +731,22 @@ assert.match(
 assert.match(
   view,
   /Performance Drift/,
+);
+assert.match(
+  view,
+  /Probability Reliability/,
+);
+assert.match(
+  view,
+  /performance\.reliability/,
+);
+assert.match(
+  view,
+  /ECE/,
+);
+assert.match(
+  view,
+  /reliabilityLabel/,
 );
 assert.match(
   view,
