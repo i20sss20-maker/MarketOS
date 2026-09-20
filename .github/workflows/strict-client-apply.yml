@@ -27,22 +27,21 @@ jobs:
               raise SystemExit('Patch checksum mismatch; no source changes applied.')
           pathlib.Path('/tmp/strict-client.patch').write_bytes(patch)
           print('Verified source patch:', len(patch), 'bytes')
-      - name: Apply and remove one-shot transport
+      - name: Apply application source only
         shell: bash
         run: |
           set -euo pipefail
-          git apply --check /tmp/strict-client.patch
-          git apply /tmp/strict-client.patch
-          git add -- .github/workflows/ci.yml .github/workflows/production-client-verify.yml \
-            apps/web/src/App.tsx apps/web/src/components/AnalystForecastView.tsx \
+          # This worker has contents permission only. Workflow changes are made separately by the authorized connector.
+          git apply --exclude='.github/workflows/*' --check /tmp/strict-client.patch
+          git apply --exclude='.github/workflows/*' /tmp/strict-client.patch
+          git add -- apps/web/src/App.tsx apps/web/src/components/AnalystForecastView.tsx \
             apps/web/src/components/CommercialAiPanel.tsx apps/web/src/components/CorrelationPanel.tsx \
             apps/web/src/components/HomeDashboard.tsx apps/web/src/components/ServerForecastHistory.tsx \
             apps/web/src/lib/aiApi.ts apps/web/src/lib/analystRadarCache.ts apps/web/src/lib/cloudState.ts \
             apps/web/src/lib/eventsApi.ts apps/web/src/lib/feedApi.ts apps/web/src/lib/forecastJournal.ts \
             apps/web/src/lib/marketApi.ts apps/web/src/lib/productionMode.ts apps/web/src/lib/serverForecastApi.ts \
             apps/web/src/styles.css docs/production-client.md package.json scripts/production-client-smoke.mjs
-          git rm -- .github/patches/strict-client.1.b64 .github/patches/strict-client.2.b64 \
-            .github/patches/strict-client.3.b64 .github/workflows/strict-client-apply.yml
+          git rm -- .github/patches/strict-client.1.b64 .github/patches/strict-client.2.b64 .github/patches/strict-client.3.b64
           git diff --cached --check
           git config user.name 'MarketOS automation'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
