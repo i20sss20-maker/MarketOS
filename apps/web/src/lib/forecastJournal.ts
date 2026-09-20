@@ -17,6 +17,7 @@ export type ForecastJournalRecord = {
   generatedAt: number;
   dueAt: number;
   evaluationTimeframe?: Timeframe;
+  evaluationBars?: number;
   referencePrice: number;
   confidence: number;
   dataMode: "demo" | "provider";
@@ -34,7 +35,8 @@ export type ForecastJournalRecord = {
   evaluationMethod?:
     | "forecast"
     | "quote"
-    | "horizon-candle";
+    | "horizon-candle"
+    | "horizon-bars";
   evaluationDelaySeconds?: number;
   realizedReturnPercent?: number;
   realizedOutcome?: ForecastOutcome;
@@ -152,6 +154,43 @@ function evaluationTimeframeFor(
   }
 
   return "4h";
+}
+
+function evaluationBarsFor(
+  result:
+    AnalystForecastResponse,
+) {
+  if (
+    result.calibration &&
+    Number.isFinite(
+      result.calibration
+        .lookaheadBars,
+    )
+  ) {
+    return Math.max(
+      1,
+      Math.min(
+        60,
+        Math.floor(
+          result.calibration
+            .lookaheadBars,
+        ),
+      ),
+    );
+  }
+
+  if (
+    result.symbol.assetClass ===
+      "stock" ||
+    result.symbol.assetClass ===
+      "etf" ||
+    result.symbol.assetClass ===
+      "index"
+  ) {
+    return 5;
+  }
+
+  return 6;
 }
 
 function evaluationToleranceSeconds(
@@ -303,6 +342,20 @@ function normalizeRecord(
       )
         ? item.evaluationTimeframe
         : undefined,
+    evaluationBars:
+      finite(
+        item.evaluationBars,
+      )
+        ? Math.max(
+            1,
+            Math.min(
+              60,
+              Math.floor(
+                item.evaluationBars,
+              ),
+            ),
+          )
+        : undefined,
     referencePrice:
       item.referencePrice,
     confidence:
@@ -372,7 +425,9 @@ function normalizeRecord(
       item.evaluationMethod ===
         "quote" ||
       item.evaluationMethod ===
-        "horizon-candle"
+        "horizon-candle" ||
+      item.evaluationMethod ===
+        "horizon-bars"
         ? item.evaluationMethod
         : undefined,
     evaluationDelaySeconds:
@@ -580,6 +635,10 @@ function createRecord(
       forecastDueAt(result),
     evaluationTimeframe:
       evaluationTimeframeFor(
+        result,
+      ),
+    evaluationBars:
+      evaluationBarsFor(
         result,
       ),
     referencePrice:
@@ -981,15 +1040,67 @@ export function resolveForecastJournalWithCandles(
         return record;
       }
 
-      const candle =
-        candles.find(
-          (item) =>
-            item.time >=
-              record.dueAt &&
-            item.time -
-              record.dueAt <=
-              tolerance,
-        );
+      let candle:
+        | {
+            time: number;
+            close: number;
+          }
+        | undefined;
+      let evaluationMethod:
+        | "horizon-bars"
+        | "horizon-candle" =
+        "horizon-candle";
+
+      if (
+        record.evaluationBars !==
+        undefined
+      ) {
+        let anchorIndex = -1;
+
+        for (
+          let index = 0;
+          index < candles.length;
+          index += 1
+        ) {
+          if (
+            candles[index].time <=
+            record.generatedAt
+          ) {
+            anchorIndex =
+              index;
+          } else {
+            break;
+          }
+        }
+
+        if (anchorIndex >= 0) {
+          const targetIndex =
+            anchorIndex +
+            record.evaluationBars;
+
+          if (
+            targetIndex <
+            candles.length
+          ) {
+            candle =
+              candles[
+                targetIndex
+              ];
+            evaluationMethod =
+              "horizon-bars";
+          }
+        }
+      } else {
+        candle =
+          candles.find(
+            (item) =>
+              item.time >=
+                record.dueAt &&
+              item.time -
+                record.dueAt <=
+                tolerance,
+          );
+      }
 
       if (!candle) {
         return record;
@@ -1023,8 +1134,7 @@ export function resolveForecastJournalWithCandles(
           ),
         evaluationPrice:
           candle.close,
-        evaluationMethod:
-          "horizon-candle" as const,
+        evaluationMethod,
         evaluationDelaySeconds:
           Math.max(
             0,
