@@ -84,6 +84,14 @@ export type AnalystBriefSnapshot = {
     scope:
       | "current-engine"
       | "all-history";
+    sampleStatus:
+      | "insufficient"
+      | "early"
+      | "established"
+      | null;
+    currentEngineResolved: number;
+    accuracyLow95: number | null;
+    accuracyHigh95: number | null;
     accuracy: number | null;
     resolved: number;
     correct: number;
@@ -461,54 +469,103 @@ export function buildAnalystBrief(
           ?.engine ??
         performance.currentEngine,
       scope:
-        performance
-          .currentEnginePerformance
-          ?.resolved
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
           ? "current-engine"
           : "all-history",
-      accuracy:
+      sampleStatus:
         performance
           .currentEnginePerformance
-          ?.resolved
+          ?.sampleStatus ??
+        null,
+      currentEngineResolved:
+        performance
+          .currentEnginePerformance
+          ?.resolved ?? 0,
+      accuracyLow95:
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
           ? performance
               .currentEnginePerformance
-              .accuracy
+              ?.accuracyLow95 ??
+            null
+          : null,
+      accuracyHigh95:
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
+          ? performance
+              .currentEnginePerformance
+              ?.accuracyHigh95 ??
+            null
+          : null,
+      accuracy:
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
+          ? performance
+              .currentEnginePerformance
+              ?.accuracy ??
+            null
           : performance.summary
               .providerAccuracy,
       resolved:
-        performance
-          .currentEnginePerformance
-          ?.resolved ??
-        performance.summary
-          .providerResolved,
-      correct:
-        performance
-          .currentEnginePerformance
-          ?.resolved
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
           ? performance
               .currentEnginePerformance
-              .correct
+              ?.resolved ?? 0
+          : performance.summary
+              .providerResolved,
+      correct:
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
+          ? performance
+              .currentEnginePerformance
+              ?.correct ?? 0
           : performance.summary
               .providerCorrect,
       brier:
-        performance
-          .currentEnginePerformance
-          ?.resolved
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
           ? performance
               .currentEnginePerformance
-              .brierScore
+              ?.brierScore ??
+            null
           : performance.summary
               .providerBrierScore,
       pending:
         performance.summary
           .pending,
       calibrationGap:
-        performance
-          .currentEnginePerformance
-          ?.resolved
+        (
+          performance
+            .currentEnginePerformance
+            ?.resolved ?? 0
+        ) >= 5
           ? performance
               .currentEnginePerformance
-              .calibrationGap
+              ?.calibrationGap ??
+            null
           : performance
               .calibrationGap,
     },

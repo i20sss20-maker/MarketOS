@@ -403,6 +403,19 @@ export default function AnalystBriefCard({
                   ? ` · ${brief.performance.engine}`
                   : ""}
                 <br />
+                {brief.performance.scope ===
+                "current-engine"
+                  ? brief.performance.accuracyLow95 !==
+                      null &&
+                    brief.performance.accuracyHigh95 !==
+                      null
+                    ? `95%: ${brief.performance.accuracyLow95}–${brief.performance.accuracyHigh95}% · `
+                    : ""
+                  : brief.performance.engine &&
+                      brief.performance.currentEngineResolved <
+                        5
+                    ? `المحرك الحالي يجمع عينة ${brief.performance.currentEngineResolved}/5 · `
+                    : ""}
                 Brier{" "}
                 {brief.performance
                   .brier ?? "—"}

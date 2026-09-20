@@ -35,11 +35,20 @@ export type ForecastPerformanceSymbol = {
   averageReturn: number;
 };
 
+export type ForecastPerformanceSampleStatus =
+  | "insufficient"
+  | "early"
+  | "established";
+
 export type ForecastPerformanceEngine = {
   engine: string;
   resolved: number;
   correct: number;
   accuracy: number | null;
+  accuracyLow95: number | null;
+  accuracyHigh95: number | null;
+  sampleStatus:
+    ForecastPerformanceSampleStatus;
   brierScore: number | null;
   averageExpectedProbability:
     number | null;
@@ -114,6 +123,82 @@ function accuracy(
           100,
       )
     : null;
+}
+
+function sampleStatus(
+  total: number,
+): ForecastPerformanceSampleStatus {
+  if (total < 5) {
+    return "insufficient";
+  }
+
+  if (total < 20) {
+    return "early";
+  }
+
+  return "established";
+}
+
+function wilsonInterval95(
+  correct: number,
+  total: number,
+) {
+  if (total <= 0) {
+    return {
+      low: null,
+      high: null,
+    };
+  }
+
+  const z = 1.96;
+  const p =
+    correct / total;
+  const z2 =
+    z * z;
+  const denominator =
+    1 + z2 / total;
+  const center =
+    (
+      p +
+      z2 /
+        (2 * total)
+    ) /
+    denominator;
+  const margin =
+    (
+      z *
+      Math.sqrt(
+        (
+          p *
+            (1 - p) /
+            total
+        ) +
+          z2 /
+            (
+              4 *
+              total *
+              total
+            ),
+      )
+    ) /
+    denominator;
+
+  return {
+    low:
+      Math.round(
+        Math.max(
+          0,
+          center - margin,
+        ) * 100,
+      ),
+    high:
+      Math.round(
+        Math.min(
+          1,
+          center + margin,
+        ) * 100,
+      ),
+  };
 }
 
 function recordBrierScore(
@@ -251,6 +336,11 @@ function enginePerformance(
             correct,
             items.length,
           );
+        const interval =
+          wilsonInterval95(
+            correct,
+            items.length,
+          );
         const expected =
           average(
             items.map(
@@ -281,6 +371,14 @@ function enginePerformance(
           correct,
           accuracy:
             observed,
+          accuracyLow95:
+            interval.low,
+          accuracyHigh95:
+            interval.high,
+          sampleStatus:
+            sampleStatus(
+              items.length,
+            ),
           brierScore:
             brier === null
               ? null
