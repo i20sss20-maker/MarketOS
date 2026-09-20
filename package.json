@@ -46,6 +46,7 @@
     "smoke:analyst-radar": "node scripts/analyst-radar-smoke.mjs",
     "smoke:analyst-radar-cache": "node scripts/analyst-radar-cache-smoke.mjs",
     "smoke:analyst-performance": "node scripts/analyst-performance-smoke.mjs",
+    "smoke:analyst-catalyst-impact": "node scripts/analyst-catalyst-impact-smoke.mjs",
     "dev:worker": "pnpm --filter @marketos/alert-worker start",
     "prepare:alert-worker": "node scripts/prepare-alert-worker.mjs",
     "smoke:alert-worker": "node scripts/alert-worker-smoke.mjs",
