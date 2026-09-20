@@ -4,11 +4,27 @@ import type {
   MarketOverviewItem,
   MarketSymbol,
 } from "@marketos/market-core";
+import type {
+  AdvancedAlert,
+} from "@marketos/alert-core";
 import type { AlertInboxEvent } from "../lib/alertInboxApi";
 import {
   buildDashboardModel,
 } from "../lib/dashboard";
 import type { SavedWorkspace } from "../lib/workspace";
+import AnalystBriefCard from "./AnalystBriefCard";
+import {
+  buildAnalystBrief,
+} from "../lib/analystBrief";
+import {
+  prepareRadarSymbols,
+} from "../lib/analystRadar";
+import {
+  loadAnalystRadarCache,
+} from "../lib/analystRadarCache";
+import {
+  loadForecastJournal,
+} from "../lib/forecastJournal";
 
 type Props = {
   open: boolean;
@@ -21,6 +37,8 @@ type Props = {
   events: MarketEvent[];
   eventsLoading: boolean;
   alertEvents: AlertInboxEvent[];
+  watchlist: MarketSymbol[];
+  alerts: AdvancedAlert[];
   signedIn: boolean;
   workspaces: SavedWorkspace[];
   planName: string;
@@ -34,6 +52,7 @@ type Props = {
   onOpenEvents: () => void;
   onRestoreWorkspace: (workspace: SavedWorkspace) => void;
   onOpenCommandPalette: () => void;
+  onOpenAnalyst: () => void;
 };
 
 function formatPrice(value?: number) {
@@ -78,6 +97,8 @@ export default function HomeDashboard({
   events,
   eventsLoading,
   alertEvents,
+  watchlist,
+  alerts,
   signedIn,
   workspaces,
   planName,
@@ -91,6 +112,7 @@ export default function HomeDashboard({
   onOpenEvents,
   onRestoreWorkspace,
   onOpenCommandPalette,
+  onOpenAnalyst,
 }: Props) {
   const model = useMemo(
     () =>
@@ -102,6 +124,35 @@ export default function HomeDashboard({
       ),
     [overview, events, alertEvents, workspaces],
   );
+
+  const analystBrief =
+    useMemo(
+      () => {
+        const candidates =
+          prepareRadarSymbols(
+            activeSymbol,
+            watchlist,
+            5,
+          );
+        const radarCache =
+          loadAnalystRadarCache(
+            candidates,
+          );
+
+        return buildAnalystBrief({
+          radarCache,
+          journal:
+            loadForecastJournal(),
+          alerts,
+        });
+      },
+      [
+        open,
+        activeSymbol,
+        watchlist,
+        alerts,
+      ],
+    );
 
   useEffect(() => {
     if (!open) return undefined;
@@ -208,6 +259,18 @@ export default function HomeDashboard({
         </div>
 
         <div className="home-dashboard-grid">
+          <AnalystBriefCard
+            brief={analystBrief}
+            onSelectSymbol={(symbol) => {
+              onSelectSymbol(symbol);
+              onClose();
+            }}
+            onOpenAnalyst={() => {
+              onClose();
+              onOpenAnalyst();
+            }}
+          />
+
           <section className="home-dashboard-card home-dashboard-movers">
             <div className="home-dashboard-card-head">
               <div>
