@@ -78,6 +78,15 @@ export async function refreshMaturedForecasts(
           signal,
         );
 
+      if (
+        response.provider !==
+        status.provider
+      ) {
+        throw new Error(
+          `Candle provider mismatch: expected ${status.provider}, received ${response.provider}.`,
+        );
+      }
+
       const before =
         records.filter(
           (record) =>
@@ -171,6 +180,16 @@ export async function refreshMaturedForecasts(
           symbol,
           signal,
         );
+
+      if (
+        response.provider !==
+        status.provider
+      ) {
+        throw new Error(
+          `Quote provider mismatch: expected ${status.provider}, received ${response.provider}.`,
+        );
+      }
+
       const before =
         records.filter(
           (record) =>
