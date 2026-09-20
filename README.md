@@ -55,6 +55,7 @@ This repository is **fully isolated** from every other project:
 - Forecast Journal + Scorecard with pending/resolved outcomes, provider-only directional accuracy and multi-class Brier scoring
 - Analyst Radar that scans up to five watchlist symbols through the full probabilistic forecast engine and ranks setup clarity without emitting trade orders
 - Analyst Radar V2 local cache with 15-minute freshness, instant restore and automatic stale refresh on open
+- Analyst Radar V3 scan-over-scan tracking for strengthening, weakening and direction reversals with exact candidate-signature isolation
 - Analyst Performance dashboard with provider-only realized accuracy, Brier score, confidence calibration, direction/symbol breakdowns and quote-based matured forecast verification
 - Quant Catalyst Impact that uses only realized non-demo structured earnings surprises as a bounded directional input; textual releases remain context-only
 - Forecast Watch bridge that turns Analyst resistance/support scenario triggers into guarded Advanced Alerts with duplicate prevention and background-monitoring compatibility
