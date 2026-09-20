@@ -35,6 +35,52 @@ export type ForecastMonitorResult = {
     ForecastMonitorFailure[];
 };
 
+export const FORECAST_MONITOR_AUTO_CHECK_KEY =
+  "marketos:forecast-performance-last-check";
+
+export const FORECAST_MONITOR_AUTO_CHECK_INTERVAL_MS =
+  10 * 60 * 1000;
+
+export function hasMaturedForecastRecords(
+  records:
+    ForecastJournalRecord[],
+  nowSeconds =
+    Math.floor(
+      Date.now() / 1000,
+    ),
+) {
+  return records.some(
+    (record) =>
+      record.status ===
+        "pending" &&
+      Boolean(record.symbol) &&
+      record.dueAt <=
+        nowSeconds,
+  );
+}
+
+export function shouldAutoRefreshForecastMonitor(
+  records:
+    ForecastJournalRecord[],
+  lastCheckMs: number,
+  nowMs = Date.now(),
+) {
+  return (
+    hasMaturedForecastRecords(
+      records,
+      Math.floor(
+        nowMs / 1000,
+      ),
+    ) &&
+    nowMs -
+      Math.max(
+        0,
+        lastCheckMs,
+      ) >=
+      FORECAST_MONITOR_AUTO_CHECK_INTERVAL_MS
+  );
+}
+
 const secondsByTimeframe = {
   "1m": 60,
   "5m": 5 * 60,
