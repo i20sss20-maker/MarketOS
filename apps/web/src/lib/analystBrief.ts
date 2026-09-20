@@ -23,6 +23,10 @@ import type {
 import {
   buildForecastWatchSpec,
 } from "./forecastWatch";
+import {
+  buildAnalystAttentionQueue,
+  type AnalystAttentionQueue,
+} from "./analystAttention";
 
 export type AnalystBriefSetup = {
   symbol: MarketSymbol;
@@ -72,6 +76,8 @@ export type AnalystBriefSnapshot = {
   catalyst:
     AnalystBriefCatalyst | null;
   watchCount: number;
+  attention:
+    AnalystAttentionQueue;
   performance: {
     accuracy: number | null;
     resolved: number;
@@ -426,6 +432,15 @@ export function buildAnalystBrief(
         input.alerts,
         ranked,
       ),
+    attention:
+      buildAnalystAttentionQueue({
+        radarCache:
+          input.radarCache,
+        journal:
+          input.journal,
+        alerts:
+          input.alerts,
+      }),
     performance: {
       accuracy:
         performance.summary
