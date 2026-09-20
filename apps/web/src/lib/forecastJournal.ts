@@ -467,6 +467,7 @@ function normalizeRecord(
 
 export function loadForecastJournal():
 ForecastJournalRecord[] {
+  if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true") return [];
   const store = storage();
   if (!store) return [];
 
@@ -509,6 +510,8 @@ export function saveForecastJournal(
   records:
     ForecastJournalRecord[],
 ) {
+  if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true") return;
+
   const store = storage();
   if (!store) return;
 

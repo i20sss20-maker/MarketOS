@@ -1,3 +1,4 @@
+import { isServerForecastRecord } from "./serverForecastApi";
 import type {
   AnalystForecastResponse,
   ChartAnalysisResponse,
@@ -77,6 +78,7 @@ export async function analyzeMultipleTimeframes(
 type AnalystForecastApiResponse = {
   ok: boolean;
   forecast?: AnalystForecastResponse;
+  journal?: unknown;
   error?: string;
 };
 
@@ -121,5 +123,13 @@ export async function getAnalystForecast(
     );
   }
 
+  if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true") {
+    if (!isServerForecastRecord(payload.journal) || payload.journal.forecast.symbol.id !== symbol.id ||
+        payload.forecast.dataMode !== "provider" || payload.forecast.dataProvider !== payload.journal.forecast.dataProvider ||
+        payload.forecast.generatedAt !== payload.journal.forecast.generatedAt) {
+      throw new Error("لم يؤكد الخادم حفظ تقرير حقيقي صالح؛ لم يتم اعتماده كتوقع محفوظ.");
+    }
+    return payload.journal.forecast;
+  }
   return payload.forecast;
 }

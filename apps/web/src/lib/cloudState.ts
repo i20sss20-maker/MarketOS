@@ -142,6 +142,7 @@ export function collectLocalCloudState(): CloudStatePayload {
 
   const ui: Record<string, unknown> = {};
   for (const key of UI_KEYS) {
+    if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" && key === "marketos:forecast-journal") continue;
     const value = storage.getItem(key);
     if (value !== null) ui[key] = value;
   }
@@ -214,6 +215,7 @@ export function applyCloudStateToLocal(state: CloudStatePayload) {
   }
 
   for (const [key, value] of Object.entries(state.ui)) {
+    if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" && key === "marketos:forecast-journal") continue;
     if (!UI_KEYS.includes(key as typeof UI_KEYS[number])) continue;
     if (typeof value === "string") {
       storage.setItem(key, value);

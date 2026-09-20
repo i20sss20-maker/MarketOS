@@ -59,7 +59,8 @@
     "smoke:background-alerts": "node scripts/background-alert-sweep-smoke.mjs",
     "smoke:alert-worker-package": "node scripts/alert-worker-package-smoke.mjs",
     "smoke:entitlements": "node scripts/entitlements-smoke.mjs",
-    "smoke:production-foundation": "node scripts/production-foundation-smoke.mjs"
+    "smoke:production-foundation": "node scripts/production-foundation-smoke.mjs",
+    "smoke:production-client": "node scripts/production-client-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

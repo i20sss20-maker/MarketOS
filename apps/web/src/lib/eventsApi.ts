@@ -1,3 +1,4 @@
+import { REQUIRE_REAL_DATA, assertProviderSource } from "./productionMode";
 import type { MarketEvent, MarketEventsResult } from "@marketos/market-core";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
@@ -37,6 +38,11 @@ export async function getMarketEvents(
     throw new Error(payload?.error || `Market events request failed (${response.status}).`);
   }
 
+  assertProviderSource(payload.provider);
+  if (REQUIRE_REAL_DATA) {
+    if (!Array.isArray(payload.events)) throw new Error("استجابة المصدر غير صالحة.");
+    for (const item of payload.events) assertProviderSource(item.source);
+  }
   return {
     provider: payload.provider,
     generatedAt: payload.generatedAt,

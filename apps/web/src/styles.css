@@ -14527,3 +14527,15 @@ button.bear:hover {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+/* Server history: readable independently of the legacy compact dashboard styles. */
+.server-forecast-history { padding: 14px; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.server-forecast-history > header, .server-forecast-history article > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.server-forecast-history h2 { font-size: 18px; margin: 4px 0; }
+.server-forecast-history p { font-size: 14px; margin: 8px 0; }
+.server-forecast-history small { font-size: 12px; line-height: 1.6; display: block; }
+.server-forecast-history button, .server-forecast-history a, .server-forecast-history summary { font-size: 14px; min-height: 40px; padding: 6px 10px; cursor: pointer; }
+.server-forecast-history button:focus-visible, .server-forecast-history a:focus-visible, .server-forecast-history summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.server-forecast-history article { border: 1px solid currentColor; border-radius: 10px; padding: 12px; margin-top: 14px; }
+.server-journal-notice { padding: 10px; border-inline-start: 3px solid currentColor; font-size: 13px; line-height: 1.7; }
+.server-journal-scenarios { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }

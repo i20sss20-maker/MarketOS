@@ -219,6 +219,7 @@ export default function HomeDashboard({
 
     const refreshIntelligence =
       async () => {
+        if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" && !signedIn) return;
         const cached =
           loadAnalystRadarCache(
             analystCandidates,
@@ -345,6 +346,7 @@ export default function HomeDashboard({
     };
   }, [
     open,
+    signedIn,
     analystCandidateSignature,
   ]);
 

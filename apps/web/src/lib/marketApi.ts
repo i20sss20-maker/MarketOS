@@ -1,3 +1,4 @@
+import { REQUIRE_REAL_DATA, assertProviderSource, assertQuoteData } from "./productionMode";
 import type {
   Candle,
   MarketDataStatus,
@@ -77,16 +78,23 @@ function symbolQuery(symbol: MarketSymbol) {
   return params;
 }
 
-export function getMarketStatus(signal?: AbortSignal) {
-  return fetchJson<MarketStatusResponse>("/market/status", signal);
+export async function getMarketStatus(signal?: AbortSignal) {
+  const result = await fetchJson<MarketStatusResponse>("/market/status", signal);
+  if (REQUIRE_REAL_DATA) {
+    assertProviderSource(result.provider);
+    if (!result.ok || result.mode !== "provider" || !result.configured) throw new Error("مزود البيانات الحقيقية غير مهيأ.");
+  }
+  return result;
 }
 
-export function searchMarketSymbols(query: string, signal?: AbortSignal) {
+export async function searchMarketSymbols(query: string, signal?: AbortSignal) {
   const params = new URLSearchParams({ q: query });
-  return fetchJson<SearchResponse>(`/market/search?${params.toString()}`, signal);
+  const result = await fetchJson<SearchResponse>(`/market/search?${params.toString()}`, signal);
+  assertProviderSource(result.provider);
+  return result;
 }
 
-export function getMarketCandles(
+export async function getMarketCandles(
   symbol: MarketSymbol,
   timeframe: Timeframe,
   limit = 260,
@@ -95,12 +103,25 @@ export function getMarketCandles(
   const params = symbolQuery(symbol);
   params.set("timeframe", timeframe);
   params.set("limit", String(limit));
-  return fetchJson<CandlesResponse>(`/market/candles?${params.toString()}`, signal);
+  const result = await fetchJson<CandlesResponse>(`/market/candles?${params.toString()}`, signal);
+  assertProviderSource(result.provider);
+  if (REQUIRE_REAL_DATA) {
+    if (!result.ok || result.timeframe !== timeframe || !Array.isArray(result.candles) || !result.candles.length ||
+        result.candles.some((bar, index) => !Number.isSafeInteger(bar.time) || bar.time <= 0 || bar.time > Date.now()/1000 + 300 ||
+          (index > 0 && bar.time <= result.candles[index - 1].time) ||
+          ![bar.open,bar.high,bar.low,bar.close].every(v => Number.isFinite(v) && v > 0) ||
+          bar.high < Math.max(bar.open,bar.low,bar.close) || bar.low > Math.min(bar.open,bar.high,bar.close))) {
+      throw new Error("شموع المصدر غير صالحة؛ لم يتم توليد شموع بديلة.");
+    }
+  }
+  return result;
 }
 
-export function getMarketQuote(symbol: MarketSymbol, signal?: AbortSignal) {
+export async function getMarketQuote(symbol: MarketSymbol, signal?: AbortSignal) {
   const params = symbolQuery(symbol);
-  return fetchJson<QuoteResponse>(`/market/quote?${params.toString()}`, signal);
+  const result = await fetchJson<QuoteResponse>(`/market/quote?${params.toString()}`, signal);
+  assertQuoteData(result.quote, result.provider);
+  return result;
 }
 
 export type MarketOverviewResponse = {
@@ -112,10 +133,16 @@ export type MarketOverviewResponse = {
   items: MarketOverviewItem[];
 };
 
-export function getMarketOverview(symbols: MarketSymbol[], signal?: AbortSignal) {
-  return postJson<MarketOverviewResponse>(
+export async function getMarketOverview(symbols: MarketSymbol[], signal?: AbortSignal) {
+  const result = await postJson<MarketOverviewResponse>(
     "/market/overview",
     { symbols: symbols.slice(0, 25) },
     signal,
   );
+  assertProviderSource(result.provider);
+  if (REQUIRE_REAL_DATA) {
+    if (!Array.isArray(result.items)) throw new Error("لقطة السوق غير صالحة.");
+    for (const item of result.items) assertQuoteData(item.quote, result.provider);
+  }
+  return result;
 }
