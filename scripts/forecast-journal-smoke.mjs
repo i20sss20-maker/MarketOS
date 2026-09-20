@@ -149,6 +149,10 @@ assert.equal(
   journal[0].evaluationBars,
   2,
 );
+assert.equal(
+  journal[0].engine,
+  "marketos-forecast-v2",
+);
 
 const dueAt =
   journal[0].dueAt;
