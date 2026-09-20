@@ -151,10 +151,52 @@ assert.equal(
   "NASDAQ:A|NASDAQ:B",
 );
 
-saveAnalystRadarCache(
-  [a, b],
-  [item],
+const firstSaved =
+  saveAnalystRadarCache(
+    [a, b],
+    [item],
+    10_000,
+  );
+
+assert.ok(firstSaved);
+assert.equal(
+  firstSaved.previousItems.length,
+  0,
+);
+
+const nextItem = {
+  ...item,
+  confidence: 78,
+  clarity: 82,
+  forecast: {
+    ...forecast,
+    generatedAt:
+      forecast.generatedAt +
+      60,
+    confidence: 78,
+  },
+};
+
+const secondSaved =
+  saveAnalystRadarCache(
+    [a, b],
+    [nextItem],
+    20_000,
+  );
+
+assert.ok(secondSaved);
+assert.equal(
+  secondSaved.previousUpdatedAt,
   10_000,
+);
+assert.equal(
+  secondSaved.previousItems.length,
+  1,
+);
+assert.equal(
+  secondSaved.previousItems[0]
+    .clarity,
+  72,
 );
 
 const restored =
@@ -174,14 +216,28 @@ assert.equal(
   a.id,
 );
 assert.equal(
+  restored.items[0]
+    .clarity,
+  82,
+);
+assert.equal(
   restored.updatedAt,
+  20_000,
+);
+assert.equal(
+  restored.previousUpdatedAt,
   10_000,
+);
+assert.equal(
+  restored.previousItems[0]
+    .clarity,
+  72,
 );
 
 assert.equal(
   isAnalystRadarCacheStale(
     restored,
-    10_000 +
+    20_000 +
       ANALYST_RADAR_CACHE_TTL_MS -
       1,
   ),
@@ -191,7 +247,7 @@ assert.equal(
 assert.equal(
   isAnalystRadarCacheStale(
     restored,
-    10_000 +
+    20_000 +
       ANALYST_RADAR_CACHE_TTL_MS,
   ),
   true,
@@ -226,9 +282,17 @@ assert.match(
   view,
   /15\s*دقيقة/,
 );
+assert.match(
+  view,
+  /previousItems/,
+);
+assert.match(
+  view,
+  /candidateSignature/,
+);
 
 console.log(
-  "Analyst Radar V2 cache smoke passed:",
+  "Analyst Radar V3 cache smoke passed:",
   JSON.stringify({
     ttlMinutes:
       ANALYST_RADAR_CACHE_TTL_MS /

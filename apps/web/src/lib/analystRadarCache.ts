@@ -6,14 +6,16 @@ import type {
 } from "@marketos/market-core";
 
 export type AnalystRadarCache = {
-  version: 1;
+  version: 2;
   updatedAt: number;
   signature: string;
   items: AnalystRadarItem[];
+  previousUpdatedAt?: number;
+  previousItems: AnalystRadarItem[];
 };
 
 const STORAGE_KEY =
-  "marketos:analyst-radar-cache-v2";
+  "marketos:analyst-radar-cache-v3";
 
 export const ANALYST_RADAR_CACHE_TTL_MS =
   15 * 60 * 1000;
@@ -107,7 +109,7 @@ export function loadAnalystRadarCache(
       >;
 
     if (
-      parsed.version !== 1 ||
+      parsed.version !== 2 ||
       typeof parsed.updatedAt !==
         "number" ||
       !Number.isFinite(
@@ -135,8 +137,17 @@ export function loadAnalystRadarCache(
       return null;
     }
 
+    const previousItems =
+      Array.isArray(
+        parsed.previousItems,
+      )
+        ? parsed.previousItems
+            .filter(validItem)
+            .slice(0, 8)
+        : [];
+
     return {
-      version: 1,
+      version: 2,
       updatedAt:
         Math.floor(
           parsed.updatedAt,
@@ -144,6 +155,17 @@ export function loadAnalystRadarCache(
       signature:
         parsed.signature,
       items,
+      previousUpdatedAt:
+        typeof parsed.previousUpdatedAt ===
+          "number" &&
+        Number.isFinite(
+          parsed.previousUpdatedAt,
+        )
+          ? Math.floor(
+              parsed.previousUpdatedAt,
+            )
+          : undefined,
+      previousItems,
     };
   } catch {
     return null;
@@ -156,24 +178,36 @@ export function saveAnalystRadarCache(
   updatedAt = Date.now(),
 ) {
   const store = storage();
-  if (!store) return;
+  if (!store) return null;
 
   try {
+    const signature =
+      analystRadarSignature(
+        symbols,
+      );
+    const existing =
+      loadAnalystRadarCache(
+        symbols,
+      );
+    const normalizedItems =
+      items
+        .filter(validItem)
+        .slice(0, 8);
+
     const payload:
       AnalystRadarCache = {
-        version: 1,
+        version: 2,
         updatedAt:
           Math.floor(
             updatedAt,
           ),
-        signature:
-          analystRadarSignature(
-            symbols,
-          ),
+        signature,
         items:
-          items
-            .filter(validItem)
-            .slice(0, 8),
+          normalizedItems,
+        previousUpdatedAt:
+          existing?.updatedAt,
+        previousItems:
+          existing?.items ?? [],
       };
 
     store.setItem(
@@ -182,8 +216,11 @@ export function saveAnalystRadarCache(
         payload,
       ),
     );
+
+    return payload;
   } catch {
     // Cache writes are best effort.
+    return null;
   }
 }
 

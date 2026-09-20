@@ -12,6 +12,7 @@ import {
   getAnalystForecast,
 } from "../lib/aiApi";
 import {
+  buildAnalystRadarDeltas,
   buildAnalystRadarItem,
   prepareRadarSymbols,
   rankAnalystRadar,
@@ -19,6 +20,7 @@ import {
   type AnalystRadarItem,
 } from "../lib/analystRadar";
 import {
+  analystRadarSignature,
   isAnalystRadarCacheStale,
   loadAnalystRadarCache,
   saveAnalystRadarCache,
@@ -66,6 +68,40 @@ function riskLabel(
   }
 
   return "مخاطرة منخفضة";
+}
+
+function changeLabel(
+  change:
+    "new" |
+    "strengthening" |
+    "weakening" |
+    "stable" |
+    "reversal",
+) {
+  if (change === "strengthening") {
+    return "تقوّت";
+  }
+
+  if (change === "weakening") {
+    return "ضعفت";
+  }
+
+  if (change === "reversal") {
+    return "انعكاس";
+  }
+
+  if (change === "new") {
+    return "جديد";
+  }
+
+  return "ثابت";
+}
+
+function signedDelta(
+  value: number,
+) {
+  if (value === 0) return "0";
+  return `${value > 0 ? "+" : ""}${value}`;
 }
 
 function formatPrice(
@@ -120,8 +156,22 @@ export default function AnalystRadarView({
   ] = useState<
     number | null
   >(null);
-  const autoBootstrapRef =
-    useRef(false);
+  const [
+    previousItems,
+    setPreviousItems,
+  ] = useState<
+    AnalystRadarItem[]
+  >([]);
+  const [
+    previousUpdatedAt,
+    setPreviousUpdatedAt,
+  ] = useState<
+    number | null
+  >(null);
+  const lastSignatureRef =
+    useRef<string | null>(
+      null,
+    );
 
   const candidates =
     useMemo(
@@ -137,6 +187,15 @@ export default function AnalystRadarView({
       ],
     );
 
+  const candidateSignature =
+    useMemo(
+      () =>
+        analystRadarSignature(
+          candidates,
+        ),
+      [candidates],
+    );
+
   const ranked =
     useMemo(
       () =>
@@ -145,6 +204,46 @@ export default function AnalystRadarView({
         ),
       [items],
     );
+
+  const deltas =
+    useMemo(
+      () =>
+        buildAnalystRadarDeltas(
+          ranked,
+          previousItems,
+        ),
+      [
+        ranked,
+        previousItems,
+      ],
+    );
+
+  const deltaBySymbol =
+    useMemo(
+      () =>
+        new Map(
+          deltas.map(
+            (delta) => [
+              delta.symbolId,
+              delta,
+            ],
+          ),
+        ),
+      [deltas],
+    );
+
+  const strengtheningCount =
+    deltas.filter(
+      (item) =>
+        item.change ===
+        "strengthening",
+    ).length;
+  const reversalCount =
+    deltas.filter(
+      (item) =>
+        item.change ===
+        "reversal",
+    ).length;
 
   const providerCount =
     ranked.filter(
@@ -234,23 +333,36 @@ export default function AnalystRadarView({
       setUpdatedAt(
         finishedAt,
       );
-      saveAnalystRadarCache(
-        candidates,
-        finalItems,
-        finishedAt,
-      );
+      const saved =
+        saveAnalystRadarCache(
+          candidates,
+          finalItems,
+          finishedAt,
+        );
+
+      if (saved) {
+        setPreviousItems(
+          saved.previousItems,
+        );
+        setPreviousUpdatedAt(
+          saved.previousUpdatedAt ??
+            null,
+        );
+      }
+
       setLoading(false);
     };
 
   useEffect(() => {
     if (
-      autoBootstrapRef.current
+      lastSignatureRef.current ===
+      candidateSignature
     ) {
       return;
     }
 
-    autoBootstrapRef.current =
-      true;
+    lastSignatureRef.current =
+      candidateSignature;
 
     const cached =
       loadAnalystRadarCache(
@@ -264,6 +376,18 @@ export default function AnalystRadarView({
       setUpdatedAt(
         cached.updatedAt,
       );
+      setPreviousItems(
+        cached.previousItems,
+      );
+      setPreviousUpdatedAt(
+        cached.previousUpdatedAt ??
+          null,
+      );
+    } else {
+      setItems([]);
+      setUpdatedAt(null);
+      setPreviousItems([]);
+      setPreviousUpdatedAt(null);
     }
 
     if (
@@ -274,7 +398,7 @@ export default function AnalystRadarView({
     ) {
       void runRadar(true);
     }
-  }, []);
+  }, [candidateSignature]);
 
   return (
     <section
@@ -347,6 +471,18 @@ export default function AnalystRadarView({
               )
             : "—"}
         </span>
+        {previousItems.length > 0 ? (
+          <>
+            <span>
+              تقوّت{" "}
+              {strengtheningCount}
+            </span>
+            <span>
+              انعكاس{" "}
+              {reversalCount}
+            </span>
+          </>
+        ) : null}
       </div>
 
       {loading ? (
@@ -394,6 +530,10 @@ export default function AnalystRadarView({
                     scenario.id ===
                     item.direction,
                 );
+            const delta =
+              deltaBySymbol.get(
+                item.symbol.id,
+              );
 
             return (
               <article
@@ -430,6 +570,30 @@ export default function AnalystRadarView({
                         : "Demo"
                     }
                   </small>
+                  {delta &&
+                  previousItems.length >
+                    0 ? (
+                    <span
+                      className={
+                        `analyst-radar-change ${delta.change}`
+                      }
+                    >
+                      {changeLabel(
+                        delta.change,
+                      )}
+                      {delta.change ===
+                      "reversal" &&
+                      delta.previousDirection
+                        ? ` · ${directionLabel(
+                            delta.previousDirection,
+                          )}→${directionLabel(
+                            delta.currentDirection,
+                          )}`
+                        : ` · احتمال ${signedDelta(
+                            delta.probabilityDelta,
+                          )}`}
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="analyst-radar-direction">
@@ -457,6 +621,13 @@ export default function AnalystRadarView({
                   <small>
                     وضوح{" "}
                     {item.clarity}%
+                    {delta &&
+                    previousItems.length >
+                      0
+                      ? ` (${signedDelta(
+                          delta.clarityDelta,
+                        )})`
+                      : ""}
                   </small>
                 </div>
 
@@ -534,6 +705,21 @@ export default function AnalystRadarView({
             ),
           )}
         </details>
+      ) : null}
+
+      {previousUpdatedAt ? (
+        <div className="analyst-radar-previous-time">
+          المقارنة مع فحص{" "}
+          {new Date(
+            previousUpdatedAt,
+          ).toLocaleTimeString(
+            "ar-SA",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            },
+          )}
+        </div>
       ) : null}
 
       <footer className="analyst-radar-note">
