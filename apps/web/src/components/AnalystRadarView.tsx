@@ -453,6 +453,18 @@ export default function AnalystRadarView({
               )
             : "—"}
         </span>
+        {previousItems.length > 0 ? (
+          <>
+            <span>
+              تقوّت{" "}
+              {strengtheningCount}
+            </span>
+            <span>
+              انعكاس{" "}
+              {reversalCount}
+            </span>
+          </>
+        ) : null}
       </div>
 
       {loading ? (
@@ -500,6 +512,10 @@ export default function AnalystRadarView({
                     scenario.id ===
                     item.direction,
                 );
+            const delta =
+              deltaBySymbol.get(
+                item.symbol.id,
+              );
 
             return (
               <article
@@ -536,6 +552,30 @@ export default function AnalystRadarView({
                         : "Demo"
                     }
                   </small>
+                  {delta &&
+                  previousItems.length >
+                    0 ? (
+                    <span
+                      className={
+                        `analyst-radar-change ${delta.change}`
+                      }
+                    >
+                      {changeLabel(
+                        delta.change,
+                      )}
+                      {delta.change ===
+                      "reversal" &&
+                      delta.previousDirection
+                        ? ` · ${directionLabel(
+                            delta.previousDirection,
+                          )}→${directionLabel(
+                            delta.currentDirection,
+                          )}`
+                        : ` · احتمال ${signedDelta(
+                            delta.probabilityDelta,
+                          )}`}
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="analyst-radar-direction">
@@ -563,6 +603,13 @@ export default function AnalystRadarView({
                   <small>
                     وضوح{" "}
                     {item.clarity}%
+                    {delta &&
+                    previousItems.length >
+                      0
+                      ? ` (${signedDelta(
+                          delta.clarityDelta,
+                        )})`
+                      : ""}
                   </small>
                 </div>
 
@@ -640,6 +687,21 @@ export default function AnalystRadarView({
             ),
           )}
         </details>
+      ) : null}
+
+      {previousUpdatedAt ? (
+        <div className="analyst-radar-previous-time">
+          المقارنة مع فحص{" "}
+          {new Date(
+            previousUpdatedAt,
+          ).toLocaleTimeString(
+            "ar-SA",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            },
+          )}
+        </div>
       ) : null}
 
       <footer className="analyst-radar-note">
