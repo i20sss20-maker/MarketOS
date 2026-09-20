@@ -74,6 +74,29 @@ function signed(
   return `${value > 0 ? "+" : ""}${value}${suffix}`;
 }
 
+function attentionKindLabel(
+  kind:
+    AnalystBriefSnapshot["attention"]["items"][number]["kind"],
+) {
+  if (kind === "reversal") {
+    return "انعكاس";
+  }
+
+  if (kind === "strengthening") {
+    return "تقوّي";
+  }
+
+  if (kind === "watch-near") {
+    return "قرب التفعيل";
+  }
+
+  if (kind === "catalyst") {
+    return "Catalyst";
+  }
+
+  return "تحقق";
+}
+
 function timeLabel(
   value: number | null,
 ) {
@@ -405,6 +428,77 @@ export default function AnalystBriefCard({
           </div>
         </div>
       )}
+
+      {brief.attention.items.length > 0 ? (
+        <div className="home-analyst-attention">
+          <div className="home-analyst-attention-head">
+            <div>
+              <span>
+                ATTENTION QUEUE
+              </span>
+              <strong>
+                يحتاج انتباهك
+              </strong>
+            </div>
+            <small>
+              {brief.attention.criticalCount > 0
+                ? `${brief.attention.criticalCount} عاجل`
+                : `${brief.attention.items.length} حالة`}
+            </small>
+          </div>
+
+          <div className="home-analyst-attention-list">
+            {brief.attention.items.map(
+              (item) => (
+                <button
+                  key={item.id}
+                  className={
+                    `attention-${item.kind}`
+                  }
+                  onClick={() =>
+                    onSelectSymbol(
+                      item.symbol,
+                    )
+                  }
+                >
+                  <span className="home-analyst-attention-symbol">
+                    <strong>
+                      {
+                        item.symbol
+                          .ticker
+                      }
+                    </strong>
+                    <small>
+                      {
+                        item.symbol
+                          .exchange
+                      }
+                      {item.dataMode
+                        ? ` · ${item.dataMode === "provider" ? "Provider" : "Demo"}`
+                        : ""}
+                    </small>
+                  </span>
+
+                  <span className="home-analyst-attention-main">
+                    <b>
+                      {item.title}
+                    </b>
+                    <small>
+                      {item.detail}
+                    </small>
+                  </span>
+
+                  <span className="home-analyst-attention-kind">
+                    {attentionKindLabel(
+                      item.kind,
+                    )}
+                  </span>
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <footer className="home-analyst-brief-footer">
         <span>

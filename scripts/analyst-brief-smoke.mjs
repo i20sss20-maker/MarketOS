@@ -73,6 +73,27 @@ const watchUrl =
     ),
   );
 
+let attentionCompiled =
+  transpile(
+    readFileSync(
+      "apps/web/src/lib/analystAttention.ts",
+      "utf8",
+    ),
+  )
+    .replaceAll(
+      '"./analystRadar"',
+      JSON.stringify(radarUrl),
+    )
+    .replaceAll(
+      '"./forecastWatch"',
+      JSON.stringify(watchUrl),
+    );
+
+const attentionUrl =
+  dataUrl(
+    attentionCompiled,
+  );
+
 let briefCompiled =
   transpile(
     readFileSync(
@@ -96,6 +117,12 @@ briefCompiled =
     .replaceAll(
       '"./forecastWatch"',
       JSON.stringify(watchUrl),
+    )
+    .replaceAll(
+      '"./analystAttention"',
+      JSON.stringify(
+        attentionUrl,
+      ),
     );
 
 const briefUrl =
