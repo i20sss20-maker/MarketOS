@@ -90,6 +90,18 @@ export type AnalystBriefSnapshot = {
       | "established"
       | null;
     currentEngineResolved: number;
+    driftStatus:
+      | "insufficient"
+      | "stable"
+      | "improving"
+      | "watch"
+      | "degrading";
+    driftAccuracyDelta:
+      number | null;
+    driftBrierDelta:
+      number | null;
+    driftRecentSize: number;
+    driftBaselineSize: number;
     accuracyLow95: number | null;
     accuracyHigh95: number | null;
     accuracy: number | null;
@@ -485,6 +497,20 @@ export function buildAnalystBrief(
         performance
           .currentEnginePerformance
           ?.resolved ?? 0,
+      driftStatus:
+        performance.drift.status,
+      driftAccuracyDelta:
+        performance.drift
+          .accuracyDelta,
+      driftBrierDelta:
+        performance.drift
+          .brierDelta,
+      driftRecentSize:
+        performance.drift
+          .recentSize,
+      driftBaselineSize:
+        performance.drift
+          .baselineSize,
       accuracyLow95:
         (
           performance
