@@ -16,6 +16,7 @@ export type ForecastJournalRecord = {
   symbol?: MarketSymbol;
   generatedAt: number;
   dueAt: number;
+  evaluationTimeframe?: Timeframe;
   referencePrice: number;
   confidence: number;
   dataMode: "demo" | "provider";
@@ -30,6 +31,11 @@ export type ForecastJournalRecord = {
   status: "pending" | "resolved";
   evaluatedAt?: number;
   evaluationPrice?: number;
+  evaluationMethod?:
+    | "forecast"
+    | "quote"
+    | "horizon-candle";
+  evaluationDelaySeconds?: number;
   realizedReturnPercent?: number;
   realizedOutcome?: ForecastOutcome;
   correct?: boolean;
@@ -108,6 +114,64 @@ function timeframeSeconds(
   };
 
   return map[timeframe];
+}
+
+function validTimeframe(
+  value: unknown,
+): value is Timeframe {
+  return [
+    "1m",
+    "5m",
+    "15m",
+    "1h",
+    "4h",
+    "1d",
+    "1w",
+    "1M",
+  ].includes(String(value));
+}
+
+function evaluationTimeframeFor(
+  result:
+    AnalystForecastResponse,
+): Timeframe {
+  if (result.calibration) {
+    return result.calibration
+      .timeframe;
+  }
+
+  if (
+    result.symbol.assetClass ===
+      "stock" ||
+    result.symbol.assetClass ===
+      "etf" ||
+    result.symbol.assetClass ===
+      "index"
+  ) {
+    return "1d";
+  }
+
+  return "4h";
+}
+
+function evaluationToleranceSeconds(
+  timeframe: Timeframe,
+) {
+  const tolerances: Record<
+    Timeframe,
+    number
+  > = {
+    "1m": 10 * 60,
+    "5m": 30 * 60,
+    "15m": 2 * 60 * 60,
+    "1h": 8 * 60 * 60,
+    "4h": 72 * 60 * 60,
+    "1d": 5 * 24 * 60 * 60,
+    "1w": 14 * 24 * 60 * 60,
+    "1M": 45 * 24 * 60 * 60,
+  };
+
+  return tolerances[timeframe];
 }
 
 function normalizeOutcome(
@@ -233,6 +297,12 @@ function normalizeRecord(
       Math.floor(item.generatedAt),
     dueAt:
       Math.floor(item.dueAt),
+    evaluationTimeframe:
+      validTimeframe(
+        item.evaluationTimeframe,
+      )
+        ? item.evaluationTimeframe
+        : undefined,
     referencePrice:
       item.referencePrice,
     confidence:
@@ -295,6 +365,26 @@ function normalizeRecord(
         item.evaluationPrice,
       )
         ? item.evaluationPrice
+        : undefined,
+    evaluationMethod:
+      item.evaluationMethod ===
+        "forecast" ||
+      item.evaluationMethod ===
+        "quote" ||
+      item.evaluationMethod ===
+        "horizon-candle"
+        ? item.evaluationMethod
+        : undefined,
+    evaluationDelaySeconds:
+      finite(
+        item.evaluationDelaySeconds,
+      )
+        ? Math.max(
+            0,
+            Math.floor(
+              item.evaluationDelaySeconds,
+            ),
+          )
         : undefined,
     realizedReturnPercent:
       finite(
@@ -488,6 +578,10 @@ function createRecord(
       result.generatedAt,
     dueAt:
       forecastDueAt(result),
+    evaluationTimeframe:
+      evaluationTimeframeFor(
+        result,
+      ),
     referencePrice:
       result.referencePrice,
     confidence:
@@ -537,6 +631,9 @@ function resolveAgainst(
 ): ForecastJournalRecord {
   if (
     record.status !== "pending" ||
+    Boolean(
+      record.evaluationTimeframe,
+    ) ||
     record.symbolId !==
       result.symbol.id ||
     record.dueAt >
@@ -576,6 +673,14 @@ function resolveAgainst(
       result.generatedAt,
     evaluationPrice:
       result.referencePrice,
+    evaluationMethod:
+      "forecast",
+    evaluationDelaySeconds:
+      Math.max(
+        0,
+        result.generatedAt -
+          record.dueAt,
+      ),
     realizedReturnPercent:
       round(
         realizedReturnPercent,
@@ -666,6 +771,9 @@ export function resolveForecastJournalWithPrice(
       if (
         record.status !==
           "pending" ||
+        Boolean(
+          record.evaluationTimeframe,
+        ) ||
         record.symbolId !==
           input.symbolId ||
         record.dueAt >
@@ -704,6 +812,16 @@ export function resolveForecastJournalWithPrice(
           ),
         evaluationPrice:
           input.price,
+        evaluationMethod:
+          "quote",
+        evaluationDelaySeconds:
+          Math.max(
+            0,
+            Math.floor(
+              input.timestamp -
+                record.dueAt,
+            ),
+          ),
         realizedReturnPercent:
           round(
             realizedReturnPercent,
@@ -735,6 +853,9 @@ export function maturedForecastSymbols(
     if (
       record.status !==
         "pending" ||
+      Boolean(
+        record.evaluationTimeframe,
+      ) ||
       record.dataMode !==
         dataMode ||
       record.dueAt >
@@ -753,6 +874,177 @@ export function maturedForecastSymbols(
   return [
     ...unique.values(),
   ];
+}
+
+export type MaturedForecastGroup = {
+  symbol: MarketSymbol;
+  timeframe: Timeframe;
+};
+
+export function maturedForecastGroups(
+  records:
+    ForecastJournalRecord[],
+  timestamp: number,
+  dataMode:
+    "demo" | "provider",
+) {
+  const groups =
+    new Map<
+      string,
+      MaturedForecastGroup
+    >();
+
+  for (const record of records) {
+    if (
+      record.status !==
+        "pending" ||
+      record.dataMode !==
+        dataMode ||
+      record.dueAt >
+        timestamp ||
+      !record.symbol ||
+      !record.evaluationTimeframe
+    ) {
+      continue;
+    }
+
+    const key =
+      record.symbol.id +
+      "|" +
+      record.evaluationTimeframe;
+
+    groups.set(key, {
+      symbol:
+        record.symbol,
+      timeframe:
+        record.evaluationTimeframe,
+    });
+  }
+
+  return [
+    ...groups.values(),
+  ];
+}
+
+export function resolveForecastJournalWithCandles(
+  current:
+    ForecastJournalRecord[],
+  input: {
+    symbolId: string;
+    timeframe: Timeframe;
+    candles: Array<{
+      time: number;
+      close: number;
+    }>;
+    dataMode:
+      "demo" | "provider";
+  },
+) {
+  const candles =
+    input.candles
+      .filter(
+        (candle) =>
+          Number.isFinite(
+            candle.time,
+          ) &&
+          Number.isFinite(
+            candle.close,
+          ) &&
+          candle.close > 0,
+      )
+      .sort(
+        (a, b) =>
+          a.time - b.time,
+      );
+
+  if (candles.length === 0) {
+    return current;
+  }
+
+  const tolerance =
+    evaluationToleranceSeconds(
+      input.timeframe,
+    );
+
+  return current.map(
+    (record) => {
+      if (
+        record.status !==
+          "pending" ||
+        record.symbolId !==
+          input.symbolId ||
+        record.dataMode !==
+          input.dataMode ||
+        record.evaluationTimeframe !==
+          input.timeframe
+      ) {
+        return record;
+      }
+
+      const candle =
+        candles.find(
+          (item) =>
+            item.time >=
+              record.dueAt &&
+            item.time -
+              record.dueAt <=
+              tolerance,
+        );
+
+      if (!candle) {
+        return record;
+      }
+
+      const realizedReturnPercent =
+        record.referencePrice === 0
+          ? 0
+          : (
+              (
+                candle.close -
+                record.referencePrice
+              ) /
+              record.referencePrice
+            ) *
+              100;
+
+      const realizedOutcome =
+        classifyOutcome(
+          realizedReturnPercent,
+          record.thresholdPercent,
+        );
+
+      return {
+        ...record,
+        status:
+          "resolved" as const,
+        evaluatedAt:
+          Math.floor(
+            candle.time,
+          ),
+        evaluationPrice:
+          candle.close,
+        evaluationMethod:
+          "horizon-candle" as const,
+        evaluationDelaySeconds:
+          Math.max(
+            0,
+            Math.floor(
+              candle.time -
+                record.dueAt,
+            ),
+          ),
+        realizedReturnPercent:
+          round(
+            realizedReturnPercent,
+            2,
+          ),
+        realizedOutcome,
+        correct:
+          realizedOutcome ===
+          record.expectedOutcome,
+      };
+    },
+  );
 }
 
 function brierScore(
