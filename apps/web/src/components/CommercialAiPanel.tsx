@@ -8,6 +8,7 @@ import type {
 } from "@marketos/market-core";
 import AnalystForecastView from "./AnalystForecastView";
 import AnalystRadarView from "./AnalystRadarView";
+import AnalystPerformanceView from "./AnalystPerformanceView";
 import type { DataWindowSnapshot } from "../lib/dataWindow";
 
 type AiResult = Pick<ChartAnalysisResponse, "summary" | "observations" | "engine">;
@@ -85,7 +86,7 @@ export default function CommercialAiPanel({
   formatPercent,
   formatVolume,
 }: Props) {
-  const [tab, setTab] = useState<"analyst" | "radar" | "ask" | "data">("analyst");
+  const [tab, setTab] = useState<"analyst" | "radar" | "performance" | "ask" | "data">("analyst");
 
   return (
     <aside className={open ? "ai-panel panel commercial-ai-panel" : "ai-panel panel commercial-ai-panel panel-collapsed"}>
@@ -97,9 +98,11 @@ export default function CommercialAiPanel({
               ? "Probabilistic market analyst"
               : tab === "radar"
                 ? "Watchlist opportunity radar"
-                : tab === "ask"
-                  ? "Chart-aware assistant"
-                  : "Crosshair data"}
+                : tab === "performance"
+                  ? "Forecast performance tracking"
+                  : tab === "ask"
+                    ? "Chart-aware assistant"
+                    : "Crosshair data"}
           </small>
         </div>
         <button className="commercial-panel-close" title="إغلاق اللوحة" onClick={onClose}>
@@ -113,6 +116,9 @@ export default function CommercialAiPanel({
         </button>
         <button className={tab === "radar" ? "active" : ""} onClick={() => setTab("radar")}>
           الرادار
+        </button>
+        <button className={tab === "performance" ? "active" : ""} onClick={() => setTab("performance")}>
+          الأداء
         </button>
         <button className={tab === "ask" ? "active" : ""} onClick={() => setTab("ask")}>
           اسأل
@@ -137,6 +143,12 @@ export default function CommercialAiPanel({
         <AnalystRadarView
           activeSymbol={activeSymbol}
           symbols={radarSymbols}
+          onSelectSymbol={onRadarSelect}
+        />
+      ) : null}
+
+      {tab === "performance" ? (
+        <AnalystPerformanceView
           onSelectSymbol={onRadarSelect}
         />
       ) : null}
