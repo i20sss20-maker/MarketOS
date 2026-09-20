@@ -1,3 +1,5 @@
+import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
+import { ProductionGateError, realDataRequired, assertRealProvider } from "../production/policy.js";
 import {
   app,
   type HttpRequest,
@@ -47,7 +49,7 @@ const assetClasses =
     "commodity",
   ]);
 
-function sanitizeSymbol(
+export function sanitizeSymbol(
   value: unknown,
 ): MarketSymbol {
   if (
@@ -201,6 +203,10 @@ export async function analystForecast(
   }
 
   try {
+    if (realDataRequired()) {
+      if (!getAuthenticatedUser(request)) return json(401, { ok: false, code: "AUTH_REQUIRED", error: "Sign in to request real-data analysis." });
+      assertRealProvider(marketDataProvider);
+    }
     const body =
       await request.json() as {
         symbol?: unknown;
@@ -297,7 +303,9 @@ export async function analystForecast(
           failures.push({
             timeframe,
             error:
-              result.reason instanceof
+              realDataRequired()
+                ? "Market data is unavailable for this timeframe."
+                : result.reason instanceof
               Error
                 ? result.reason
                     .message
@@ -326,6 +334,10 @@ export async function analystForecast(
 
     const quote =
       await quotePromise;
+
+    if (realDataRequired() && (!quote || analyses.length < 2 || !candleHistory.has(calibrationPlan(symbol).timeframe))) {
+      throw new ProductionGateError("INCOMPLETE_MARKET_EVIDENCE", "Real-data analysis requires a verified quote, at least two timeframes, and the calibration timeframe.", 502);
+    }
 
     const dates =
       eventWindow();
@@ -417,6 +429,8 @@ export async function analystForecast(
       },
     });
   } catch (error) {
+    if (error instanceof ProductionGateError) return json(error.status, { ok: false, code: error.code, error: error.message });
+    if (realDataRequired()) return json(502, { ok: false, code: "FORECAST_UNAVAILABLE", error: "Real market evidence could not be loaded. No demo forecast was substituted." });
     const message =
       error instanceof Error
         ? error.message

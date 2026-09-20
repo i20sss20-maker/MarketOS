@@ -1,3 +1,4 @@
+import { guardFeedProvider } from "../production/providerGuard.js";
 import type { CompanyFeedProvider } from "./types.js";
 import { DemoFeedProvider } from "./demoFeedProvider.js";
 import { TwelveDataFeedProvider } from "./twelveDataFeedProvider.js";
@@ -15,4 +16,4 @@ function createCompanyFeedProvider(): CompanyFeedProvider {
   return new DemoFeedProvider();
 }
 
-export const companyFeedProvider = createCompanyFeedProvider();
+export const companyFeedProvider = guardFeedProvider(createCompanyFeedProvider());

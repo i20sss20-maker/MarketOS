@@ -1,0 +1,63 @@
+name: Production Foundation Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/production-foundation-20260920
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    name: Source snapshot for isolated validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source only
+        run: git archive --format=tar.gz --output=/tmp/marketos-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marketos-production-source
+          path: /tmp/marketos-source.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+  verify:
+    name: Production foundation on Node 22
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: node scripts/production-sdk-smoke.mjs
+      - run: node scripts/production-foundation-smoke.mjs
+      - run: pnpm prepare:azure-api
+      - run: pnpm smoke:azure
+      - name: Upload test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-foundation-test-evidence
+          path: |
+            artifacts/production-foundation-tests.json
+            artifacts/production-sdk-tests.json
+          retention-days: 7
+          if-no-files-found: warn

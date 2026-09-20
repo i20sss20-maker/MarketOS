@@ -30,6 +30,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Production data and server journal runtime tests
+        run: pnpm smoke:production-foundation
+
       - name: Build
         run: pnpm build
 

@@ -1,3 +1,4 @@
+import { guardMarketDataProvider } from "../production/providerGuard.js";
 import type { MarketDataProvider } from "@marketos/market-core";
 import { DemoMarketDataProvider } from "./demoProvider.js";
 import { TwelveDataMarketDataProvider } from "./twelveDataProvider.js";
@@ -22,4 +23,4 @@ function createProvider(): MarketDataProvider {
   return new DemoMarketDataProvider();
 }
 
-export const marketDataProvider = createProvider();
+export const marketDataProvider = guardMarketDataProvider(createProvider());
