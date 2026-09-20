@@ -58,6 +58,34 @@ export type ForecastPerformanceEngine = {
   isCurrent: boolean;
 };
 
+export type ForecastPerformanceDriftStatus =
+  | "insufficient"
+  | "stable"
+  | "improving"
+  | "watch"
+  | "degrading";
+
+export type ForecastPerformanceDrift = {
+  engine: string | null;
+  status:
+    ForecastPerformanceDriftStatus;
+  recentSize: number;
+  baselineSize: number;
+  recentAccuracy: number | null;
+  baselineAccuracy: number | null;
+  accuracyDelta: number | null;
+  recentBrier: number | null;
+  baselineBrier: number | null;
+  brierDelta: number | null;
+  recentCalibrationGap:
+    number | null;
+  baselineCalibrationGap:
+    number | null;
+  calibrationGapDelta:
+    number | null;
+  reason: string[];
+};
+
 export type ForecastPerformanceReport = {
   summary:
     ReturnType<
@@ -69,6 +97,8 @@ export type ForecastPerformanceReport = {
     ForecastPerformanceEngine | null;
   engines:
     ForecastPerformanceEngine[];
+  drift:
+    ForecastPerformanceDrift;
   averageExpectedProbability:
     number | null;
   calibrationGap:
@@ -430,6 +460,335 @@ function enginePerformance(
     );
 }
 
+function performanceWindow(
+  records:
+    ForecastJournalRecord[],
+) {
+  const correct =
+    records.filter(
+      (record) =>
+        record.correct ===
+        true,
+    ).length;
+  const observed =
+    accuracy(
+      correct,
+      records.length,
+    );
+  const expected =
+    average(
+      records.map(
+        (record) =>
+          record.expectedProbability,
+      ),
+    );
+  const brierValues =
+    records
+      .map(
+        recordBrierScore,
+      )
+      .filter(
+        (
+          value,
+        ): value is number =>
+          value !== null,
+      );
+  const brier =
+    average(brierValues);
+
+  return {
+    size:
+      records.length,
+    accuracy:
+      observed,
+    brier:
+      brier === null
+        ? null
+        : round(
+            brier,
+            3,
+          ),
+    calibrationGap:
+      expected === null ||
+      observed === null
+        ? null
+        : round(
+            observed -
+              expected,
+            1,
+          ),
+  };
+}
+
+function buildPerformanceDrift(
+  records:
+    ForecastJournalRecord[],
+  currentEngine: string | null,
+): ForecastPerformanceDrift {
+  if (!currentEngine) {
+    return {
+      engine: null,
+      status:
+        "insufficient",
+      recentSize: 0,
+      baselineSize: 0,
+      recentAccuracy: null,
+      baselineAccuracy: null,
+      accuracyDelta: null,
+      recentBrier: null,
+      baselineBrier: null,
+      brierDelta: null,
+      recentCalibrationGap: null,
+      baselineCalibrationGap: null,
+      calibrationGapDelta: null,
+      reason: [
+        "لا يوجد محرك حالي قابل للمقارنة.",
+      ],
+    };
+  }
+
+  const current =
+    records
+      .filter(
+        (record) =>
+          engineLabel(
+            record,
+          ) === currentEngine,
+      )
+      .sort(
+        (a, b) =>
+          (
+            b.evaluatedAt ??
+            b.generatedAt
+          ) -
+          (
+            a.evaluatedAt ??
+            a.generatedAt
+          ),
+      );
+
+  if (current.length < 12) {
+    return {
+      engine:
+        currentEngine,
+      status:
+        "insufficient",
+      recentSize:
+        Math.min(
+          6,
+          current.length,
+        ),
+      baselineSize:
+        Math.max(
+          0,
+          current.length -
+            Math.min(
+              6,
+              current.length,
+            ),
+        ),
+      recentAccuracy: null,
+      baselineAccuracy: null,
+      accuracyDelta: null,
+      recentBrier: null,
+      baselineBrier: null,
+      brierDelta: null,
+      recentCalibrationGap: null,
+      baselineCalibrationGap: null,
+      calibrationGapDelta: null,
+      reason: [
+        `يلزم 12 نتيجة محسومة على الأقل؛ المتاح ${current.length}.`,
+      ],
+    };
+  }
+
+  const recentSize =
+    Math.min(
+      10,
+      Math.max(
+        6,
+        Math.floor(
+          current.length / 2,
+        ),
+      ),
+    );
+  const baselineSize =
+    Math.min(
+      20,
+      current.length -
+        recentSize,
+    );
+
+  const recent =
+    performanceWindow(
+      current.slice(
+        0,
+        recentSize,
+      ),
+    );
+  const baseline =
+    performanceWindow(
+      current.slice(
+        recentSize,
+        recentSize +
+          baselineSize,
+      ),
+    );
+
+  const accuracyDelta =
+    recent.accuracy === null ||
+    baseline.accuracy === null
+      ? null
+      : round(
+          recent.accuracy -
+            baseline.accuracy,
+          1,
+        );
+  const brierDelta =
+    recent.brier === null ||
+    baseline.brier === null
+      ? null
+      : round(
+          recent.brier -
+            baseline.brier,
+          3,
+        );
+  const calibrationGapDelta =
+    recent.calibrationGap ===
+      null ||
+    baseline.calibrationGap ===
+      null
+      ? null
+      : round(
+          Math.abs(
+            recent.calibrationGap,
+          ) -
+            Math.abs(
+              baseline.calibrationGap,
+            ),
+          1,
+        );
+
+  const reasons: string[] =
+    [];
+  let status:
+    ForecastPerformanceDriftStatus =
+    "stable";
+
+  const severeAccuracy =
+    accuracyDelta !== null &&
+    accuracyDelta <= -30;
+  const severeBrier =
+    brierDelta !== null &&
+    brierDelta >= 0.15;
+  const combinedDegrade =
+    accuracyDelta !== null &&
+    accuracyDelta <= -20 &&
+    brierDelta !== null &&
+    brierDelta >= 0.05;
+
+  if (
+    severeAccuracy ||
+    severeBrier ||
+    combinedDegrade
+  ) {
+    status =
+      "degrading";
+
+    if (accuracyDelta !== null) {
+      reasons.push(
+        `الدقة الحديثة ${accuracyDelta} نقطة مقابل خط الأساس.`,
+      );
+    }
+    if (brierDelta !== null) {
+      reasons.push(
+        `Brier تغيّر ${brierDelta > 0 ? "+" : ""}${brierDelta}؛ الارتفاع أسوأ.`,
+      );
+    }
+  } else {
+    const watchAccuracy =
+      accuracyDelta !== null &&
+      accuracyDelta <= -10;
+    const watchBrier =
+      brierDelta !== null &&
+      brierDelta >= 0.08;
+    const watchCalibration =
+      calibrationGapDelta !==
+        null &&
+      calibrationGapDelta >=
+        15;
+
+    const improving =
+      accuracyDelta !== null &&
+      accuracyDelta >= 10 &&
+      brierDelta !== null &&
+      brierDelta <= -0.05;
+
+    if (improving) {
+      status =
+        "improving";
+      reasons.push(
+        `الدقة الحديثة أفضل بـ ${accuracyDelta} نقطة مع تحسن Brier.`,
+      );
+    } else if (
+      watchAccuracy ||
+      watchBrier ||
+      watchCalibration
+    ) {
+      status = "watch";
+
+      if (watchAccuracy) {
+        reasons.push(
+          `الدقة الحديثة أقل بـ ${Math.abs(
+            accuracyDelta ?? 0,
+          )} نقطة.`,
+        );
+      }
+      if (watchBrier) {
+        reasons.push(
+          `Brier الحديث أعلى بـ ${brierDelta}.`,
+        );
+      }
+      if (watchCalibration) {
+        reasons.push(
+          `فجوة المعايرة اتسعت بـ ${calibrationGapDelta} نقطة.`,
+        );
+      }
+    } else {
+      reasons.push(
+        "لا يظهر انحراف جوهري بين النافذة الحديثة وخط الأساس.",
+      );
+    }
+  }
+
+  return {
+    engine:
+      currentEngine,
+    status,
+    recentSize:
+      recent.size,
+    baselineSize:
+      baseline.size,
+    recentAccuracy:
+      recent.accuracy,
+    baselineAccuracy:
+      baseline.accuracy,
+    accuracyDelta,
+    recentBrier:
+      recent.brier,
+    baselineBrier:
+      baseline.brier,
+    brierDelta,
+    recentCalibrationGap:
+      recent.calibrationGap,
+    baselineCalibrationGap:
+      baseline.calibrationGap,
+    calibrationGapDelta,
+    reason:
+      reasons.slice(0, 3),
+  };
+}
+
 function providerResolved(
   records:
     ForecastJournalRecord[],
@@ -747,6 +1106,11 @@ export function buildForecastPerformance(
             item.engine ===
             currentEngine,
         ) ?? null;
+  const drift =
+    buildPerformanceDrift(
+      resolved,
+      currentEngine,
+    );
   const expected =
     average(
       resolved.map(
@@ -766,6 +1130,7 @@ export function buildForecastPerformance(
     currentEngine,
     currentEnginePerformance,
     engines,
+    drift,
     averageExpectedProbability:
       expected === null
         ? null
