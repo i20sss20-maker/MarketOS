@@ -141,6 +141,9 @@ jobs:
       - name: Analyst Performance and forecast monitor smoke test
         run: pnpm smoke:analyst-performance
 
+      - name: Analyst Brief home intelligence smoke test
+        run: pnpm smoke:analyst-brief
+
       - name: Structured Catalyst Impact smoke test
         run: pnpm smoke:analyst-catalyst-impact
 
