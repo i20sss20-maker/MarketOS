@@ -1,4 +1,5 @@
-import { app, HttpRequest, type HttpResponseInit } from "@azure/functions";
+import azureFunctions, { type HttpRequest, type HttpResponseInit } from "@azure/functions";
+const { app, HttpRequest: AzureHttpRequest } = azureFunctions;
 import { randomUUID } from "node:crypto";
 import type { AnalystForecastResponse } from "@marketos/market-core";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
@@ -63,7 +64,7 @@ export function createUserForecastsHandler(deps = {
         return json(200, { ok: true, forecast: previous.forecast, journal: publicForecastRecord(previous), replayed: true });
       }
       assertRealProvider(deps.provider);
-      const generated = await deps.generate(new HttpRequest({ method: "POST", url: request.url,
+      const generated = await deps.generate(new AzureHttpRequest({ method: "POST", url: request.url,
         headers: { "content-type": "application/json", "x-ms-client-principal": request.headers.get("x-ms-client-principal") ?? "" },
         body: { string: JSON.stringify({ symbol }) } }));
       const payload = generated.jsonBody as { ok?: boolean; forecast?: AnalystForecastResponse } | undefined;

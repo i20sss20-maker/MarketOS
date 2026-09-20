@@ -14,7 +14,8 @@ export class HttpRequest {
  constructor(input) { this.method=input.method; this.url=input.url; this.headers=new Headers(input.headers); this.query=new URL(input.url).searchParams; this.body=input.body?.string ?? ""; }
  async text() { return this.body; }
  async json() { return JSON.parse(this.body); }
-}`);
+}
+export default { app, HttpRequest };`);
 const source = readFileSync(api + "functions/analystForecast.ts", "utf8");
 const symbolParser = source.slice(source.indexOf("const assetClasses"), source.indexOf("function forecastTimeframes"));
 const overrides = new Map([
