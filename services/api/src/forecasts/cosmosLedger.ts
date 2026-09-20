@@ -7,9 +7,9 @@ function code(error: unknown) {
 }
 
 export class CosmosForecastLedger implements ForecastLedger {
-  constructor(private readonly container: Container) {}
+  constructor(protected readonly container: Container) {}
   private ready: Promise<void> | null = null;
-  private ensureContainer() {
+  protected ensureContainer() {
     if (!this.ready) this.ready = this.container.read().then(({ resource }) => {
       const paths = resource?.partitionKey?.paths;
       if (!paths || paths.length !== 1 || paths[0] !== "/userId") {
