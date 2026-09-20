@@ -14068,3 +14068,24 @@ button.bear:hover {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+
+/* Forecast Performance V3 — confidence ---------------------------------- */
+.analyst-engine-performance-grid small {
+  display: block;
+  margin-top: 2px;
+  color: #4f5d71;
+  font-size: 4.8px;
+  line-height: 1.4;
+}
+
+.analyst-performance-confidence-note {
+  margin-top: 7px;
+  border: 1px solid rgba(148,163,184,.045);
+  border-radius: 7px;
+  padding: 7px 8px;
+  background: rgba(148,163,184,.018);
+  color: #536176;
+  font-size: 5.5px;
+  line-height: 1.65;
+}
