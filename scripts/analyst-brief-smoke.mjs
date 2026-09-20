@@ -53,6 +53,24 @@ const performanceUrl =
     performanceCompiled,
   );
 
+let modelHealthCompiled =
+  transpile(
+    readFileSync(
+      "apps/web/src/lib/analystModelHealth.ts",
+      "utf8",
+    ),
+  ).replaceAll(
+    '"./forecastPerformance"',
+    JSON.stringify(
+      performanceUrl,
+    ),
+  );
+
+const modelHealthUrl =
+  dataUrl(
+    modelHealthCompiled,
+  );
+
 const radarUrl =
   dataUrl(
     transpile(
@@ -122,6 +140,12 @@ briefCompiled =
       '"./analystAttention"',
       JSON.stringify(
         attentionUrl,
+      ),
+    )
+    .replaceAll(
+      '"./analystModelHealth"',
+      JSON.stringify(
+        modelHealthUrl,
       ),
     );
 
@@ -543,6 +567,14 @@ assert.equal(
   1,
 );
 assert.equal(
+  brief.modelHealth.status,
+  "learning",
+);
+assert.equal(
+  brief.modelHealth.resolved,
+  2,
+);
+assert.equal(
   brief.performance.driftStatus,
   "insufficient",
 );
@@ -646,6 +678,10 @@ assert.equal(
   5,
 );
 assert.equal(
+  matureBrief.modelHealth.status,
+  "learning",
+);
+assert.equal(
   brief.radarProviderCount,
   2,
 );
@@ -741,6 +777,14 @@ assert.match(
 assert.match(
   card,
   /reliabilityEce/,
+);
+assert.match(
+  card,
+  /modelHealthBriefLabel/,
+);
+assert.match(
+  card,
+  /home-model-health/,
 );
 assert.match(
   card,
