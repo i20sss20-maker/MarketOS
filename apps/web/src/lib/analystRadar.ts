@@ -23,6 +23,24 @@ export type AnalystRadarFailure = {
   error: string;
 };
 
+export type AnalystRadarChange =
+  | "new"
+  | "strengthening"
+  | "weakening"
+  | "stable"
+  | "reversal";
+
+export type AnalystRadarDelta = {
+  symbolId: string;
+  change: AnalystRadarChange;
+  previousDirection?: AnalystRadarDirection;
+  currentDirection: AnalystRadarDirection;
+  directionChanged: boolean;
+  probabilityDelta: number;
+  clarityDelta: number;
+  confidenceDelta: number;
+};
+
 function clamp(
   value: number,
   min: number,
@@ -213,6 +231,103 @@ export function rankAnalystRadar(
         a.confidence
       );
     },
+  );
+}
+
+export function buildAnalystRadarDelta(
+  current: AnalystRadarItem,
+  previous?: AnalystRadarItem,
+): AnalystRadarDelta {
+  if (!previous) {
+    return {
+      symbolId:
+        current.symbol.id,
+      change: "new",
+      currentDirection:
+        current.direction,
+      directionChanged: false,
+      probabilityDelta: 0,
+      clarityDelta: 0,
+      confidenceDelta: 0,
+    };
+  }
+
+  const directionChanged =
+    previous.direction !==
+    current.direction;
+  const probabilityDelta =
+    current.directionProbability -
+    previous.directionProbability;
+  const clarityDelta =
+    current.clarity -
+    previous.clarity;
+  const confidenceDelta =
+    current.confidence -
+    previous.confidence;
+
+  if (directionChanged) {
+    return {
+      symbolId:
+        current.symbol.id,
+      change: "reversal",
+      previousDirection:
+        previous.direction,
+      currentDirection:
+        current.direction,
+      directionChanged: true,
+      probabilityDelta,
+      clarityDelta,
+      confidenceDelta,
+    };
+  }
+
+  const changeScore =
+    clarityDelta +
+    probabilityDelta * 0.5 +
+    confidenceDelta * 0.25;
+
+  return {
+    symbolId:
+      current.symbol.id,
+    change:
+      changeScore >= 3
+        ? "strengthening"
+        : changeScore <= -3
+          ? "weakening"
+          : "stable",
+    previousDirection:
+      previous.direction,
+    currentDirection:
+      current.direction,
+    directionChanged: false,
+    probabilityDelta,
+    clarityDelta,
+    confidenceDelta,
+  };
+}
+
+export function buildAnalystRadarDeltas(
+  current: AnalystRadarItem[],
+  previous: AnalystRadarItem[],
+) {
+  const previousBySymbol =
+    new Map(
+      previous.map(
+        (item) => [
+          item.symbol.id,
+          item,
+        ],
+      ),
+    );
+
+  return current.map(
+    (item) =>
+      buildAnalystRadarDelta(
+        item,
+        previousBySymbol.get(
+          item.symbol.id,
+        ),
+      ),
   );
 }
 
