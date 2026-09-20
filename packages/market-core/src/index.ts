@@ -258,6 +258,23 @@ export type AnalystCatalyst = {
   source: string;
 };
 
+export type AnalystCatalystImpactDirection =
+  | "positive"
+  | "neutral"
+  | "negative";
+
+export type AnalystCatalystImpact = {
+  method: "structured-earnings";
+  direction:
+    AnalystCatalystImpactDirection;
+  score: number;
+  weight: number;
+  sampleSize: number;
+  averageSurprisePercent: number;
+  latestSurprisePercent?: number;
+  evidence: string[];
+};
+
 export type AnalystCalibrationReliability =
   | "low"
   | "medium"
@@ -302,6 +319,7 @@ export type AnalystForecastResponse = {
   summary: string;
   scenarios: AnalystForecastScenario[];
   calibration?: AnalystForecastCalibration;
+  catalystImpact?: AnalystCatalystImpact;
   catalysts: AnalystCatalyst[];
   evidence: string[];
   uncertaintyNote: string;
