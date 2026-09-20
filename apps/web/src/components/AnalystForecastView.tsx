@@ -12,6 +12,9 @@ import {
   summarizeForecastJournal,
   updateForecastJournal,
 } from "../lib/forecastJournal";
+import type {
+  ForecastWatchSide,
+} from "../lib/forecastWatch";
 
 type Props = {
   result: AnalystForecastResponse | null;
@@ -19,6 +22,9 @@ type Props = {
   error: string | null;
   ticker: string;
   onRun: () => void;
+  onWatchScenario: (
+    side: ForecastWatchSide,
+  ) => string;
   formatPrice: (
     value?: number,
   ) => string;
@@ -124,6 +130,7 @@ export default function AnalystForecastView({
   error,
   ticker,
   onRun,
+  onWatchScenario,
   formatPrice,
 }: Props) {
   const [journal, setJournal] =
@@ -132,7 +139,16 @@ export default function AnalystForecastView({
         loadForecastJournal(),
     );
 
+  const [
+    watchMessage,
+    setWatchMessage,
+  ] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
+    setWatchMessage(null);
+
     if (!result) return;
 
     setJournal((current) => {
@@ -686,6 +702,95 @@ export default function AnalystForecastView({
                 )}
               </strong>
             </div>
+          </div>
+
+          <div className="analyst-forecast-watch">
+            <header>
+              <div>
+                <span>
+                  SCENARIO WATCH
+                </span>
+                <strong>
+                  حوّل شروط السيناريو إلى تنبيهات
+                </strong>
+              </div>
+              <small>
+                Advanced Alerts
+              </small>
+            </header>
+
+            <div className="analyst-forecast-watch-actions">
+              <button
+                className="bull"
+                onClick={() =>
+                  setWatchMessage(
+                    onWatchScenario(
+                      "bull",
+                    ),
+                  )
+                }
+              >
+                <span>
+                  راقب اختراق المقاومة
+                </span>
+                <strong>
+                  {formatPrice(
+                    result.resistance,
+                  )}
+                </strong>
+                <small>
+                  صاعد ·{" "}
+                  {result.scenarios.find(
+                    (item) =>
+                      item.id === "bull",
+                  )?.probability ?? 0}
+                  %
+                </small>
+              </button>
+
+              <button
+                className="bear"
+                onClick={() =>
+                  setWatchMessage(
+                    onWatchScenario(
+                      "bear",
+                    ),
+                  )
+                }
+              >
+                <span>
+                  راقب كسر الدعم
+                </span>
+                <strong>
+                  {formatPrice(
+                    result.support,
+                  )}
+                </strong>
+                <small>
+                  هابط ·{" "}
+                  {result.scenarios.find(
+                    (item) =>
+                      item.id === "bear",
+                  )?.probability ?? 0}
+                  %
+                </small>
+              </button>
+            </div>
+
+            {watchMessage ? (
+              <div className="analyst-forecast-watch-message">
+                {watchMessage}
+              </div>
+            ) : null}
+
+            <p>
+              تنبيه سعري One-shot يستخدم
+              نظام Advanced Alerts الحالي.
+              لا يُنشأ تنبيه جديد إذا كان
+              نفس المستوى مراقبًا بالفعل،
+              ولا يُنشأ عند مستوى متحقق
+              تقريبًا الآن.
+            </p>
           </div>
 
           <div className="analyst-section-title">

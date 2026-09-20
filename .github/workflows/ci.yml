@@ -144,6 +144,9 @@ jobs:
       - name: Structured Catalyst Impact smoke test
         run: pnpm smoke:analyst-catalyst-impact
 
+      - name: Forecast Watch scenario alert smoke test
+        run: pnpm smoke:forecast-watch
+
       - name: Internal background alert sweep smoke test
         run: pnpm smoke:background-alerts
 

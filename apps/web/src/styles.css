@@ -13379,3 +13379,131 @@ button.object-tree-row {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+
+/* Forecast Watch V1 ------------------------------------------------------- */
+.analyst-forecast-watch {
+  margin: 10px 0;
+  border: 1px solid rgba(148,163,184,.065);
+  border-radius: 10px;
+  padding: 9px;
+  background:
+    radial-gradient(circle at 90% -20%, rgba(129,140,248,.055), transparent 34%),
+    rgba(7,12,20,.62);
+}
+
+.analyst-forecast-watch > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.analyst-forecast-watch > header span,
+.analyst-forecast-watch > header strong {
+  display: block;
+}
+
+.analyst-forecast-watch > header span {
+  color: #6d76ad;
+  font-size: 6px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.analyst-forecast-watch > header strong {
+  margin-top: 3px;
+  color: #b9c3d1;
+  font-size: 8px;
+}
+
+.analyst-forecast-watch > header small {
+  color: #58667b;
+  font-size: 5.5px;
+}
+
+.analyst-forecast-watch-actions {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0,1fr));
+  gap: 6px;
+}
+
+.analyst-forecast-watch-actions button {
+  min-width: 0;
+  border: 1px solid rgba(148,163,184,.055);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(2,6,15,.25);
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+
+.analyst-forecast-watch-actions button.bull {
+  border-right-color: rgba(34,197,94,.22);
+}
+
+.analyst-forecast-watch-actions button.bear {
+  border-right-color: rgba(248,113,113,.20);
+}
+
+.analyst-forecast-watch-actions span,
+.analyst-forecast-watch-actions strong,
+.analyst-forecast-watch-actions small {
+  display: block;
+}
+
+.analyst-forecast-watch-actions span {
+  color: #67758a;
+  font-size: 6px;
+}
+
+.analyst-forecast-watch-actions strong {
+  margin-top: 4px;
+  color: #b7c1ce;
+  font-size: 9px;
+}
+
+.analyst-forecast-watch-actions small {
+  margin-top: 3px;
+  color: #526075;
+  font-size: 5.5px;
+}
+
+.analyst-forecast-watch-actions
+button.bull:hover {
+  border-color: rgba(34,197,94,.16);
+  background: rgba(34,197,94,.035);
+}
+
+.analyst-forecast-watch-actions
+button.bear:hover {
+  border-color: rgba(248,113,113,.14);
+  background: rgba(248,113,113,.03);
+}
+
+.analyst-forecast-watch-message {
+  margin-top: 7px;
+  border: 1px solid rgba(129,140,248,.08);
+  border-radius: 7px;
+  padding: 7px;
+  background: rgba(129,140,248,.025);
+  color: #7986a0;
+  font-size: 5.8px;
+  line-height: 1.65;
+}
+
+.analyst-forecast-watch > p {
+  margin: 7px 0 0;
+  color: #526075;
+  font-size: 5.5px;
+  line-height: 1.7;
+}
+
+@media (max-width: 520px) {
+  .analyst-forecast-watch-actions {
+    grid-template-columns: 1fr;
+  }
+}

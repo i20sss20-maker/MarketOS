@@ -10,6 +10,9 @@ import AnalystForecastView from "./AnalystForecastView";
 import AnalystRadarView from "./AnalystRadarView";
 import AnalystPerformanceView from "./AnalystPerformanceView";
 import type { DataWindowSnapshot } from "../lib/dataWindow";
+import type {
+  ForecastWatchSide,
+} from "../lib/forecastWatch";
 
 type AiResult = Pick<ChartAnalysisResponse, "summary" | "observations" | "engine">;
 
@@ -41,6 +44,9 @@ type Props = {
   providerMessage?: string | null;
   onClose: () => void;
   onForecast: () => void;
+  onWatchForecast: (
+    side: ForecastWatchSide,
+  ) => string;
   onRadarSelect: (symbol: MarketSymbol) => void;
   onPromptChange: (value: string) => void;
   onRead: (prompt?: string) => void;
@@ -78,6 +84,7 @@ export default function CommercialAiPanel({
   providerMessage,
   onClose,
   onForecast,
+  onWatchForecast,
   onRadarSelect,
   onPromptChange,
   onRead,
@@ -135,6 +142,7 @@ export default function CommercialAiPanel({
           error={forecastError}
           ticker={ticker}
           onRun={onForecast}
+          onWatchScenario={onWatchForecast}
           formatPrice={formatPrice}
         />
       ) : null}
