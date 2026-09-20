@@ -14214,3 +14214,152 @@ button.bear:hover {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
+
+
+/* Forecast Performance V5 — probability reliability --------------------- */
+.analyst-probability-reliability {
+  margin-top: 6px;
+  border: 1px solid rgba(148,163,184,.05);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(2,6,15,.24);
+}
+
+.analyst-probability-reliability.reliability-good {
+  border-color: rgba(34,197,94,.12);
+  background:
+    linear-gradient(180deg, rgba(34,197,94,.025), rgba(2,6,15,.24));
+}
+
+.analyst-probability-reliability.reliability-watch {
+  border-color: rgba(245,158,11,.12);
+  background:
+    linear-gradient(180deg, rgba(245,158,11,.025), rgba(2,6,15,.24));
+}
+
+.analyst-probability-reliability.reliability-poor {
+  border-color: rgba(248,113,113,.13);
+  background:
+    linear-gradient(180deg, rgba(248,113,113,.026), rgba(2,6,15,.24));
+}
+
+.analyst-probability-reliability > header {
+  min-height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.analyst-probability-reliability > header > span:first-child {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.analyst-probability-reliability > header strong {
+  overflow: hidden;
+  color: #9faabb;
+  font-size: 6.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analyst-probability-reliability > header b {
+  border: 1px solid rgba(148,163,184,.07);
+  border-radius: 999px;
+  padding: 2px 5px;
+  color: #6b788c;
+  font-size: 5px;
+}
+
+.reliability-good > header b {
+  border-color: rgba(34,197,94,.12);
+  color: #76a487;
+}
+
+.reliability-watch > header b {
+  border-color: rgba(245,158,11,.12);
+  color: #b09767;
+}
+
+.reliability-poor > header b {
+  border-color: rgba(248,113,113,.12);
+  color: #b47c83;
+}
+
+.analyst-probability-reliability > header small {
+  color: #526075;
+  font-size: 5.2px;
+}
+
+.analyst-probability-reliability-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.analyst-probability-reliability-summary > div {
+  border-top: 1px solid rgba(148,163,184,.035);
+  padding-top: 5px;
+}
+
+.analyst-probability-reliability-summary span,
+.analyst-probability-reliability-summary strong {
+  display: block;
+}
+
+.analyst-probability-reliability-summary span {
+  color: #536176;
+  font-size: 5px;
+}
+
+.analyst-probability-reliability-summary strong {
+  margin-top: 2px;
+  color: #9ca8b8;
+  font-size: 7.5px;
+}
+
+.analyst-reliability-buckets {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.analyst-reliability-buckets > div {
+  display: grid;
+  grid-template-columns:
+    minmax(42px,.55fr)
+    repeat(3,minmax(54px,1fr));
+  gap: 6px;
+  align-items: center;
+  min-height: 26px;
+  border-top: 1px solid rgba(148,163,184,.03);
+  color: #59677a;
+  font-size: 5.2px;
+}
+
+.analyst-reliability-buckets > div > span:first-child {
+  color: #8f9bad;
+  font-weight: 700;
+}
+
+.analyst-probability-reliability > p {
+  margin: 7px 0 0;
+  color: #536176;
+  font-size: 5.4px;
+  line-height: 1.6;
+}
+
+@media (max-width: 760px) {
+  .analyst-probability-reliability-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .analyst-reliability-buckets > div {
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+}

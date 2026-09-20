@@ -120,6 +120,25 @@ function performanceDriftLabel(
   return "Drift: عينة غير كافية";
 }
 
+function reliabilityBriefLabel(
+  status:
+    AnalystBriefSnapshot["performance"]["reliabilityStatus"],
+) {
+  if (status === "good") {
+    return "الاحتمالات معايرتها جيدة";
+  }
+
+  if (status === "watch") {
+    return "معايرة الاحتمالات تحتاج مراقبة";
+  }
+
+  if (status === "poor") {
+    return "معايرة الاحتمالات ضعيفة";
+  }
+
+  return "المعايرة تجمع عينة";
+}
+
 function timeLabel(
   value: number | null,
 ) {
@@ -461,6 +480,15 @@ export default function AnalystBriefCard({
                       " نقطة",
                     )}`
                   : ""}
+                <br />
+                {reliabilityBriefLabel(
+                  brief.performance
+                    .reliabilityStatus,
+                )}
+                {brief.performance.reliabilityEce !==
+                null
+                  ? ` · ECE ${brief.performance.reliabilityEce}`
+                  : ` · ${brief.performance.reliabilityResolved}/20`}
               </small>
             </div>
           </div>

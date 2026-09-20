@@ -102,6 +102,16 @@ export type AnalystBriefSnapshot = {
       number | null;
     driftRecentSize: number;
     driftBaselineSize: number;
+    reliabilityStatus:
+      | "insufficient"
+      | "good"
+      | "watch"
+      | "poor";
+    reliabilityResolved: number;
+    reliabilityEce:
+      number | null;
+    reliabilityMaxGap:
+      number | null;
     accuracyLow95: number | null;
     accuracyHigh95: number | null;
     accuracy: number | null;
@@ -511,6 +521,18 @@ export function buildAnalystBrief(
       driftBaselineSize:
         performance.drift
           .baselineSize,
+      reliabilityStatus:
+        performance.reliability
+          .status,
+      reliabilityResolved:
+        performance.reliability
+          .resolved,
+      reliabilityEce:
+        performance.reliability
+          .ece,
+      reliabilityMaxGap:
+        performance.reliability
+          .maxGap,
       accuracyLow95:
         (
           performance

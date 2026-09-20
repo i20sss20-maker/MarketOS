@@ -86,6 +86,38 @@ export type ForecastPerformanceDrift = {
   reason: string[];
 };
 
+export type ForecastCalibrationReliabilityStatus =
+  | "insufficient"
+  | "good"
+  | "watch"
+  | "poor";
+
+export type ForecastCalibrationReliabilityBucket = {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+  resolved: number;
+  correct: number;
+  averageExpectedProbability:
+    number | null;
+  observedAccuracy:
+    number | null;
+  gap: number | null;
+  weightPercent: number;
+};
+
+export type ForecastCalibrationReliability = {
+  engine: string | null;
+  status:
+    ForecastCalibrationReliabilityStatus;
+  resolved: number;
+  ece: number | null;
+  maxGap: number | null;
+  buckets:
+    ForecastCalibrationReliabilityBucket[];
+};
+
 export type ForecastPerformanceReport = {
   summary:
     ReturnType<
@@ -99,6 +131,8 @@ export type ForecastPerformanceReport = {
     ForecastPerformanceEngine[];
   drift:
     ForecastPerformanceDrift;
+  reliability:
+    ForecastCalibrationReliability;
   averageExpectedProbability:
     number | null;
   calibrationGap:
@@ -789,6 +823,217 @@ function buildPerformanceDrift(
   };
 }
 
+const reliabilityBucketDefinitions = [
+  {
+    id: "lt50",
+    label: "<50%",
+    min: 0,
+    max: 49,
+  },
+  {
+    id: "50-59",
+    label: "50–59%",
+    min: 50,
+    max: 59,
+  },
+  {
+    id: "60-69",
+    label: "60–69%",
+    min: 60,
+    max: 69,
+  },
+  {
+    id: "70-79",
+    label: "70–79%",
+    min: 70,
+    max: 79,
+  },
+  {
+    id: "80plus",
+    label: "80%+",
+    min: 80,
+    max: 100,
+  },
+] as const;
+
+function buildCalibrationReliability(
+  records:
+    ForecastJournalRecord[],
+  currentEngine: string | null,
+): ForecastCalibrationReliability {
+  if (!currentEngine) {
+    return {
+      engine: null,
+      status:
+        "insufficient",
+      resolved: 0,
+      ece: null,
+      maxGap: null,
+      buckets:
+        reliabilityBucketDefinitions.map(
+          (bucket) => ({
+            ...bucket,
+            resolved: 0,
+            correct: 0,
+            averageExpectedProbability:
+              null,
+            observedAccuracy:
+              null,
+            gap: null,
+            weightPercent: 0,
+          }),
+        ),
+    };
+  }
+
+  const current =
+    records.filter(
+      (record) =>
+        engineLabel(
+          record,
+        ) === currentEngine,
+    );
+
+  const total =
+    current.length;
+
+  const buckets =
+    reliabilityBucketDefinitions.map(
+      (bucket) => {
+        const selected =
+          current.filter(
+            (record) =>
+              record.expectedProbability >=
+                bucket.min &&
+              record.expectedProbability <=
+                bucket.max,
+          );
+        const correct =
+          selected.filter(
+            (record) =>
+              record.correct ===
+              true,
+          ).length;
+        const expected =
+          average(
+            selected.map(
+              (record) =>
+                record.expectedProbability,
+            ),
+          );
+        const observed =
+          accuracy(
+            correct,
+            selected.length,
+          );
+        const gap =
+          expected === null ||
+          observed === null
+            ? null
+            : round(
+                observed -
+                  expected,
+                1,
+              );
+
+        return {
+          ...bucket,
+          resolved:
+            selected.length,
+          correct,
+          averageExpectedProbability:
+            expected === null
+              ? null
+              : round(
+                  expected,
+                  1,
+                ),
+          observedAccuracy:
+            observed,
+          gap,
+          weightPercent:
+            total > 0
+              ? round(
+                  (
+                    selected.length /
+                    total
+                  ) * 100,
+                  1,
+                )
+              : 0,
+        };
+      },
+    );
+
+  if (total < 20) {
+    return {
+      engine:
+        currentEngine,
+      status:
+        "insufficient",
+      resolved: total,
+      ece: null,
+      maxGap: null,
+      buckets,
+    };
+  }
+
+  const weightedGap =
+    buckets.reduce(
+      (sum, bucket) =>
+        sum +
+        (
+          bucket.gap === null
+            ? 0
+            : Math.abs(
+                bucket.gap,
+              ) *
+              (
+                bucket.resolved /
+                total
+              )
+        ),
+      0,
+    );
+  const maxGap =
+    Math.max(
+      0,
+      ...buckets
+        .map(
+          (bucket) =>
+            bucket.gap === null
+              ? 0
+              : Math.abs(
+                  bucket.gap,
+                ),
+        ),
+    );
+  const ece =
+    round(
+      weightedGap,
+      1,
+    );
+
+  return {
+    engine:
+      currentEngine,
+    status:
+      ece <= 7
+        ? "good"
+        : ece <= 15
+          ? "watch"
+          : "poor",
+    resolved: total,
+    ece,
+    maxGap:
+      round(
+        maxGap,
+        1,
+      ),
+    buckets,
+  };
+}
+
 function providerResolved(
   records:
     ForecastJournalRecord[],
@@ -1111,6 +1356,11 @@ export function buildForecastPerformance(
       resolved,
       currentEngine,
     );
+  const reliability =
+    buildCalibrationReliability(
+      resolved,
+      currentEngine,
+    );
   const expected =
     average(
       resolved.map(
@@ -1131,6 +1381,7 @@ export function buildForecastPerformance(
     currentEnginePerformance,
     engines,
     drift,
+    reliability,
     averageExpectedProbability:
       expected === null
         ? null

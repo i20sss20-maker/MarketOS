@@ -107,6 +107,28 @@ function driftLabel(
   return "عينة غير كافية";
 }
 
+function reliabilityLabel(
+  status:
+    "insufficient" |
+    "good" |
+    "watch" |
+    "poor",
+) {
+  if (status === "good") {
+    return "جيدة";
+  }
+
+  if (status === "watch") {
+    return "تحتاج مراقبة";
+  }
+
+  if (status === "poor") {
+    return "ضعيفة";
+  }
+
+  return "عينة غير كافية";
+}
+
 function dateLabel(
   timestamp?: number,
 ) {
@@ -539,6 +561,113 @@ export default function AnalystPerformanceView({
             ),
           )}
         </div>
+      </div>
+
+      <div className="analyst-performance-section-head">
+        <strong>
+          Probability Reliability
+        </strong>
+        <small>
+          هل 70% تعني تقريبًا 70% فعلًا؟
+        </small>
+      </div>
+
+      <div
+        className={
+          `analyst-probability-reliability reliability-${performance.reliability.status}`
+        }
+      >
+        <header>
+          <span>
+            <strong>
+              {performance.reliability.engine ??
+                "لا يوجد محرك حالي"}
+            </strong>
+            <b>
+              {reliabilityLabel(
+                performance.reliability
+                  .status,
+              )}
+            </b>
+          </span>
+          <small>
+            {performance.reliability
+              .resolved}
+            {" "}
+            نتيجة
+          </small>
+        </header>
+
+        <div className="analyst-probability-reliability-summary">
+          <div>
+            <span>ECE</span>
+            <strong>
+              {performance.reliability.ece ===
+              null
+                ? "—"
+                : `${performance.reliability.ece} نقطة`}
+            </strong>
+          </div>
+          <div>
+            <span>أكبر فجوة</span>
+            <strong>
+              {performance.reliability.maxGap ===
+              null
+                ? "—"
+                : `${performance.reliability.maxGap} نقطة`}
+            </strong>
+          </div>
+          <div>
+            <span>الحد الأدنى</span>
+            <strong>
+              20
+            </strong>
+          </div>
+        </div>
+
+        <div className="analyst-reliability-buckets">
+          {performance.reliability.buckets.map(
+            (bucket) => (
+              <div key={bucket.id}>
+                <span>
+                  {bucket.label}
+                </span>
+                <span>
+                  متوقع{" "}
+                  {bucket.averageExpectedProbability ===
+                  null
+                    ? "—"
+                    : `${bucket.averageExpectedProbability}%`}
+                </span>
+                <span>
+                  متحقق{" "}
+                  {bucket.observedAccuracy ===
+                  null
+                    ? "—"
+                    : `${bucket.observedAccuracy}%`}
+                </span>
+                <span>
+                  n={bucket.resolved}
+                </span>
+              </div>
+            ),
+          )}
+        </div>
+
+        {performance.reliability.status ===
+        "insufficient" ? (
+          <p>
+            يحتاج المحرك الحالي 20 نتيجة
+            Provider محسومة على الأقل قبل
+            تقييم جودة الاحتمالات.
+          </p>
+        ) : (
+          <p>
+            ECE هو متوسط الفرق المرجّح بين
+            الاحتمال المتوقع والنتيجة
+            المحققة؛ الأقل أفضل.
+          </p>
+        )}
       </div>
 
       <div className="analyst-performance-section-head">
