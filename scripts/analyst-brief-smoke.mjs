@@ -558,6 +558,18 @@ assert.equal(
   brief.performance.driftBaselineSize,
   0,
 );
+assert.equal(
+  brief.performance.reliabilityStatus,
+  "insufficient",
+);
+assert.equal(
+  brief.performance.reliabilityResolved,
+  2,
+);
+assert.equal(
+  brief.performance.reliabilityEce,
+  null,
+);
 
 const matureJournal = [
   ...journal,
@@ -624,6 +636,14 @@ assert.equal(
 assert.equal(
   matureBrief.performance.driftStatus,
   "insufficient",
+);
+assert.equal(
+  matureBrief.performance.reliabilityStatus,
+  "insufficient",
+);
+assert.equal(
+  matureBrief.performance.reliabilityResolved,
+  5,
 );
 assert.equal(
   brief.radarProviderCount,
@@ -713,6 +733,14 @@ assert.match(
 assert.match(
   card,
   /performanceDriftLabel/,
+);
+assert.match(
+  card,
+  /reliabilityBriefLabel/,
+);
+assert.match(
+  card,
+  /reliabilityEce/,
 );
 assert.match(
   card,
