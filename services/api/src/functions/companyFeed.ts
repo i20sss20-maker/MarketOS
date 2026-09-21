@@ -2,7 +2,7 @@ import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import type { AssetClass, MarketSymbol } from "@marketos/market-core";
 import { companyFeedProvider } from "../feed/index.js";
 import { json, marketError, preflight } from "../http/responses.js";
-import { assertProductionMarketAccess } from "../production/marketAccess.js";
+import { authorizeProductionMarketRequest } from "../production/marketAccess.js";
 
 const assetClasses = new Set<AssetClass>([
   "stock",
@@ -53,7 +53,7 @@ export async function companyFeed(request: HttpRequest): Promise<HttpResponseIni
   if (request.method === "OPTIONS") return preflight();
 
   try {
-    assertProductionMarketAccess(request);
+    await authorizeProductionMarketRequest(request, 2);
     const body = await request.json() as {
       symbols?: unknown;
       outputSize?: unknown;
