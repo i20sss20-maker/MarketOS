@@ -4,6 +4,7 @@ import { assertRealProvider, assertRequestOrigin, forecastLedgerConfig, Producti
 import { marketDataProvider } from "../providers/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { assertOperationsPolicy } from "../production/operationsPolicy.js";
 import { assertMarketDataPolicy } from "../production/marketDataPolicy.js";
 
 export async function productionReadiness(_request: HttpRequest): Promise<HttpResponseInit> {
@@ -14,6 +15,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     () => assertRequestOrigin(null),
     () => assertMarketDataPolicy(),
     () => configuredForecastHardCap(),
+    () => assertOperationsPolicy(),
     () => {
       if (entitlementStore.mode !== "cosmos") {
         throw new ProductionGateError("ENTITLEMENTS_NOT_PERSISTENT", "Persistent entitlements are required for production forecast quotas.");
@@ -35,7 +37,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     requiredAcceptanceChecks: [
       "HOSTED_AUTH_AND_OWNER_ISOLATION", "COSMOS_WRITE_READ_RESTART", "HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS",
       "CLIENT_DEMO_FALLBACK_REMOVAL", "SERVER_OUTCOME_EVALUATION", "HOSTED_QUOTA_CONCURRENCY",
-      "LOAD_TESTING_AND_RECOVERY", "OBSERVABILITY_AND_COST_ALERTS",
+      "LOAD_TESTING_AND_RECOVERY", "APPLICATION_INSIGHTS_AND_LOG_REVIEW",
     ],
   });
 }
