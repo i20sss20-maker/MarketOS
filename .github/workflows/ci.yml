@@ -40,6 +40,9 @@ jobs:
       - name: Strict provider endpoint authentication smoke test
         run: pnpm smoke:production-market-auth
 
+      - name: Hosted production boundary workflow source smoke test
+        run: pnpm smoke:hosted-boundary-source
+
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
 
