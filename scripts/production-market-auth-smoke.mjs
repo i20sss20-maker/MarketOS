@@ -221,7 +221,7 @@ for (const name of protectedFiles) {
 
   assert.match(
     source,
-    /authorizeProductionMarketRequest\\(request/,
+    /authorizeProductionMarketRequest\(request/,
     `${name} must enforce strict authenticated and quota-guarded market access`,
   );
 
