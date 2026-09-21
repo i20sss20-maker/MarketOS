@@ -43,6 +43,9 @@ jobs:
       - name: Hosted production boundary workflow source smoke test
         run: pnpm smoke:hosted-boundary-source
 
+      - name: Free-tier production storage bootstrap smoke test
+        run: pnpm smoke:production-storage-bootstrap
+
       - name: Forecast generation quota concurrency smoke test
         run: pnpm smoke:forecast-quota
 
@@ -209,6 +212,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-cosmos.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-alert-worker.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-web-push.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-production-storage.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4
