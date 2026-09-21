@@ -73,6 +73,8 @@ $actionGroupId = $actionGroup.id
 
 function Ensure-MetricAlert(
   [string]$Name,
+  [string]$MetricName,
+  [decimal]$Threshold,
   [string]$Condition,
   [int]$Severity,
   [string]$Description
@@ -100,10 +102,26 @@ function Ensure-MetricAlert(
   if (@($existing.scopes) -notcontains $swaId) {
     throw "Metric alert '$Name' does not target the MarketOS Static Web App."
   }
+
+  $criterion = @($existing.criteria.allOf)[0]
+  if (-not $criterion -or $criterion.metricName -ne $MetricName -or
+      $criterion.timeAggregation -ne "Total" -or $criterion.operator -ne "GreaterThan" -or
+      [decimal]$criterion.threshold -ne $Threshold) {
+    throw "Metric alert '$Name' exists but its metric/aggregation/operator/threshold does not match the MarketOS policy."
+  }
+
+  if ($existing.windowSize -ne "PT5M" -or $existing.evaluationFrequency -ne "PT1M") {
+    throw "Metric alert '$Name' exists but its window/evaluation frequency does not match the MarketOS policy."
+  }
+
+  $alertActionIds = @($existing.actions | ForEach-Object { $_.actionGroupId })
+  if ($alertActionIds -notcontains $actionGroupId) {
+    throw "Metric alert '$Name' is not connected to the MarketOS action group."
+  }
 }
 
-Ensure-MetricAlert -Name "marketos-function-errors" -Condition "total FunctionErrors > 0" -Severity 1 -Description "MarketOS managed API function errors detected."
-Ensure-MetricAlert -Name "marketos-site-errors" -Condition "total SiteErrors > 5" -Severity 2 -Description "MarketOS site errors exceeded five in a five-minute window."
+Ensure-MetricAlert -Name "marketos-function-errors" -MetricName "FunctionErrors" -Threshold 0 -Condition "total FunctionErrors > 0" -Severity 1 -Description "MarketOS managed API function errors detected."
+Ensure-MetricAlert -Name "marketos-site-errors" -MetricName "SiteErrors" -Threshold 5 -Condition "total SiteErrors > 5" -Severity 2 -Description "MarketOS site errors exceeded five in a five-minute window."
 
 $budget = $null
 try {
@@ -149,6 +167,18 @@ if (-not $budget) {
 
 if ([decimal]$budget.amount -ne $MonthlyBudgetAmount) {
   throw "Existing budget '$BudgetName' amount does not match the requested amount. It was not modified automatically."
+}
+
+$actual80 = $budget.notifications.Actual80
+$actual100 = $budget.notifications.Actual100
+if (-not $actual80 -or -not $actual100 -or
+    -not $actual80.enabled -or -not $actual100.enabled -or
+    [decimal]$actual80.threshold -ne 80 -or [decimal]$actual100.threshold -ne 100 -or
+    $actual80.operator -ne "GreaterThanOrEqualTo" -or $actual100.operator -ne "GreaterThanOrEqualTo" -or
+    @($actual80.contactEmails) -notcontains $ContactEmail -or
+    @($actual100.contactEmails) -notcontains $ContactEmail -or
+    @($actual100.contactGroups) -notcontains $actionGroupId) {
+  throw "Budget '$BudgetName' exists but its 80%/100% notification policy does not match MarketOS requirements."
 }
 
 Write-Host "Writing non-secret operations readiness flags..." -ForegroundColor Cyan

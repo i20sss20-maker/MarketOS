@@ -43,8 +43,8 @@ It verifies that the Static Web App publishes the documented `FunctionErrors` an
   notifications.
 
 If an existing action group has a different email, an alert is disabled/wrongly scoped,
-or an existing budget has a different amount, the script stops rather than silently
-rewriting operational policy.
+its metric/threshold/cadence/action group differs, or an existing budget amount/80%-100%
+notification policy differs, the script stops rather than silently rewriting operational policy.
 
 Only after the resources verify does it set:
 

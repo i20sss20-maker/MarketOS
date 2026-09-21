@@ -145,6 +145,26 @@ assert.equal(
     ?.configured,
   true,
 );
+assert.equal(
+  health.body
+    ?.operations
+    ?.metricAlertsConfigured,
+  true,
+  "Hosted production requires configured Azure metric alerts.",
+);
+assert.equal(
+  health.body
+    ?.operations
+    ?.costBudgetConfigured,
+  true,
+  "Hosted production requires a configured Azure cost budget notification.",
+);
+assert.equal(
+  health.body
+    ?.operations
+    ?.configured,
+  true,
+);
 evidence.checks.health =
   health;
 
