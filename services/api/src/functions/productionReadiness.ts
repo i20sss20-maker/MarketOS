@@ -4,6 +4,7 @@ import { assertRealProvider, assertRequestOrigin, forecastLedgerConfig, Producti
 import { marketDataProvider } from "../providers/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { configuredMarketDataDailyHardCap } from "../usage/marketDataQuota.js";
 import { assertOperationsPolicy } from "../production/operationsPolicy.js";
 import { assertMarketDataPolicy } from "../production/marketDataPolicy.js";
 
@@ -15,6 +16,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     () => assertRequestOrigin(null),
     () => assertMarketDataPolicy(),
     () => configuredForecastHardCap(),
+    () => configuredMarketDataDailyHardCap(),
     () => assertOperationsPolicy(),
     () => {
       if (entitlementStore.mode !== "cosmos") {
