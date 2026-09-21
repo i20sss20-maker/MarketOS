@@ -61,6 +61,22 @@ assert.match(
 );
 assert.match(
   script,
+  /x-ms-client-principal/,
+);
+assert.match(
+  script,
+  /spoofed-acceptance-user/,
+);
+assert.match(
+  script,
+  /cannot reach the market-data provider/,
+);
+assert.match(
+  script,
+  /assert\.notEqual\([\s\S]*spoofAttempt\.status,[\s\S]*400/,
+);
+assert.match(
+  script,
   /productionReady/,
 );
 assert.match(
