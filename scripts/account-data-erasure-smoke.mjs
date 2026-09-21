@@ -2,10 +2,6 @@ import assert from "node:assert/strict";
 import {
   readFileSync,
 } from "node:fs";
-import {
-  dirname,
-  resolve,
-} from "node:path";
 import ts from "typescript";
 
 const dataUrl = source =>
@@ -200,7 +196,7 @@ assert.equal(
   "Another user's partition must not be touched.",
 );
 
-assert.rejects(
+await assert.rejects(
   () =>
     ledger.deleteUserData(""),
   error =>
