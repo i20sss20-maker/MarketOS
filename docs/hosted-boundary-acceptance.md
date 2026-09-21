@@ -14,6 +14,9 @@ The workflow performs no authenticated provider request. It verifies:
   full production acceptance;
 - anonymous quote, candle, search, overview, event and company-feed requests return
   `AUTH_REQUIRED` before provider work can begin;
+- a forged client-supplied `x-ms-client-principal` header is stripped/rejected by the hosted
+  Static Web Apps boundary. This probe intentionally omits the search query, so even a broken
+  boundary returns before any market-data provider request can occur;
 - the legacy Demo snapshot endpoint is disabled;
 - anonymous server forecast history is blocked.
 
