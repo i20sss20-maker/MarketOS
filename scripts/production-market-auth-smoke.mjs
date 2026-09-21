@@ -55,6 +55,41 @@ export function assertRequestOrigin(origin) {
 }
 `);
 
+const ownerUrl = dataUrl(`
+export function ownerKey(user) {
+  return `owner:${user.identityProvider}:${user.userId}`;
+}
+`);
+
+const quotaStoreUrl = dataUrl(`
+export function getMarketApiQuotaStore() {
+  return {
+    async consume(_owner, limit, cost) {
+      return {
+        allowed: true,
+        day: "2026-09-21",
+        used: cost,
+        limit,
+        remaining: limit - cost,
+        resetAt: Date.UTC(2026, 8, 22),
+      };
+    },
+  };
+}
+`);
+
+const quotaUrl = dataUrl(`
+export function configuredMarketApiHardCap() {
+  return 1000;
+}
+export function marketApiQuotaExceeded(decision) {
+  const error = new Error("quota");
+  error.code = "DAILY_MARKET_API_LIMIT";
+  error.status = 429;
+  return error;
+}
+`);
+
 let compiled = transpile(
   readFileSync(
     "services/api/src/production/marketAccess.ts",
@@ -68,10 +103,23 @@ let compiled = transpile(
   .replaceAll(
     '"./policy.js"',
     JSON.stringify(policyUrl),
+  )
+  .replaceAll(
+    '"../forecasts/ledger.js"',
+    JSON.stringify(ownerUrl),
+  )
+  .replaceAll(
+    '"../usage/cosmosMarketApiQuota.js"',
+    JSON.stringify(quotaStoreUrl),
+  )
+  .replaceAll(
+    '"../usage/marketApiQuota.js"',
+    JSON.stringify(quotaUrl),
   );
 
 const {
   assertProductionMarketAccess,
+  authorizeProductionMarketRequest,
 } = await import(
   dataUrl(compiled),
 );
@@ -141,6 +189,20 @@ assert.equal(
   user,
 );
 
+const authorized =
+  await authorizeProductionMarketRequest(
+    request(user),
+    2,
+  );
+assert.equal(
+  authorized.user,
+  user,
+);
+assert.equal(
+  authorized.usage.used,
+  2,
+);
+
 const protectedFiles = [
   "marketQuote.ts",
   "marketCandles.ts",
@@ -160,12 +222,12 @@ for (const name of protectedFiles) {
   assert.match(
     source,
     /assertProductionMarketAccess\(request\)/,
-    `${name} must enforce strict authenticated market access`,
+    `${name} must enforce strict authenticated and quota-guarded market access`,
   );
 
   const guard =
     source.indexOf(
-      "assertProductionMarketAccess(request)",
+      "authorizeProductionMarketRequest(request",
     );
   const providerCall =
     Math.min(
@@ -188,7 +250,7 @@ for (const name of protectedFiles) {
     guard >= 0 &&
       providerCall >= 0 &&
       guard < providerCall,
-    `${name} must authenticate before provider work`,
+    `${name} must authorize and consume quota before provider work`,
   );
 }
 
