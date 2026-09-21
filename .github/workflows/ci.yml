@@ -70,6 +70,9 @@ jobs:
       - name: Exact-SHA production release evidence gate smoke test
         run: pnpm smoke:production-release-evidence
 
+      - name: Production cutover preflight safety smoke test
+        run: pnpm smoke:production-cutover-preflight
+
       - name: Full account-data erasure smoke test
         run: pnpm smoke:account-data-erasure
 
@@ -271,6 +274,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-operations-guardrails.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/sync-deployment-token.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/sync-market-data-credential.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/production-cutover-preflight.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-forecast-evaluation.ps1" -Raw)) | Out-Null
 
