@@ -7,6 +7,7 @@ import { getWebPushConfiguration } from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { operationsPolicy } from "../production/operationsPolicy.js";
 import { marketDataPolicy } from "../production/marketDataPolicy.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -20,6 +21,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   const environment = (process.env.MARKETOS_ENVIRONMENT ?? "local").trim() || "local";
   const buildSha = (process.env.MARKETOS_BUILD_SHA ?? process.env.GITHUB_SHA ?? "dev").trim();
   const webPush = getWebPushConfiguration();
+  const operations = operationsPolicy();
   let forecastHardCap: number | null = null;
   try {
     forecastHardCap = configuredForecastHardCap();
@@ -52,6 +54,11 @@ export async function health(_request: HttpRequest, context: InvocationContext):
         hardCap: forecastHardCap,
         entitlementStorage: entitlementStore.mode,
         window: "utc-day",
+      },
+      operations: {
+        metricAlertsConfigured: operations.metricAlertsConfigured,
+        costBudgetConfigured: operations.costBudgetConfigured,
+        configured: operations.configured,
       },
       backgroundAlerts: {
         enabled:
