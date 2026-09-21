@@ -1826,6 +1826,18 @@ export default function App() {
             ? "جلسة تجريبية"
             : "حالة الجلسة غير متاحة";
 
+  const dataTimingLabel = replayActive
+    ? "Replay data"
+    : providerStatus?.dataPolicy?.timing === "realtime"
+      ? "Real-time"
+      : providerStatus?.dataPolicy?.timing === "delayed"
+        ? `Delayed ${providerStatus.dataPolicy.delayMinutes ?? "?"}m`
+        : providerStatus?.dataPolicy?.timing === "end-of-day"
+          ? "EOD"
+          : REQUIRE_REAL_DATA
+            ? "Timing unverified"
+            : "Preview data";
+
   const sessionState = replayActive
     ? "replay"
     : quote?.isMarketOpen === true || quote?.isExtendedHours
@@ -6054,6 +6066,7 @@ export default function App() {
           </strong>
         </span>
         <span>{active.exchange}</span>
+        <span title="توقيت البيانات المعلن من إعدادات MarketOS">{dataTimingLabel}</span>
         <span>
           {activeWatchlist?.name ?? "Watchlist"} <b>{watchlist.length}</b>
         </span>

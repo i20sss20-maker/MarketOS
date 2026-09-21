@@ -9,6 +9,27 @@ type Props = {
   onClose: () => void;
 };
 
+function dataTimingLabel(
+  policy: SystemHealth["marketData"]["dataPolicy"],
+) {
+  if (!policy) return "التوقيت غير معلن";
+  if (policy.timing === "realtime") return "لحظية حسب الترخيص";
+  if (policy.timing === "delayed") {
+    return `متأخرة ${policy.delayMinutes ?? "?"} دقيقة`;
+  }
+  if (policy.timing === "end-of-day") return "نهاية اليوم";
+  return "التوقيت غير معلن";
+}
+
+function dataUsageLabel(
+  policy: SystemHealth["marketData"]["dataPolicy"],
+) {
+  if (!policy) return "حقوق الاستخدام غير معلنة";
+  if (policy.usageScope === "commercial") return "استخدام تجاري معلن";
+  if (policy.usageScope === "personal") return "استخدام شخصي معلن";
+  return "حقوق الاستخدام غير معلنة";
+}
+
 function StatusDot({ mode }: { mode: string }) {
   const state =
     mode === "provider"
@@ -94,6 +115,18 @@ export default function SystemPanel({
                     <span>{health.marketData.supportsQuotes ? "Quotes ✓" : "Quotes —"}</span>
                     <span>{health.marketData.supportsCandles ? "Candles ✓" : "Candles —"}</span>
                   </div>
+                  <div className="system-capabilities">
+                    <span>{dataTimingLabel(health.marketData.dataPolicy)}</span>
+                    <span>{dataUsageLabel(health.marketData.dataPolicy)}</span>
+                    <span>
+                      {health.marketData.dataPolicy?.rightsConfirmed
+                        ? "إقرار الحقوق ✓"
+                        : "إقرار الحقوق —"}
+                    </span>
+                  </div>
+                  <small>
+                    حالة الحقوق هنا إقرار إعداد من المشغّل وليست تحققًا مستقلاً من الترخيص.
+                  </small>
                 </article>
 
                 <article className="system-service-card">
