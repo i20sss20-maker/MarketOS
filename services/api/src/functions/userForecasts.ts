@@ -4,19 +4,30 @@ const { app, HttpRequest: AzureHttpRequest } = azureFunctions;
 import { randomUUID } from "node:crypto";
 import type { AnalystForecastResponse } from "@marketos/market-core";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
+import { entitlementStore, getResolvedUserEntitlement } from "../entitlements/index.js";
 import { getForecastLedger, storageUnavailable } from "../forecasts/cosmosLedger.js";
 import { assertSameRequest, createForecastRecord, forecastRecordId, ownerKey, publicForecastRecord, type ForecastLedger } from "../forecasts/ledger.js";
 import { assertRealProvider, assertRequestOrigin, ProductionGateError, realDataRequired } from "../production/policy.js";
 import { marketDataProvider } from "../providers/index.js";
 import { json, preflight } from "../http/responses.js";
 import { analystForecast, sanitizeSymbol } from "./analystForecast.js";
+import { getForecastQuotaStore } from "../usage/cosmosForecastQuota.js";
+import { effectiveForecastDailyLimit, quotaExceeded, type ForecastQuotaDecision, type ForecastQuotaStore } from "../usage/forecastQuota.js";
 
 // Dependencies are injectable for deterministic endpoint tests; production always uses Cosmos.
-export function createUserForecastsHandler(deps = {
+const defaultUserForecastDependencies = {
   ledger: getForecastLedger as () => ForecastLedger,
   generate: analystForecast,
   provider: marketDataProvider,
-}) {
+  quota: getForecastQuotaStore as () => ForecastQuotaStore,
+  entitlement: getResolvedUserEntitlement,
+  entitlementMode: () => entitlementStore.mode,
+};
+
+export function createUserForecastsHandler(
+  overrides: Partial<typeof defaultUserForecastDependencies> = {},
+) {
+  const deps = { ...defaultUserForecastDependencies, ...overrides };
   return async (request: HttpRequest): Promise<HttpResponseInit> => {
     if (request.method === "OPTIONS") return preflight();
     const user = getAuthenticatedUser(request);
@@ -65,6 +76,27 @@ export function createUserForecastsHandler(deps = {
         return json(200, { ok: true, forecast: previous.forecast, journal: publicForecastRecord(previous), replayed: true });
       }
       assertRealProvider(deps.provider);
+      if (deps.entitlementMode() !== "cosmos") {
+        throw new ProductionGateError("ENTITLEMENTS_NOT_PERSISTENT", "Persistent entitlements are required before real forecast generation is enabled.");
+      }
+      const entitlement = await deps.entitlement(user.userId);
+      const quotaLimit = effectiveForecastDailyLimit(entitlement);
+      let quota: ForecastQuotaDecision;
+      try {
+        quota = await deps.quota().consume(owner, quotaLimit);
+      } catch (error) {
+        if (error instanceof ProductionGateError) throw error;
+        throw new ProductionGateError("FORECAST_QUOTA_UNAVAILABLE", "Forecast quota storage is unavailable. No provider request was started.");
+      }
+      if (!quota.allowed) {
+        const exceeded = quotaExceeded(quota);
+        return json(exceeded.status, {
+          ok: false,
+          code: exceeded.code,
+          error: exceeded.message,
+          usage: { used: quota.used, limit: quota.limit, remaining: quota.remaining, resetAt: quota.resetAt },
+        });
+      }
       const generated = await deps.generate(new AzureHttpRequest({ method: "POST", url: request.url,
         headers: { "content-type": "application/json", "x-ms-client-principal": request.headers.get("x-ms-client-principal") ?? "" },
         body: { string: JSON.stringify({ symbol }) } }));
@@ -76,7 +108,13 @@ export function createUserForecastsHandler(deps = {
       assertSameRequest(record, owner, symbol);
       const saved = await store.create(record);
       assertSameRequest(saved, owner, symbol);
-      return json(200, { ok: true, forecast: saved.forecast, journal: publicForecastRecord(saved), replayed: saved.forecastHash !== record.forecastHash });
+      return json(200, {
+        ok: true,
+        forecast: saved.forecast,
+        journal: publicForecastRecord(saved),
+        replayed: saved.forecastHash !== record.forecastHash,
+        usage: { used: quota.used, limit: quota.limit, remaining: quota.remaining, resetAt: quota.resetAt },
+      });
     } catch (error) {
       const safe = error instanceof ProductionGateError ? error : storageUnavailable();
       return json(safe.status, { ok: false, code: safe.code, error: safe.message });
