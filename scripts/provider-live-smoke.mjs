@@ -10,10 +10,10 @@ import {
   assertMarketDataPolicy,
 } from "../services/api/dist/src/production/marketDataPolicy.js";
 
-const apiKey =
+const providerSecret =
   process.env.TWELVE_DATA_API_KEY?.trim();
 
-if (!apiKey) {
+if (!providerSecret) {
   throw new Error(
     "TWELVE_DATA_API_KEY is required for the live provider integration check.",
   );
@@ -30,7 +30,7 @@ const policy =
 
 const provider =
   new TwelveDataMarketDataProvider(
-    apiKey,
+    providerSecret,
   );
 
 function requireMatch(
