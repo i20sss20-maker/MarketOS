@@ -10,6 +10,9 @@ import {
   ProductionGateError,
   realDataRequired,
 } from "./policy.js";
+import { ownerKey } from "../forecasts/ledger.js";
+import { getMarketApiQuotaStore } from "../usage/cosmosMarketApiQuota.js";
+import { configuredMarketApiHardCap, marketApiQuotaExceeded, type MarketApiQuotaDecision } from "../usage/marketApiQuota.js";
 
 /**
  * Paid/provider-backed market endpoints stay usable in explicit preview mode,
@@ -39,4 +42,64 @@ export function assertProductionMarketAccess(
   }
 
   return user;
+}
+
+
+export type ProductionMarketAccess = {
+  user: AuthenticatedUser;
+  usage: MarketApiQuotaDecision;
+};
+
+export async function authorizeProductionMarketRequest(
+  request: HttpRequest,
+  cost = 1,
+): Promise<ProductionMarketAccess | null> {
+  const user =
+    assertProductionMarketAccess(
+      request,
+    );
+
+  if (!user) {
+    return null;
+  }
+
+  const limit =
+    configuredMarketApiHardCap();
+
+  let usage:
+    MarketApiQuotaDecision;
+
+  try {
+    usage =
+      await getMarketApiQuotaStore()
+        .consume(
+          ownerKey(user),
+          limit,
+          cost,
+        );
+  } catch (error) {
+    if (
+      error instanceof
+      ProductionGateError
+    ) {
+      throw error;
+    }
+
+    throw new ProductionGateError(
+      "MARKET_API_QUOTA_UNAVAILABLE",
+      "Market-data request quota is unavailable. No provider request was started.",
+      503,
+    );
+  }
+
+  if (!usage.allowed) {
+    throw marketApiQuotaExceeded(
+      usage,
+    );
+  }
+
+  return {
+    user,
+    usage,
+  };
 }
