@@ -2,6 +2,7 @@ import type { Candle, MarketDataProvider, Quote } from "@marketos/market-core";
 import type { MarketEventsProvider } from "../events/types.js";
 import type { CompanyFeedProvider } from "../feed/types.js";
 import { assertRealProvider, ProductionGateError, realDataRequired } from "./policy.js";
+import { marketDataPolicy } from "./marketDataPolicy.js";
 
 function invalid() {
   return new ProductionGateError("INVALID_PROVIDER_DATA", "The provider returned invalid or unverified data. Synthetic data was not substituted.", 502);
@@ -11,6 +12,18 @@ export function validateProviderQuote(quote: Quote, providerId: string, now = Da
   if (!Number.isFinite(quote.price) || quote.price <= 0 ||
       !Number.isSafeInteger(quote.timestamp) || quote.timestamp <= 0 || quote.timestamp > now + 300 ||
       quote.source !== providerId || !quote.symbol?.trim()) throw invalid();
+
+  const policy = marketDataPolicy();
+  if (realDataRequired() && (policy.timing === "realtime" || policy.timing === "delayed") &&
+      quote.isMarketOpen !== false) {
+    if (quote.timestampKind !== "last-quote") throw invalid();
+
+    const allowedDelayMinutes = policy.timing === "realtime"
+      ? 15
+      : (policy.delayMinutes ?? 0) + 15;
+    if (now - quote.timestamp > allowedDelayMinutes * 60) throw invalid();
+  }
+
   return quote;
 }
 
