@@ -61,6 +61,9 @@ jobs:
       - name: Secure Azure deployment-token sync smoke test
         run: pnpm smoke:deployment-token-sync
 
+      - name: Market-data credential sync helper smoke test
+        run: pnpm smoke:market-data-credential-sync
+
       - name: Strict Azure production deployment workflow smoke test
         run: pnpm smoke:azure-production-deploy
 
@@ -267,6 +270,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-market-data-policy.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-operations-guardrails.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/sync-deployment-token.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/sync-market-data-credential.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-forecast-evaluation.ps1" -Raw)) | Out-Null
 
