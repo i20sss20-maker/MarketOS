@@ -52,6 +52,9 @@ jobs:
       - name: Full account-data erasure smoke test
         run: pnpm smoke:account-data-erasure
 
+      - name: Live provider acceptance source/freshness smoke test
+        run: pnpm smoke:provider-live-acceptance-source
+
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
 
