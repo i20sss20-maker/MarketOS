@@ -46,6 +46,12 @@ export type SystemHealth = {
     provider: "memory" | "cosmos";
     persistent: boolean;
   };
+  forecastEvaluation: {
+    enabled: boolean;
+    workerCredentialConfigured: boolean;
+    configured: boolean;
+    schedule: "15m";
+  };
   operations: {
     metricAlertsConfigured: boolean;
     costBudgetConfigured: boolean;
