@@ -49,6 +49,14 @@ assert.match(
 );
 assert.match(
   script,
+  /metricAlertsConfigured/,
+);
+assert.match(
+  script,
+  /costBudgetConfigured/,
+);
+assert.match(
+  script,
   /userData/,
 );
 assert.match(
