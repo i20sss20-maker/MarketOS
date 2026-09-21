@@ -75,3 +75,62 @@ export async function getSystemHealth(signal?: AbortSignal): Promise<SystemHealt
   }
   return payload;
 }
+
+
+export type ProductionReadiness = {
+  ok: boolean;
+  scope: "configuration-only";
+  productionReady: false;
+  configured: boolean;
+  blockers: string[];
+  requiredAcceptanceChecks: string[];
+};
+
+export async function getProductionReadiness(
+  signal?: AbortSignal,
+): Promise<ProductionReadiness> {
+  const response = await fetch(
+    `${API_BASE_URL}/production/readiness`,
+    {
+      headers: {
+        Accept: "application/json",
+      },
+      signal,
+    },
+  );
+
+  const payload =
+    await response
+      .json()
+      .catch(() => null) as
+      ProductionReadiness |
+      null;
+
+  if (
+    !payload ||
+    typeof payload.configured !==
+      "boolean" ||
+    !Array.isArray(
+      payload.blockers,
+    ) ||
+    !Array.isArray(
+      payload.requiredAcceptanceChecks,
+    )
+  ) {
+    throw new Error(
+      `MarketOS readiness request failed (${response.status}).`,
+    );
+  }
+
+  // HTTP 503 is an expected configuration-blocked state, not a transport error.
+  if (
+    !response.ok &&
+    response.status !== 503
+  ) {
+    throw new Error(
+      `MarketOS readiness request failed (${response.status}).`,
+    );
+  }
+
+  return payload;
+}

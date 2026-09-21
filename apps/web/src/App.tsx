@@ -99,7 +99,7 @@ import {
   parseMarketShareState,
 } from "./lib/exportTools";
 import { getMarketEvents } from "./lib/eventsApi";
-import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
+import { getProductionReadiness, getSystemHealth, type ProductionReadiness, type SystemHealth } from "./lib/systemApi";
 import {
   loadChartSettings,
   resetChartSettings,
@@ -620,8 +620,10 @@ export default function App() {
   const [showStrategyTester, setShowStrategyTester] = useState(false);
   const [showSystemPanel, setShowSystemPanel] = useState(false);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [productionReadiness, setProductionReadiness] = useState<ProductionReadiness | null>(null);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
   const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
+  const [productionReadinessError, setProductionReadinessError] = useState<string | null>(null);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -2385,18 +2387,33 @@ export default function App() {
   const refreshSystemHealth = useCallback(async () => {
     setSystemHealthLoading(true);
     setSystemHealthError(null);
+    setProductionReadinessError(null);
 
-    try {
-      const health = await getSystemHealth();
-      setSystemHealth(health);
-    } catch {
+    const [healthResult, readinessResult] =
+      await Promise.allSettled([
+        getSystemHealth(),
+        getProductionReadiness(),
+      ]);
+
+    if (healthResult.status === "fulfilled") {
+      setSystemHealth(healthResult.value);
+    } else {
       setSystemHealth(null);
       setSystemHealthError(
         "تعذر الوصول إلى MarketOS API. في النسخة المحلية أو قبل نشر Azure قد يكون الـBackend غير متصل.",
       );
-    } finally {
-      setSystemHealthLoading(false);
     }
+
+    if (readinessResult.status === "fulfilled") {
+      setProductionReadiness(readinessResult.value);
+    } else {
+      setProductionReadiness(null);
+      setProductionReadinessError(
+        "تعذر قراءة بوابة جاهزية الإنتاج.",
+      );
+    }
+
+    setSystemHealthLoading(false);
   }, []);
 
   const openSystemPanel = () => {
@@ -5865,8 +5882,10 @@ export default function App() {
       <SystemPanel
         open={showSystemPanel}
         health={systemHealth}
+        readiness={productionReadiness}
         loading={systemHealthLoading}
         error={systemHealthError}
+        readinessError={productionReadinessError}
         onRefresh={() => void refreshSystemHealth()}
         onClose={() => setShowSystemPanel(false)}
       />
