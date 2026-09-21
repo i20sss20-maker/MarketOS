@@ -3,7 +3,7 @@ import type { Timeframe } from "@marketos/market-core";
 import { json, marketError } from "../http/responses.js";
 import { marketSymbolFromRequest } from "../market/requestSymbol.js";
 import { marketDataProvider } from "../providers/index.js";
-import { assertProductionMarketAccess } from "../production/marketAccess.js";
+import { authorizeProductionMarketRequest } from "../production/marketAccess.js";
 
 const allowedTimeframes = new Set<Timeframe>([
   "1m",
@@ -18,7 +18,7 @@ const allowedTimeframes = new Set<Timeframe>([
 
 export async function marketCandles(request: HttpRequest): Promise<HttpResponseInit> {
   try {
-    assertProductionMarketAccess(request);
+    await authorizeProductionMarketRequest(request);
     const symbol = marketSymbolFromRequest(request);
     const requestedTimeframe = (request.query.get("timeframe") ?? "1h") as Timeframe;
     if (!allowedTimeframes.has(requestedTimeframe)) {
