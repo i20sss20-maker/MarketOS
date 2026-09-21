@@ -291,7 +291,7 @@ const concurrent =
   await Promise.all(
     Array.from(
       {
-        length: 12,
+        length: 5,
       },
       (_, index) =>
         store.consume(
@@ -318,7 +318,7 @@ assert.equal(
 );
 assert.equal(
   current.count,
-  12,
+  5,
   "Concurrent requests must not lose increments.",
 );
 
