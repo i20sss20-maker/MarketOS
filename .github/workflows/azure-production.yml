@@ -77,6 +77,14 @@ jobs:
       - name: Prepare standalone Azure API
         run: pnpm prepare:azure-api
 
+      - name: Lock Azure API runtime dependencies
+        run: npm install --package-lock-only --ignore-scripts --prefix artifacts/azure-api
+
+      - name: Verify locked Azure API runtime dependencies install
+        run: |
+          npm ci --omit=dev --ignore-scripts --prefix artifacts/azure-api
+          rm -rf artifacts/azure-api/node_modules
+
       - name: Azure packaging checks
         run: pnpm smoke:azure
 
@@ -91,21 +99,18 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    name: Deploy strict bundle
+    name: Deploy exact verified strict bundle
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: azure-production
+    outputs:
+      deployed_url: ${{ steps.deploy_swa.outputs.static_web_app_url }}
     env:
       AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
       VITE_MARKETOS_REQUIRE_REAL_DATA: "true"
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
       - name: Require production deployment token
         shell: bash
         run: |
@@ -114,29 +119,22 @@ jobs:
             exit 1
           fi
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Download exact verified production bundle
+        uses: actions/download-artifact@v4
         with:
-          version: 10.15.0
+          name: marketos-production-bundle
+          path: .
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install
-        run: pnpm install --no-frozen-lockfile
+      - name: Install exact locked Azure API runtime dependencies
+        run: npm ci --omit=dev --ignore-scripts --prefix artifacts/azure-api
 
-      - name: Rebuild exact strict bundle
-        run: pnpm build
-
-      - name: Prepare standalone Azure API
-        run: pnpm prepare:azure-api
-
-      - name: Install Azure API runtime dependencies
-        run: npm install --omit=dev --ignore-scripts --prefix artifacts/azure-api
-
-      - name: Deploy prebuilt strict web and API
+      - name: Deploy exact verified strict web and API
+        id: deploy_swa
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.AZURE_STATIC_WEB_APPS_API_TOKEN }}
@@ -148,13 +146,41 @@ jobs:
           skip_app_build: true
           skip_api_build: true
 
+      - name: Bind acceptance to the deployment returned by Azure
+        env:
+          EXPECTED_URL: ${{ inputs.base_url }}
+          DEPLOYED_URL: ${{ steps.deploy_swa.outputs.static_web_app_url }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const expectedRaw = process.env.EXPECTED_URL ?? "";
+          const deployedRaw = process.env.DEPLOYED_URL ?? "";
+          if (!deployedRaw) {
+            throw new Error("Azure Static Web Apps deploy action did not return static_web_app_url.");
+          }
+          const normalize = (value) => {
+            const url = new URL(value);
+            if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
+                (url.pathname !== "/" && url.pathname !== "")) {
+              throw new Error("Production origin must be a plain HTTPS origin.");
+            }
+            return url.origin;
+          };
+          const expected = normalize(expectedRaw);
+          const deployed = normalize(deployedRaw);
+          if (expected !== deployed) {
+            throw new Error(`Requested production origin ${expected} does not match Azure deployment ${deployed}.`);
+          }
+          console.log("Production origin matches the Azure deployment output.");
+          NODE
+
   acceptance:
     name: Verify hosted production boundary
     needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      MARKETOS_ACCEPTANCE_BASE_URL: ${{ inputs.base_url }}
+      MARKETOS_ACCEPTANCE_BASE_URL: ${{ needs.deploy.outputs.deployed_url }}
 
     steps:
       - name: Checkout
