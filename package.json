@@ -69,6 +69,7 @@
     "smoke:forecast-evaluator-rollout": "node scripts/forecast-evaluator-rollout-smoke.mjs",
     "smoke:deployment-token-sync": "node scripts/deployment-token-sync-smoke.mjs",
     "smoke:azure-production-deploy": "node scripts/azure-production-deploy-smoke.mjs",
+    "smoke:production-release-evidence": "node scripts/production-release-evidence-gate-smoke.mjs",
     "smoke:account-data-erasure": "node scripts/account-data-erasure-smoke.mjs",
     "smoke:production-storage-bootstrap": "node scripts/production-storage-bootstrap-smoke.mjs",
     "smoke:cosmos-runtime-no-provision": "node scripts/cosmos-runtime-no-provision-smoke.mjs",
