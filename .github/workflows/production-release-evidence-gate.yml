@@ -1,0 +1,56 @@
+name: Production Release Evidence Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type VERIFY MARKETOS RELEASE"
+        required: true
+        type: string
+      max_age_hours:
+        description: "Maximum age of exact-SHA acceptance evidence (1-168 hours)"
+        required: true
+        default: "72"
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: production-release-evidence-gate
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Exact-SHA production evidence
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'VERIFY MARKETOS RELEASE' }}
+    runs-on: ubuntu-latest
+    environment: azure-production
+    timeout-minutes: 5
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      MARKETOS_RELEASE_EVIDENCE_MAX_AGE_HOURS: ${{ inputs.max_age_hours }}
+
+    steps:
+      - name: Checkout exact release candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify exact-SHA production acceptance evidence
+        run: node scripts/production-release-evidence-gate.mjs
+
+      - name: Upload non-secret release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-evidence
+          path: artifacts/production-release-evidence.json
+          retention-days: 30
+          if-no-files-found: warn
