@@ -179,6 +179,28 @@ assert.equal(
     ?.configured,
   true,
 );
+const expectedBuildSha =
+  (
+    process.env
+      .MARKETOS_ACCEPTANCE_EXPECTED_BUILD_SHA ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+
+if (expectedBuildSha) {
+  assert.match(
+    expectedBuildSha,
+    /^[0-9a-f]{40}$/,
+    "Expected build SHA must be a full Git commit SHA.",
+  );
+  assert.equal(
+    health.body?.buildSha,
+    expectedBuildSha.slice(0, 12),
+    "Hosted MarketOS build identity does not match the workflow commit.",
+  );
+}
+
 evidence.checks.health =
   health;
 

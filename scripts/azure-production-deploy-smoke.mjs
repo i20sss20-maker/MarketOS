@@ -103,6 +103,10 @@ assert.match(
 );
 assert.match(
   workflow,
+  /MARKETOS_ACCEPTANCE_EXPECTED_BUILD_SHA:\s*\$\{\{ github\.sha \}\}/,
+);
+assert.match(
+  workflow,
   /does not match Azure deployment/,
 );
 const deploySection =

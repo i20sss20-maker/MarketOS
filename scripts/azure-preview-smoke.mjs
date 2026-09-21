@@ -49,6 +49,14 @@ assert.ok(
 const apiDist = "artifacts/azure-api/dist";
 assert.ok(existsSync(apiDist), "Standalone Azure API dist folder must exist after staging");
 
+const buildInfoPath = "artifacts/azure-api/dist/build-info.json";
+assert.ok(existsSync(buildInfoPath), "Standalone Azure API must include immutable build identity");
+const buildInfo = JSON.parse(readFileSync(buildInfoPath, "utf8"));
+assert.ok(
+  buildInfo.buildSha === "dev" || /^[0-9a-f]{40}$/.test(buildInfo.buildSha),
+  "Azure API build identity must be dev locally or a full lowercase Git SHA in CI",
+);
+
 const stagedPackagePath = "artifacts/azure-api/package.json";
 assert.ok(existsSync(stagedPackagePath), "Standalone Azure API package.json must exist");
 const stagedPackage = JSON.parse(readFileSync(stagedPackagePath, "utf8"));

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { marketEventsProvider } from "../events/index.js";
 import { companyFeedProvider } from "../feed/index.js";
@@ -20,7 +21,38 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   };
   const aiProvider = (process.env.AI_PROVIDER ?? "local-chart-engine").trim() || "local-chart-engine";
   const environment = (process.env.MARKETOS_ENVIRONMENT ?? "local").trim() || "local";
-  const buildSha = (process.env.MARKETOS_BUILD_SHA ?? process.env.GITHUB_SHA ?? "dev").trim();
+  let packagedBuildSha = "";
+  try {
+    const packaged = JSON.parse(
+      readFileSync(
+        new URL(
+          "../../build-info.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ) as {
+      buildSha?: unknown;
+    };
+    if (
+      typeof packaged.buildSha ===
+        "string" &&
+      /^[0-9a-f]{40}$/i.test(
+        packaged.buildSha,
+      )
+    ) {
+      packagedBuildSha =
+        packaged.buildSha.toLowerCase();
+    }
+  } catch {
+    // Local/source execution has no packaged build-info file.
+  }
+  const buildSha = (
+    packagedBuildSha ||
+    process.env.MARKETOS_BUILD_SHA ||
+    process.env.GITHUB_SHA ||
+    "dev"
+  ).trim();
   const webPush = getWebPushConfiguration();
   const operations = operationsPolicy();
   let forecastHardCap: number | null = null;
