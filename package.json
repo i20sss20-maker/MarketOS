@@ -73,6 +73,7 @@
     "smoke:cosmos-live-acceptance-source": "node scripts/cosmos-live-acceptance-source-smoke.mjs",
     "smoke:market-data-request-quota": "node scripts/market-data-request-quota-smoke.mjs",
     "smoke:production-readiness-ui": "node scripts/production-readiness-ui-smoke.mjs",
+    "smoke:hosted-ingress-load-source": "node scripts/hosted-ingress-load-source-smoke.mjs",
     "smoke:production-client": "node scripts/production-client-smoke.mjs",
     "smoke:forecast-quota": "node scripts/forecast-quota-smoke.mjs",
     "smoke:strict-forecast-usage": "node scripts/strict-forecast-usage-smoke.mjs"
