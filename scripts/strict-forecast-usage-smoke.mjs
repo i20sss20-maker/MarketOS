@@ -23,26 +23,21 @@ const usage = await import(
 const resetAt =
   Date.now() + 60_000;
 
-assert.deepEqual(
+const normalized =
   usage.normalizeForecastUsage({
     used: 3,
     limit: 10,
     remaining: 7,
     resetAt,
-  }),
-  {
-    used: 3,
-    limit: 10,
-    remaining: 7,
-    resetAt,
-    updatedAt:
-      usage.normalizeForecastUsage({
-        used: 3,
-        limit: 10,
-        remaining: 7,
-        resetAt,
-      }).updatedAt,
-  },
+  });
+assert.equal(normalized.used, 3);
+assert.equal(normalized.limit, 10);
+assert.equal(normalized.remaining, 7);
+assert.equal(normalized.resetAt, resetAt);
+assert.ok(
+  Number.isSafeInteger(
+    normalized.updatedAt,
+  ),
 );
 
 for (const invalid of [
