@@ -67,6 +67,7 @@
     "smoke:market-data-provenance": "node scripts/market-data-provenance-smoke.mjs",
     "smoke:operations-guardrails": "node scripts/operations-guardrails-smoke.mjs",
     "smoke:forecast-evaluator-rollout": "node scripts/forecast-evaluator-rollout-smoke.mjs",
+    "smoke:live-forecast-evaluation-source": "node scripts/live-forecast-evaluation-acceptance-source-smoke.mjs",
     "smoke:deployment-token-sync": "node scripts/deployment-token-sync-smoke.mjs",
     "smoke:azure-production-deploy": "node scripts/azure-production-deploy-smoke.mjs",
     "smoke:account-data-erasure": "node scripts/account-data-erasure-smoke.mjs",

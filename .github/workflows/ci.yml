@@ -55,6 +55,9 @@ jobs:
       - name: Hosted forecast evaluator rollout smoke test
         run: pnpm smoke:forecast-evaluator-rollout
 
+      - name: Live hosted forecast evaluator acceptance source smoke test
+        run: pnpm smoke:live-forecast-evaluation-source
+
       - name: Secure Azure deployment-token sync smoke test
         run: pnpm smoke:deployment-token-sync
 

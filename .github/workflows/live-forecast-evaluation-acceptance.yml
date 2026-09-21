@@ -1,0 +1,66 @@
+name: Live Forecast Evaluation Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Exact HTTPS MarketOS production origin"
+        required: true
+        type: string
+      confirmation:
+        description: "Type RUN ONE MARKETOS EVALUATION"
+        required: true
+        type: string
+      provider_quota_acknowledgement:
+        description: "Type I UNDERSTAND EVALUATION CONSUMES MARKET DATA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-forecast-evaluation-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: Live hosted forecast evaluator
+    if: ${{ inputs.confirmation == 'RUN ONE MARKETOS EVALUATION' && inputs.provider_quota_acknowledgement == 'I UNDERSTAND EVALUATION CONSUMES MARKET DATA' }}
+    runs-on: ubuntu-latest
+    environment: azure-production
+    timeout-minutes: 5
+    env:
+      MARKETOS_ACCEPTANCE_BASE_URL: ${{ inputs.base_url }}
+      MARKETOS_WORKER_SECRET: ${{ secrets.MARKETOS_WORKER_SECRET }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require worker credential without printing it
+        shell: bash
+        run: |
+          if [ "${#MARKETOS_WORKER_SECRET}" -lt 32 ]; then
+            echo "::error::MARKETOS_WORKER_SECRET is missing or too short in azure-production."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run one bounded hosted evaluator sweep
+        run: node scripts/live-forecast-evaluation-acceptance.mjs
+
+      - name: Upload non-secret evaluator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-forecast-evaluation-acceptance
+          path: artifacts/live-forecast-evaluation-acceptance.json
+          retention-days: 14
+          if-no-files-found: warn
