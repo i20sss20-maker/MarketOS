@@ -33,6 +33,9 @@ jobs:
       - name: Production data and server journal runtime tests
         run: pnpm smoke:production-foundation
 
+      - name: Forecast generation quota concurrency smoke test
+        run: pnpm smoke:forecast-quota
+
       - name: Build
         run: pnpm build
 
