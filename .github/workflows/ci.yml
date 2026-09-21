@@ -61,6 +61,9 @@ jobs:
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
 
+      - name: Cosmos runtime no-provision smoke test
+        run: pnpm smoke:cosmos-runtime-no-provision
+
       - name: Forecast generation quota concurrency smoke test
         run: pnpm smoke:forecast-quota
 

@@ -1,6 +1,7 @@
 import { CosmosClient, type Container } from "@azure/cosmos";
 import type { UserEntitlement } from "@marketos/entitlements-core";
 import type { EntitlementStore } from "./types.js";
+import { existingUserPartitionContainer } from "../storage/existingCosmosContainer.js";
 
 type StoredEntitlement = UserEntitlement & {
   id: "entitlement";
@@ -18,7 +19,7 @@ function statusCode(error: unknown) {
 export class CosmosEntitlementStore implements EntitlementStore {
   readonly mode = "cosmos" as const;
   private readonly client: CosmosClient;
-  private containerPromise: Promise<Container> | null = null;
+  private readonly container: () => Promise<Container>;
 
   constructor(
     connectionString: string,
@@ -26,29 +27,12 @@ export class CosmosEntitlementStore implements EntitlementStore {
     private readonly containerId = "entitlements",
   ) {
     this.client = new CosmosClient(connectionString);
-  }
-
-  private container() {
-    if (!this.containerPromise) {
-      this.containerPromise = (async () => {
-        const { database } =
-          await this.client.databases.createIfNotExists({
-            id: this.databaseId,
-          });
-
-        const { container } =
-          await database.containers.createIfNotExists({
-            id: this.containerId,
-            partitionKey: {
-              paths: ["/userId"],
-            },
-          });
-
-        return container;
-      })();
-    }
-
-    return this.containerPromise;
+    this.container = existingUserPartitionContainer(
+      this.client,
+      this.databaseId,
+      this.containerId,
+      "Entitlements container",
+    );
   }
 
   async get(userId: string) {
