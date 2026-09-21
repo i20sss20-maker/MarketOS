@@ -55,6 +55,27 @@ export type Timeframe =
   | "1w"
   | "1M";
 
+export type MarketDataTiming =
+  | "realtime"
+  | "delayed"
+  | "end-of-day"
+  | "unknown";
+
+export type MarketDataUsageScope =
+  | "personal"
+  | "commercial"
+  | "unknown";
+
+export type MarketDataPolicy = {
+  timing: MarketDataTiming;
+  delayMinutes?: number;
+  usageScope: MarketDataUsageScope;
+  rightsConfirmed: boolean;
+  rightsConfirmedAt?: string;
+  rightsExpiresAt?: string;
+  configured: boolean;
+};
+
 export type MarketDataStatus = {
   provider: string;
   configured: boolean;
@@ -62,6 +83,7 @@ export type MarketDataStatus = {
   supportsSearch: boolean;
   supportsQuotes: boolean;
   supportsCandles: boolean;
+  dataPolicy?: MarketDataPolicy;
   message?: string;
 };
 
