@@ -43,6 +43,9 @@ jobs:
       - name: Hosted production boundary workflow source smoke test
         run: pnpm smoke:hosted-boundary-source
 
+      - name: Live quota concurrency acceptance source smoke test
+        run: pnpm smoke:live-quota-concurrency-source
+
       - name: Live provider acceptance source/freshness smoke test
         run: pnpm smoke:provider-live-acceptance-source
 
