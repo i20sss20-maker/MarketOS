@@ -4,6 +4,7 @@ import { assertRealProvider, assertRequestOrigin, forecastLedgerConfig, Producti
 import { marketDataProvider } from "../providers/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { configuredMarketDataHardCap } from "../usage/marketDataQuota.js";
 import { assertOperationsPolicy } from "../production/operationsPolicy.js";
 import { assertMarketDataPolicy } from "../production/marketDataPolicy.js";
 
@@ -15,6 +16,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     () => assertRequestOrigin(null),
     () => assertMarketDataPolicy(),
     () => configuredForecastHardCap(),
+    () => configuredMarketDataHardCap(),
     () => assertOperationsPolicy(),
     () => {
       if (entitlementStore.mode !== "cosmos") {
@@ -36,7 +38,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     blockers,
     requiredAcceptanceChecks: [
       "HOSTED_AUTH_AND_OWNER_ISOLATION", "COSMOS_WRITE_READ_RESTART", "HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS",
-      "CLIENT_DEMO_FALLBACK_REMOVAL", "SERVER_OUTCOME_EVALUATION", "HOSTED_QUOTA_CONCURRENCY",
+      "CLIENT_DEMO_FALLBACK_REMOVAL", "SERVER_OUTCOME_EVALUATION", "HOSTED_FORECAST_QUOTA_CONCURRENCY", "HOSTED_MARKET_DATA_QUOTA_CONCURRENCY",
       "HOSTED_ACCOUNT_ERASURE", "LOAD_TESTING_AND_RECOVERY", "APPLICATION_INSIGHTS_AND_LOG_REVIEW",
     ],
   });

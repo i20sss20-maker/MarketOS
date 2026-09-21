@@ -33,6 +33,31 @@ export function getAuthenticatedUser(request) {
 }
 `);
 
+const ledgerUrl = dataUrl(`
+export function ownerKey(user) {
+  return user.identityProvider + ":" + user.userId;
+}
+`);
+
+const quotaStoreUrl = dataUrl(`
+export function getMarketDataQuotaStore() {
+  return {
+    async consume() {
+      throw new Error("Quota store must not run in access-only smoke checks.");
+    },
+  };
+}
+`);
+
+const marketQuotaUrl = dataUrl(`
+export function configuredMarketDataHardCap() {
+  return 100;
+}
+export function marketDataQuotaExceeded() {
+  return new Error("quota exceeded");
+}
+`);
+
 const policyUrl = dataUrl(`
 export class ProductionGateError extends Error {
   constructor(code, message, status = 503) {
@@ -68,6 +93,18 @@ let compiled = transpile(
   .replaceAll(
     '"./policy.js"',
     JSON.stringify(policyUrl),
+  )
+  .replaceAll(
+    '"../forecasts/ledger.js"',
+    JSON.stringify(ledgerUrl),
+  )
+  .replaceAll(
+    '"../usage/cosmosMarketDataQuota.js"',
+    JSON.stringify(quotaStoreUrl),
+  )
+  .replaceAll(
+    '"../usage/marketDataQuota.js"',
+    JSON.stringify(marketQuotaUrl),
   );
 
 const {
@@ -159,14 +196,22 @@ for (const name of protectedFiles) {
 
   assert.match(
     source,
-    /assertProductionMarketAccess\(request\)/,
-    `${name} must enforce strict authenticated market access`,
+    /(?:assertProductionMarketAccess|authorizeProductionMarketRequest)\(request\)/,
+    `${name} must enforce strict authenticated market access before provider work`,
   );
 
-  const guard =
+  const accessIndex =
     source.indexOf(
       "assertProductionMarketAccess(request)",
     );
+  const quotaIndex =
+    source.indexOf(
+      "authorizeProductionMarketRequest(request)",
+    );
+  const guard =
+    [accessIndex, quotaIndex]
+      .filter((index) => index >= 0)
+      .sort((a, b) => a - b)[0] ?? -1;
   const providerCall =
     Math.min(
       ...[

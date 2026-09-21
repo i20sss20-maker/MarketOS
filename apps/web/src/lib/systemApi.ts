@@ -51,6 +51,18 @@ export type SystemHealth = {
     costBudgetConfigured: boolean;
     configured: boolean;
   };
+  marketDataQuota: {
+    configured: boolean;
+    hardCap: number | null;
+    window: "utc-day";
+    unit: "planned-provider-request";
+  };
+  forecastQuota: {
+    configured: boolean;
+    hardCap: number | null;
+    entitlementStorage: "memory" | "cosmos";
+    window: "utc-day";
+  };
   backgroundAlerts: {
     enabled: boolean;
     mode: "scheduled-worker";

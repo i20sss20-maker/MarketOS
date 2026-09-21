@@ -55,7 +55,8 @@ const acceptanceLabels: Record<string, string> = {
   HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS: "اختبار ترخيص/توقيت بيانات السوق الحية",
   CLIENT_DEMO_FALLBACK_REMOVAL: "التأكد من عدم ظهور Demo في نسخة الإنتاج",
   SERVER_OUTCOME_EVALUATION: "تشغيل تقييم نتائج التوقعات على الخادم",
-  HOSTED_QUOTA_CONCURRENCY: "اختبار حدود الاستخدام مع الطلبات المتزامنة",
+  HOSTED_FORECAST_QUOTA_CONCURRENCY: "اختبار حد التوقعات مع الطلبات المتزامنة",
+  HOSTED_MARKET_DATA_QUOTA_CONCURRENCY: "اختبار حد طلبات بيانات السوق مع الطلبات المتزامنة",
   LOAD_TESTING_AND_RECOVERY: "اختبار الضغط والتعافي",
   APPLICATION_INSIGHTS_AND_LOG_REVIEW: "تفعيل ومراجعة سجلات Application Insights",
 };
@@ -241,6 +242,36 @@ export default function SystemPanel({
                   </small>
                   <small>
                     ميزانية Azure تنبّه عند تجاوز الحدود ولا توقف الاستهلاك تلقائيًا.
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
+                    <StatusDot mode={health.marketDataQuota.configured ? "provider" : "demo"} />
+                    <strong>Market Data Quota</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.marketDataQuota.configured
+                      ? `${health.marketDataQuota.hardCap} units / UTC day / user`
+                      : "Not configured"}
+                  </span>
+                  <small>
+                    يحجز MarketOS وحدة لكل طلب مزود مخطط له قبل بدء الطلب؛ هذا ليس بالضرورة نفس نظام أرصدة مزود البيانات.
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
+                    <StatusDot mode={health.forecastQuota.configured ? "provider" : "demo"} />
+                    <strong>Forecast Quota</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.forecastQuota.configured
+                      ? `${health.forecastQuota.hardCap} max / UTC day`
+                      : "Not configured"}
+                  </span>
+                  <small>
+                    الحد الفعلي للمستخدم هو الأقل بين حد الخطة وهذا السقف التشغيلي.
                   </small>
                 </article>
 

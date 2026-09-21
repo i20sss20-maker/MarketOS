@@ -67,6 +67,9 @@ jobs:
       - name: Live Cosmos acceptance workflow source smoke test
         run: pnpm smoke:cosmos-live-acceptance-source
 
+      - name: Market-data request quota concurrency and ordering smoke test
+        run: pnpm smoke:market-data-request-quota
+
       - name: Production readiness UI semantics smoke test
         run: pnpm smoke:production-readiness-ui
 
