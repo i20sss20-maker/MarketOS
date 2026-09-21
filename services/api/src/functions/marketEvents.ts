@@ -1,7 +1,7 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { json, marketError, preflight } from "../http/responses.js";
 import { marketEventsProvider } from "../events/index.js";
-import { assertProductionMarketAccess } from "../production/marketAccess.js";
+import { authorizeProductionMarketRequest } from "../production/marketAccess.js";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_RANGE_DAYS = 14;
@@ -14,7 +14,7 @@ export async function marketEvents(request: HttpRequest): Promise<HttpResponseIn
   if (request.method === "OPTIONS") return preflight();
 
   try {
-    assertProductionMarketAccess(request);
+    await authorizeProductionMarketRequest(request);
     const body = await request.json() as {
       startDate?: unknown;
       endDate?: unknown;
