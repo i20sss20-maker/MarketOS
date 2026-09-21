@@ -24,13 +24,16 @@ All resources must remain within MarketOS, separate from all other projects.
 - Reuse the same 16–128-character request ID to retry the same instrument: the original
   saved forecast is returned. Different instruments with the same ID get HTTP 409.
   Cosmos `create` and its uniqueness constraint implement first-write-wins; there is no upsert.
-  Concurrent identical requests can still do duplicate provider work before the first insert;
-  distributed request coalescing and credit limits remain release blockers.
+  Concurrent identical requests can still duplicate provider work before the first insert.
+  Strict provider endpoints and internal forecast generation now reserve conservative planned
+  provider-request units atomically in Cosmos before upstream work; distributed request
+  coalescing remains a future efficiency improvement rather than a substitute for the hard cap.
 - `GET /api/user/forecasts?limit=20&cursor=...` reads only the authenticated user's partition,
   with a 1–50 page size. Owner IDs include the identity provider and are not returned.
   There is no client PUT/PATCH to overwrite the archived forecast or its result.
-- The server history returns `evaluationStatus: pending`. This slice does **not** implement
-  server outcome evaluation or replace the existing local performance calculations.
+- The archived server forecast is immutable. A separate server evaluator can later attach a
+  finalized-candle outcome under the recorded evaluation plan; until that horizon is complete,
+  `evaluationStatus` remains `pending`. Browser-local scoring is not the authoritative record.
 - `VITE_MARKETOS_REQUIRE_REAL_DATA=true` at web build time directs Analyst/Radar forecast
   requests through the authenticated server journal. Preview builds keep their existing route.
   Historical server snapshots can be read through the API; a server-history UI is still pending.
