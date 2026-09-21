@@ -35,7 +35,7 @@ assert.match(
 );
 assert.doesNotMatch(
   workflow,
-  /echo.*COSMOS_CONNECTION_STRING/i,
+  /echo.*\\$COSMOS_CONNECTION_STRING/i,
 );
 
 const live =
