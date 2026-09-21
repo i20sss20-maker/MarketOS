@@ -1,4 +1,7 @@
 import { isServerForecastRecord } from "./serverForecastApi";
+import {
+  recordForecastUsage,
+} from "./forecastUsage";
 import type {
   AnalystForecastResponse,
   ChartAnalysisResponse,
@@ -79,6 +82,7 @@ type AnalystForecastApiResponse = {
   ok: boolean;
   forecast?: AnalystForecastResponse;
   journal?: unknown;
+  usage?: unknown;
   error?: string;
 };
 
@@ -111,6 +115,15 @@ export async function getAnalystForecast(
       .catch(() => null) as
       AnalystForecastApiResponse |
       null;
+
+  if (
+    import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" &&
+    payload?.usage
+  ) {
+    recordForecastUsage(
+      payload.usage,
+    );
+  }
 
   if (
     !response.ok ||
