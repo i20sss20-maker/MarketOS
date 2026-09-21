@@ -26,6 +26,7 @@ type Props = {
   onUpload: () => void;
   onRestore: () => void;
   onDeleteCloud: () => void;
+  onEraseAccountData: () => void;
   onEnablePush: () => void;
   onDisablePush: () => void;
   onRefreshPush: () => void;
@@ -68,6 +69,7 @@ export default function AccountPanel({
   onUpload,
   onRestore,
   onDeleteCloud,
+  onEraseAccountData,
   onEnablePush,
   onDisablePush,
   onRefreshPush,
@@ -258,6 +260,16 @@ export default function AccountPanel({
                   حذف النسخة السحابية
                 </button>
                 <a href="/logout">تسجيل الخروج</a>
+              </div>
+
+              <div className="account-warning">
+                حذف جميع بيانات الحساب السحابية يمسح المزامنة والتنبيهات المسجلة والصلاحيات
+                وسجل التوقعات وعدادات استخدامها في MarketOS. حساب Microsoft/GitHub نفسه لا يُحذف.
+              </div>
+              <div className="account-secondary-actions">
+                <button className="danger" onClick={onEraseAccountData} disabled={busy}>
+                  حذف جميع بيانات MarketOS السحابية
+                </button>
               </div>
             </>
           )}
