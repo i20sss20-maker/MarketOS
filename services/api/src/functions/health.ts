@@ -10,6 +10,7 @@ import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
 import { configuredMarketDataHardCap } from "../usage/marketDataQuota.js";
 import { operationsPolicy } from "../production/operationsPolicy.js";
+import { forecastEvaluationPolicy } from "../production/forecastEvaluationPolicy.js";
 import { marketDataPolicy } from "../production/marketDataPolicy.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -55,6 +56,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   ).trim();
   const webPush = getWebPushConfiguration();
   const operations = operationsPolicy();
+  const forecastEvaluation = forecastEvaluationPolicy();
   let forecastHardCap: number | null = null;
   try {
     forecastHardCap = configuredForecastHardCap();
@@ -99,6 +101,12 @@ export async function health(_request: HttpRequest, context: InvocationContext):
         hardCap: forecastHardCap,
         entitlementStorage: entitlementStore.mode,
         window: "utc-day",
+      },
+      forecastEvaluation: {
+        enabled: forecastEvaluation.enabled,
+        workerCredentialConfigured: forecastEvaluation.workerCredentialConfigured,
+        configured: forecastEvaluation.configured,
+        schedule: "15m",
       },
       operations: {
         metricAlertsConfigured: operations.metricAlertsConfigured,
