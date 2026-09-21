@@ -6,6 +6,7 @@ import {
 export type OperationsPolicy = {
   metricAlertsConfigured: boolean;
   costBudgetConfigured: boolean;
+  applicationInsightsLinked: boolean;
   configured: boolean;
 };
 
@@ -32,12 +33,20 @@ export function operationsPolicy(
       env.MARKETOS_COST_BUDGET_CONFIGURED,
     );
 
+  const applicationInsightsLinked =
+    Boolean(
+      env.APPLICATIONINSIGHTS_CONNECTION_STRING
+        ?.trim(),
+    );
+
   return {
     metricAlertsConfigured,
     costBudgetConfigured,
+    applicationInsightsLinked,
     configured:
       metricAlertsConfigured &&
-      costBudgetConfigured,
+      costBudgetConfigured &&
+      applicationInsightsLinked,
   };
 }
 
@@ -69,6 +78,15 @@ export function assertOperationsPolicy(
     throw new ProductionGateError(
       "COST_BUDGET_NOT_CONFIGURED",
       "Production requires an Azure Cost Management budget notification for the MarketOS resource group.",
+    );
+  }
+
+  if (
+    !policy.applicationInsightsLinked
+  ) {
+    throw new ProductionGateError(
+      "APPLICATION_INSIGHTS_NOT_LINKED",
+      "Production requires Application Insights linked to the MarketOS Static Web App.",
     );
   }
 
