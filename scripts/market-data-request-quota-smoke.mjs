@@ -521,6 +521,31 @@ assert.ok(
     ),
 );
 
+const analyst =
+  readFileSync(
+    "services/api/src/functions/analystForecast.ts",
+    "utf8",
+  );
+const analystQuotaIndex =
+  analyst.indexOf(
+    "await consumeProductionMarketQuota(",
+  );
+const analystQuoteIndex =
+  analyst.indexOf(
+    "marketDataProvider\n        .getQuote",
+  );
+assert.ok(
+  analystQuotaIndex >= 0 &&
+    analystQuoteIndex >= 0 &&
+    analystQuotaIndex <
+      analystQuoteIndex,
+  "Strict server forecast generation must reserve market-data quota before quote/candle/event/feed provider work.",
+);
+assert.match(
+  analyst,
+  /forecastProviderRequestUnits\([\s\S]*forecastTimeframes\(symbol\)\.length[\s\S]*symbol\.assetClass === "stock"[\s\S]*symbol\.assetClass === "etf"/,
+);
+
 const bootstrap =
   readFileSync(
     "infrastructure/azure/bootstrap-production-storage.ps1",
@@ -550,5 +575,5 @@ assert.match(
 );
 
 console.log(
-  "Market-data request quota smoke passed: no default cap, atomic multi-unit concurrency, provider routes reserve before work, Multi-Timeframe reserves planned calls.",
+  "Market-data request quota smoke passed: no default cap, atomic multi-unit concurrency, provider routes and server forecasts reserve planned calls before provider work.",
 );
