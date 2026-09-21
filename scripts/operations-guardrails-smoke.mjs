@@ -133,6 +133,10 @@ for (
     "az consumption budget create-with-rg",
     "Actual80",
     "Actual100",
+    "criterion.timeAggregation",
+    "existing.actions",
+    "actual100.contactGroups",
+    "Budget '$BudgetName' exists but its 80%/100% notification policy does not match MarketOS requirements.",
     "budgets send notifications; they do not stop resources or spending automatically",
   ]
 ) {
