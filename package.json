@@ -60,6 +60,7 @@
     "smoke:alert-worker-package": "node scripts/alert-worker-package-smoke.mjs",
     "smoke:entitlements": "node scripts/entitlements-smoke.mjs",
     "smoke:production-foundation": "node scripts/production-foundation-smoke.mjs",
+    "smoke:production-market-auth": "node scripts/production-market-auth-smoke.mjs",
     "smoke:production-client": "node scripts/production-client-smoke.mjs",
     "smoke:forecast-quota": "node scripts/forecast-quota-smoke.mjs",
     "smoke:strict-forecast-usage": "node scripts/strict-forecast-usage-smoke.mjs"

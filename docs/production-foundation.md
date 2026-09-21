@@ -6,6 +6,7 @@ All resources must remain within MarketOS, separate from all other projects.
 
 ## What changes
 
+- In strict real-data mode, provider-backed quote, candle, search, overview, event and company-feed endpoints require the trusted Static Web Apps authenticated principal and configured MarketOS origin **before** provider work starts. Explicit preview mode keeps its existing anonymous Demo behavior. The legacy demo snapshot endpoint returns `DEMO_DISABLED` in strict mode.
 - `MARKETOS_REQUIRE_REAL_DATA=true`, or `MARKETOS_ENVIRONMENT=production` /
   `azure-production`, makes the market-data gateway reject Demo/misconfigured providers.
   Invalid quotes, unknown/future quote timestamps, duplicate/disordered/invalid OHLC bars,

@@ -1,6 +1,16 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
+import { json } from "../http/responses.js";
+import { realDataRequired } from "../production/policy.js";
 
 export async function marketSnapshot(request: HttpRequest): Promise<HttpResponseInit> {
+  if (realDataRequired()) {
+    return json(410, {
+      ok: false,
+      code: "DEMO_DISABLED",
+      error: "The demo snapshot endpoint is disabled in real-data mode.",
+    });
+  }
+
   const symbol = request.query.get("symbol") ?? "NASDAQ:AAPL";
 
   return {
