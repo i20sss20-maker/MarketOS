@@ -67,6 +67,9 @@ jobs:
       - name: Live Cosmos acceptance workflow source smoke test
         run: pnpm smoke:cosmos-live-acceptance-source
 
+      - name: Hosted ingress load workflow source smoke test
+        run: pnpm smoke:hosted-ingress-load-source
+
       - name: Forecast generation quota concurrency smoke test
         run: pnpm smoke:forecast-quota
 
