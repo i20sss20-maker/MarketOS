@@ -57,7 +57,7 @@ export function assertRequestOrigin(origin) {
 
 const ownerUrl = dataUrl(`
 export function ownerKey(user) {
-  return `owner:${user.identityProvider}:${user.userId}`;
+  return "owner:" + user.identityProvider + ":" + user.userId;
 }
 `);
 
@@ -221,7 +221,7 @@ for (const name of protectedFiles) {
 
   assert.match(
     source,
-    /assertProductionMarketAccess\(request\)/,
+    /authorizeProductionMarketRequest\\(request/,
     `${name} must enforce strict authenticated and quota-guarded market access`,
   );
 
