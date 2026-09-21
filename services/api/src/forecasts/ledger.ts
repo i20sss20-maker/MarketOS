@@ -22,6 +22,7 @@ export interface ForecastLedger {
   find(userId: string, id: string): Promise<ForecastRecord | null>;
   create(record: ForecastRecord): Promise<ForecastRecord>;
   list(userId: string, limit: number, cursor?: string): Promise<{ records: ForecastRecord[]; cursor?: string }>;
+  deleteUserData(userId: string): Promise<{ deleted: number }>;
 }
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
