@@ -55,6 +55,9 @@ jobs:
       - name: Hosted forecast evaluator rollout smoke test
         run: pnpm smoke:forecast-evaluator-rollout
 
+      - name: Secure Azure deployment-token sync smoke test
+        run: pnpm smoke:deployment-token-sync
+
       - name: Strict Azure production deployment workflow smoke test
         run: pnpm smoke:azure-production-deploy
 
@@ -251,6 +254,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-production-storage.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-market-data-policy.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-operations-guardrails.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/sync-deployment-token.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-forecast-evaluation.ps1" -Raw)) | Out-Null
 
