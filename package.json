@@ -64,6 +64,7 @@
     "smoke:hosted-boundary-source": "node scripts/hosted-boundary-acceptance-source-smoke.mjs",
     "smoke:market-data-provenance": "node scripts/market-data-provenance-smoke.mjs",
     "smoke:operations-guardrails": "node scripts/operations-guardrails-smoke.mjs",
+    "smoke:azure-production-deploy": "node scripts/azure-production-deploy-smoke.mjs",
     "smoke:account-data-erasure": "node scripts/account-data-erasure-smoke.mjs",
     "smoke:production-storage-bootstrap": "node scripts/production-storage-bootstrap-smoke.mjs",
     "smoke:production-client": "node scripts/production-client-smoke.mjs",
