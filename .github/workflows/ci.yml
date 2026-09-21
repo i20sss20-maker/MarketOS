@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: marketos-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,6 +36,9 @@ jobs:
 
       - name: Production data and server journal runtime tests
         run: pnpm smoke:production-foundation
+
+      - name: Forecast generation quota concurrency smoke test
+        run: pnpm smoke:forecast-quota
 
       - name: Build
         run: pnpm build

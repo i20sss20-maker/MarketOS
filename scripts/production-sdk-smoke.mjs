@@ -19,7 +19,14 @@ const makeRequest = (method, body, auth = true) => new HttpRequest({ method,
   headers: { "origin": "https://marketos.test", "content-type": "application/json", ...(auth ? { "x-ms-client-principal": principal } : {}) },
   ...(body ? { body: { string: JSON.stringify(body) } } : {}),
 });
+process.env.FORECAST_DAILY_HARD_CAP = "10";
+const quotaDeps = {
+  quota: () => ({ consume: async () => ({ allowed:true, day:"2026-09-20", used:1, limit:10, remaining:9, resetAt:Date.UTC(2026,8,21) }) }),
+  entitlement: async () => ({ definition:{ limits:{ aiQueriesPerDay:10 } } }),
+  entitlementMode: () => "cosmos",
+};
 const handler = createUserForecastsHandler({
+  ...quotaDeps,
   provider: { id: "twelvedata", getStatus: () => ({provider:"twelvedata",mode:"provider",configured:true,supportsCandles:true,supportsQuotes:true}) },
   ledger: () => ({
     find: async (owner, id) => records.get(owner+":"+id) ?? null,

@@ -5,6 +5,8 @@ import { json } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 import { getWebPushConfiguration } from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
+import { entitlementStore } from "../entitlements/index.js";
+import { configuredForecastHardCap } from "../usage/forecastQuota.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   context.log("MarketOS health check");
@@ -14,6 +16,12 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   const environment = (process.env.MARKETOS_ENVIRONMENT ?? "local").trim() || "local";
   const buildSha = (process.env.MARKETOS_BUILD_SHA ?? process.env.GITHUB_SHA ?? "dev").trim();
   const webPush = getWebPushConfiguration();
+  let forecastHardCap: number | null = null;
+  try {
+    forecastHardCap = configuredForecastHardCap();
+  } catch {
+    forecastHardCap = null;
+  }
 
   return json(200, {
       ok: true,
@@ -34,6 +42,12 @@ export async function health(_request: HttpRequest, context: InvocationContext):
       userData: {
         provider: userStateStore.mode,
         persistent: userStateStore.mode === "cosmos",
+      },
+      forecastQuota: {
+        configured: forecastHardCap !== null && entitlementStore.mode === "cosmos",
+        hardCap: forecastHardCap,
+        entitlementStorage: entitlementStore.mode,
+        window: "utc-day",
       },
       backgroundAlerts: {
         enabled:

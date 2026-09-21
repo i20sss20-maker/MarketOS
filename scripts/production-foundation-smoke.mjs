@@ -23,6 +23,8 @@ const overrides = new Map([
   ["@azure/cosmos", url("export class CosmosClient { constructor() { throw new Error('Actual Cosmos must not run in smoke tests'); } }")],
   [resolve(api + "functions/analystForecast.ts"), url(compile(symbolParser) + "\nexport async function analystForecast() { throw new Error('Inject a test generator'); }")],
   [resolve(api + "providers/index.ts"), url("export const marketDataProvider={id:'demo',getStatus(){return {provider:'demo',mode:'demo',configured:false}}};")],
+  [resolve(api + "entitlements/index.ts"), url("export const entitlementStore={mode:'memory'}; export async function getResolvedUserEntitlement(){return {definition:{limits:{aiQueriesPerDay:10}}};}")],
+  [resolve(api + "usage/cosmosForecastQuota.ts"), url("export function getForecastQuotaStore(){throw new Error('Inject a quota test double');}")],
 ]);
 const moduleUrls = new Map();
 function load(path) {
@@ -162,8 +164,15 @@ const request=(body,options={})=>new HttpRequest({method:options.method??"POST",
   headers:{"content-type":"application/json","origin":"https://marketos.test",...(options.auth===false?{}:{"x-ms-client-principal":principal(options.owner??user.userId)}),...options.headers},
   body:{string:typeof body==="string"?body:JSON.stringify(body??{})}});
 const requestId="request-000000000001";
+let quotaCalls=0;
+const quotaDeps={
+  quota:()=>({consume:async()=>{quotaCalls++;return {allowed:true,day:"2026-09-20",used:quotaCalls,limit:10,remaining:10-quotaCalls,resetAt:Date.UTC(2026,8,21)};}}),
+  entitlement:async()=>({definition:{limits:{aiQueriesPerDay:10}}}),
+  entitlementMode:()=>"cosmos",
+};
+process.env.FORECAST_DAILY_HARD_CAP="10";
 let generated=0;
-const handler=createUserForecastsHandler({ledger:()=>cosmos,provider,generate:async req=>{generated++;const body=await req.json();return {status:200,jsonBody:{ok:true,forecast:{...forecast(),symbol:body.symbol}}};}});
+const handler=createUserForecastsHandler({...quotaDeps,ledger:()=>cosmos,provider,generate:async req=>{generated++;const body=await req.json();return {status:200,jsonBody:{ok:true,forecast:{...forecast(),symbol:body.symbol}}};}});
 await test("anonymous journal request is rejected before storage or market access",async()=>{
   const response=await handler(request({symbol},{auth:false}));assert.equal(response.status,401);assert.equal(generated,0);
 });
@@ -182,9 +191,27 @@ await test("invalid JSON, symbol, request ID and oversize bodies are rejected",a
 await test("production generation is saved on server before success is returned",async()=>{
   const response=await handler(request({symbol,requestId}));assert.equal(response.status,200);
   assert.equal(response.jsonBody.forecast.referencePrice,100);assert.equal(response.jsonBody.journal.evaluationStatus,"pending");assert.equal(generated,1);
+  assert.equal(quotaCalls,1);assert.equal(response.jsonBody.usage.remaining,9);
 });
 await test("retry returns original saved forecast without another generation",async()=>{
-  const response=await handler(request({symbol,requestId}));assert.equal(response.status,200);assert.equal(response.jsonBody.replayed,true);assert.equal(generated,1);
+  const response=await handler(request({symbol,requestId}));assert.equal(response.status,200);assert.equal(response.jsonBody.replayed,true);assert.equal(generated,1);assert.equal(quotaCalls,1);
+});
+await test("quota denial stops provider generation and returns bounded usage",async()=>{
+  const denied=createUserForecastsHandler({...quotaDeps,ledger:()=>cosmos,provider,quota:()=>({consume:async()=>({allowed:false,day:"2026-09-20",used:2,limit:2,remaining:0,resetAt:Date.UTC(2026,8,21)})}),generate:async()=>{throw new Error("must not run");}});
+  const response=await denied(request({symbol,requestId:"request-quota-000001"}));
+  assert.equal(response.status,429);assert.equal(response.jsonBody.code,"DAILY_FORECAST_LIMIT");assert.equal(response.jsonBody.usage.remaining,0);assert.equal(generated,1);
+});
+await test("non-persistent entitlements fail before quota or generation",async()=>{
+  let touched=0;
+  const guarded=createUserForecastsHandler({...quotaDeps,ledger:()=>cosmos,provider,entitlementMode:()=>"memory",quota:()=>({consume:async()=>{touched++;throw new Error("must not run");}}),generate:async()=>{touched++;throw new Error("must not run");}});
+  const response=await guarded(request({symbol,requestId:"request-entitlement-001"}));
+  assert.equal(response.status,503);assert.equal(response.jsonBody.code,"ENTITLEMENTS_NOT_PERSISTENT");assert.equal(touched,0);
+});
+await test("quota storage failure fails closed before provider generation",async()=>{
+  let touched=0;
+  const guarded=createUserForecastsHandler({...quotaDeps,ledger:()=>cosmos,provider,quota:()=>({consume:async()=>{throw new Error("cosmos secret");}}),generate:async()=>{touched++;throw new Error("must not run");}});
+  const response=await guarded(request({symbol,requestId:"request-quota-store01"}));
+  assert.equal(response.status,503);assert.equal(response.jsonBody.code,"FORECAST_QUOTA_UNAVAILABLE");assert.equal(touched,0);assert.doesNotMatch(JSON.stringify(response),/cosmos secret/);
 });
 await test("a request ID cannot be reused for a different instrument",async()=>{
   const response=await handler(request({symbol:{...symbol,ticker:"DIFFERENT"},requestId}));assert.equal(response.status,409);assert.equal(generated,1);
@@ -193,7 +220,7 @@ await test("one user's history cannot include another user's forecasts",async()=
   const response=await handler(request(null,{method:"GET",owner:"another-owner"}));assert.equal(response.status,200);assert.deepEqual(response.jsonBody.records,[]);
 });
 await test("authenticated owner can retrieve the saved report with a new handler instance",async()=>{
-  const restarted=createUserForecastsHandler({ledger:()=>new CosmosForecastLedger(fakeContainer),provider,generate:async()=>{throw new Error("must not run");}});
+  const restarted=createUserForecastsHandler({...quotaDeps,ledger:()=>new CosmosForecastLedger(fakeContainer),provider,generate:async()=>{throw new Error("must not run");}});
   const response=await restarted(request(null,{method:"GET"}));assert.equal(response.status,200);assert.equal(response.jsonBody.records.length,1);
   assert.equal(response.jsonBody.records[0].forecast.referencePrice,100);
 });
@@ -201,14 +228,14 @@ await test("journal pages reject oversized limits and cursors",async()=>{
   for(const query of ["?limit=999","?limit=-1","?limit=abc","?cursor="+"a".repeat(8200)]) assert.equal((await handler(request(null,{method:"GET",query}))).status,400);
 });
 await test("storage failure returns no forecast and leaks no connection string",async()=>{
-  const broken=createUserForecastsHandler({ledger:()=>({...cosmos,find:async()=>null,create:async()=>{throw new Error("AccountKey=VERY-SECRET");}}),provider,generate:async()=>({status:200,jsonBody:{ok:true,forecast:forecast()}})});
+  const broken=createUserForecastsHandler({...quotaDeps,ledger:()=>({...cosmos,find:async()=>null,create:async()=>{throw new Error("AccountKey=VERY-SECRET");}}),provider,generate:async()=>({status:200,jsonBody:{ok:true,forecast:forecast()}})});
   const response=await broken(request({symbol,requestId:"request-storage-0001"}));assert.equal(response.status,503);
   assert.equal(response.jsonBody.forecast,undefined);assert.doesNotMatch(JSON.stringify(response),/VERY-SECRET/);
 });
 await test("Demo provider or Demo generator output never becomes a saved real forecast",async()=>{
-  const demo=createUserForecastsHandler({ledger:()=>cosmos,provider:{...provider,getStatus:()=>({...provider.getStatus(),mode:"demo"})},generate:async()=>{throw new Error("must not run");}});
+  const demo=createUserForecastsHandler({...quotaDeps,ledger:()=>cosmos,provider:{...provider,getStatus:()=>({...provider.getStatus(),mode:"demo"})},generate:async()=>{throw new Error("must not run");}});
   assert.equal((await demo(request({symbol,requestId:"request-demo-000001"}))).status,503);
-  const bad=createUserForecastsHandler({ledger:()=>cosmos,provider,generate:async()=>({status:200,jsonBody:{ok:true,forecast:{...forecast(),dataMode:"demo"}}})});
+  const bad=createUserForecastsHandler({...quotaDeps,ledger:()=>cosmos,provider,generate:async()=>({status:200,jsonBody:{ok:true,forecast:{...forecast(),dataMode:"demo"}}})});
   assert.equal((await bad(request({symbol,requestId:"request-demo-000002"}))).status,502);
 });
 await test("PUT cannot rewrite saved reports",async()=>{
