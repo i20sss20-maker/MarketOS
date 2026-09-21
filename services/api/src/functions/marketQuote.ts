@@ -2,11 +2,12 @@ import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { json, marketError } from "../http/responses.js";
 import { marketSymbolFromRequest } from "../market/requestSymbol.js";
 import { marketDataProvider } from "../providers/index.js";
-import { assertProductionMarketAccess } from "../production/marketAccess.js";
+import { assertProductionMarketAccess, consumeProductionMarketDataQuota } from "../production/marketAccess.js";
 
 export async function marketQuote(request: HttpRequest): Promise<HttpResponseInit> {
   try {
-    assertProductionMarketAccess(request);
+    const marketUser = assertProductionMarketAccess(request);
+    await consumeProductionMarketDataQuota(marketUser);
     const symbol = marketSymbolFromRequest(request);
     const quote = await marketDataProvider.getQuote(symbol);
 
