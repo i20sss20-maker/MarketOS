@@ -43,6 +43,9 @@ jobs:
       - name: Hosted production boundary workflow source smoke test
         run: pnpm smoke:hosted-boundary-source
 
+      - name: Market data timing and usage-rights provenance smoke test
+        run: pnpm smoke:market-data-provenance
+
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
 
