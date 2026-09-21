@@ -8,6 +8,7 @@ import { buildMultiTimeframeAnalysis } from "../ai/multiTimeframeEngine.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 import { authorizeProductionMarketRequest } from "../production/marketAccess.js";
+import { ProductionGateError } from "../production/policy.js";
 
 const allowedTimeframes = new Set<Timeframe>([
   "1m",
@@ -189,6 +190,13 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
       analysis,
     });
   } catch (error) {
+    if (error instanceof ProductionGateError) {
+      return json(error.status, {
+        ok: false,
+        code: error.code,
+        error: error.message,
+      });
+    }
     const message = error instanceof Error ? error.message : "Invalid multi-timeframe request.";
     return json(400, {
       ok: false,
