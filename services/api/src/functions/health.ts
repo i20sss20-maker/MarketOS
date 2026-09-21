@@ -7,6 +7,7 @@ import { getWebPushConfiguration } from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { configuredMarketApiHardCap } from "../usage/marketApiQuota.js";
 import { operationsPolicy } from "../production/operationsPolicy.js";
 import { marketDataPolicy } from "../production/marketDataPolicy.js";
 
@@ -23,10 +24,16 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   const webPush = getWebPushConfiguration();
   const operations = operationsPolicy();
   let forecastHardCap: number | null = null;
+  let marketApiHardCap: number | null = null;
   try {
     forecastHardCap = configuredForecastHardCap();
   } catch {
     forecastHardCap = null;
+  }
+  try {
+    marketApiHardCap = configuredMarketApiHardCap();
+  } catch {
+    marketApiHardCap = null;
   }
 
   return json(200, {
@@ -48,6 +55,12 @@ export async function health(_request: HttpRequest, context: InvocationContext):
       userData: {
         provider: userStateStore.mode,
         persistent: userStateStore.mode === "cosmos",
+      },
+      marketApiQuota: {
+        configured: marketApiHardCap !== null,
+        hardCap: marketApiHardCap,
+        window: "utc-day",
+        storage: "forecastJournal",
       },
       forecastQuota: {
         configured: forecastHardCap !== null && entitlementStore.mode === "cosmos",
