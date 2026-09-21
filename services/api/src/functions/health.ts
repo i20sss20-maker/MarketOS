@@ -9,6 +9,7 @@ import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
 import { configuredMarketDataDailyHardCap } from "../usage/marketDataQuota.js";
 import { operationsPolicy } from "../production/operationsPolicy.js";
+import { forecastLedgerConfig } from "../production/policy.js";
 import { marketDataPolicy } from "../production/marketDataPolicy.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
@@ -25,6 +26,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   const operations = operationsPolicy();
   let forecastHardCap: number | null = null;
   let marketDataHardCap: number | null = null;
+  let marketDataQuotaStorageConfigured = false;
   try {
     forecastHardCap = configuredForecastHardCap();
   } catch {
@@ -32,8 +34,11 @@ export async function health(_request: HttpRequest, context: InvocationContext):
   }
   try {
     marketDataHardCap = configuredMarketDataDailyHardCap();
+    forecastLedgerConfig();
+    marketDataQuotaStorageConfigured = true;
   } catch {
     marketDataHardCap = null;
+    marketDataQuotaStorageConfigured = false;
   }
 
   return json(200, {
@@ -57,9 +62,9 @@ export async function health(_request: HttpRequest, context: InvocationContext):
         persistent: userStateStore.mode === "cosmos",
       },
       marketDataQuota: {
-        configured: marketDataHardCap !== null && userStateStore.mode === "cosmos",
+        configured: marketDataHardCap !== null && marketDataQuotaStorageConfigured,
         hardCap: marketDataHardCap,
-        storage: userStateStore.mode,
+        storage: marketDataQuotaStorageConfigured ? "cosmos" : "unavailable",
         window: "utc-day",
       },
       forecastQuota: {
