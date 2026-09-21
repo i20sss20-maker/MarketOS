@@ -60,7 +60,11 @@ wrong/malformed storage, plan reductions and concurrent ETag consumption. Founda
 verify that replays do not consume quota, a denied quota never starts generation, memory entitlements
 fail closed, and storage errors do not leak internals.
 
+The strict Analyst view now displays the latest validated server usage receipt (used/limit/remaining and
+reset time) for the current browser session. Automatic Radar scans are disabled in strict real-data
+mode both on the Radar mount and from Home; a multi-symbol scan must be explicitly started by the user.
+
 Still required before public launch: live Cosmos concurrency/load tests, provider-account cost limits,
-Azure Monitor/Application Insights dashboards and alerts, user-visible usage UX, account-wide usage
-policy across non-forecast AI routes, abuse controls beyond daily generation, and a reviewed commercial
+Azure Monitor/Application Insights dashboards and alerts, account-wide usage policy across non-forecast
+AI routes, abuse controls beyond daily generation, and a reviewed commercial
 market-data entitlement. Passing deterministic tests is not a live capacity or cost guarantee.
