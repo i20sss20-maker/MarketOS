@@ -278,6 +278,32 @@ assert.match(
   /EOD/,
 );
 
+const configureScript =
+  readFileSync(
+    "infrastructure/azure/configure-market-data-policy.ps1",
+    "utf8",
+  );
+assert.match(
+  configureScript,
+  /ValidateSet\("realtime", "delayed", "end-of-day"\)/,
+);
+assert.match(
+  configureScript,
+  /ValidateSet\("personal", "commercial"\)/,
+);
+assert.match(
+  configureScript,
+  /MARKET_DATA_RIGHTS_CONFIRMED=true/,
+);
+assert.doesNotMatch(
+  configureScript,
+  /TWELVE_DATA_API_KEY|MARKET_DATA_API_KEY/,
+);
+assert.match(
+  configureScript,
+  /does not buy, verify, or expand provider\/exchange rights/,
+);
+
 const system =
   readFileSync(
     "apps/web/src/components/SystemPanel.tsx",
