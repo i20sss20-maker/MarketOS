@@ -93,6 +93,14 @@ assert.match(
 );
 assert.match(
   script,
+  /MARKETOS_ACCEPTANCE_EXPECTED_BUILD_SHA/,
+);
+assert.match(
+  script,
+  /health\.body\?\.buildSha/,
+);
+assert.match(
+  script,
   /redirect: "manual"/,
 );
 assert.match(
