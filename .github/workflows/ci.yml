@@ -64,6 +64,9 @@ jobs:
       - name: Strict Azure production deployment workflow smoke test
         run: pnpm smoke:azure-production-deploy
 
+      - name: Exact-SHA production release evidence gate smoke test
+        run: pnpm smoke:production-release-evidence
+
       - name: Full account-data erasure smoke test
         run: pnpm smoke:account-data-erasure
 
