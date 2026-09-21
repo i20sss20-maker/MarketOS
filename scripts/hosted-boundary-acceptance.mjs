@@ -147,6 +147,13 @@ assert.equal(
 );
 assert.equal(
   health.body
+    ?.marketDataQuota
+    ?.configured,
+  true,
+  "Hosted production requires a configured persistent market-data request cap.",
+);
+assert.equal(
+  health.body
     ?.operations
     ?.metricAlertsConfigured,
   true,
