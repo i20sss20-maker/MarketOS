@@ -12,7 +12,7 @@ The server erases:
   history and registered Push endpoints;
 - the authenticated user's stored entitlement record;
 - the hashed forecast-owner partition in `forecastJournal`, including immutable forecasts,
-  resolved forecast outcomes, and daily forecast quota records.
+  resolved forecast outcomes, daily forecast quota records, and daily provider-request quota records.
 
 The forecast/quota partition is removed with bounded transactional delete batches. MarketOS
 does not depend on Cosmos DB's delete-by-partition preview feature. If one store fails after
