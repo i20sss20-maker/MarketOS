@@ -49,3 +49,19 @@ previous commit after investigating the failed readiness evidence. Do not change
 data/provider settings merely to make acceptance green.
 
 The hosted boundary artifact contains statuses and non-secret readiness data only.
+
+
+## Verified artifact and deployment binding
+
+The verify job creates the production web/API bundle once, generates an npm lockfile for the
+standalone Azure API runtime dependencies, proves that lockfile installs, and uploads the exact
+bundle as a workflow artifact. The deploy job downloads that artifact and uses `npm ci`; it does
+not rebuild MarketOS source.
+
+After Azure Static Web Apps deploys the bundle, the workflow requires the action's
+`static_web_app_url` output to match the manually supplied HTTPS production origin. Hosted
+acceptance then runs against the URL returned by Azure, not an arbitrary URL copied into the
+workflow form.
+
+This prevents a green verification for one bundle followed by a different rebuild at deploy time,
+and prevents production acceptance from accidentally testing a different Static Web App.
