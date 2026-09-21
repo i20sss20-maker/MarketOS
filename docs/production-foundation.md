@@ -58,6 +58,7 @@ COSMOS_DATABASE=marketos
 COSMOS_CONTAINER=userState
 FORECAST_JOURNAL_ENABLED=true
 FORECAST_JOURNAL_CONTAINER=forecastJournal
+MARKET_API_DAILY_HARD_CAP=<100..100000 weighted units per UTC day>
 ```
 
 Set `VITE_MARKETOS_REQUIRE_REAL_DATA=true` when building the web bundle. This is a public
@@ -104,7 +105,7 @@ Before release, complete and demonstrate:
    path is strict in this slice. Do not describe the complete UI as live yet.
 5. Server-side evaluation using finalized candles and a fixed, recorded horizon. Existing
    browser-side scoring is not a verified or tamper-resistant production track record.
-6. Cross-instance quotas, rate limits, monitoring, provider-cost controls and failure recovery.
+6. Hosted concurrency/load acceptance for the persistent forecast and provider-request quotas, plus failure recovery.
 
 No data provider, exchange, commercial license, paid subscription or Azure resource was
 activated by this change. The first market and the permitted monthly budget are not decided.
