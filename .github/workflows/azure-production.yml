@@ -68,6 +68,9 @@ jobs:
       - name: Operations guardrail checks
         run: pnpm smoke:operations-guardrails
 
+      - name: Account-data erasure checks
+        run: pnpm smoke:account-data-erasure
+
       - name: Prepare standalone Azure API
         run: pnpm prepare:azure-api
 
