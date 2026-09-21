@@ -66,6 +66,7 @@ import {
   applyCloudStateToLocal,
   collectLocalCloudState,
   deleteCloudState,
+  eraseAccountData,
   getAuthPrincipal,
   getCloudState,
   putCloudState,
@@ -1213,6 +1214,56 @@ export default function App() {
         error instanceof Error
           ? error.message
           : "تعذر حذف النسخة السحابية.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const eraseAllServerAccountData = async () => {
+    if (!authUser || cloudBusy) return;
+
+    const confirmation = window.prompt(
+      "هذا يمسح جميع بيانات MarketOS السحابية لهذا الحساب، بما فيها سجل التوقعات والصلاحيات وعدادات الاستخدام. بيانات الجهاز المحلية وحساب Microsoft/GitHub نفسه لن تُحذف.\n\nللتأكيد اكتب بالضبط:\nDELETE MARKETOS DATA",
+    );
+
+    if (confirmation !== "DELETE MARKETOS DATA") {
+      if (confirmation !== null) {
+        setCloudError("لم يتم الحذف لأن عبارة التأكيد غير مطابقة.");
+      }
+      return;
+    }
+
+    setCloudBusy(true);
+    setCloudError(null);
+    setCloudMessage(null);
+
+    try {
+      if (pushState.subscribed) {
+        try {
+          setPushState(await disablePushNotifications());
+        } catch {
+          // Server erasure below removes the registered endpoint even if
+          // the browser's local Push subscription cannot be changed now.
+        }
+      }
+
+      const result = await eraseAccountData();
+
+      setCloudState(null);
+      setAlertInboxEvents([]);
+      setShowAlertInbox(false);
+      await refreshEntitlement();
+      await refreshPushState();
+
+      setCloudMessage(
+        `تم حذف بيانات MarketOS السحابية. حُذف ${result.forecastItemsDeleted ?? 0} عنصرًا من سجل التوقعات/الاستخدام. بيانات هذا الجهاز المحلية لم تُحذف.`,
+      );
+    } catch (error) {
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : "تعذر حذف جميع بيانات MarketOS السحابية.",
       );
     } finally {
       setCloudBusy(false);
@@ -5578,6 +5629,7 @@ export default function App() {
         onUpload={() => void uploadCurrentDeviceToCloud()}
         onRestore={() => void restoreCloudToThisDevice()}
         onDeleteCloud={() => void removeCloudCopy()}
+        onEraseAccountData={() => void eraseAllServerAccountData()}
         onEnablePush={() => void enablePushOnThisDevice()}
         onDisablePush={() => void disablePushOnThisDevice()}
         onRefreshPush={() => void refreshPushState()}
