@@ -7,11 +7,15 @@ import { getWebPushConfiguration } from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { marketDataPolicy } from "../production/marketDataPolicy.js";
 
 export async function health(_request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
   context.log("MarketOS health check");
 
-  const marketData = marketDataProvider.getStatus();
+  const marketData = {
+    ...marketDataProvider.getStatus(),
+    dataPolicy: marketDataPolicy(),
+  };
   const aiProvider = (process.env.AI_PROVIDER ?? "local-chart-engine").trim() || "local-chart-engine";
   const environment = (process.env.MARKETOS_ENVIRONMENT ?? "local").trim() || "local";
   const buildSha = (process.env.MARKETOS_BUILD_SHA ?? process.env.GITHUB_SHA ?? "dev").trim();
