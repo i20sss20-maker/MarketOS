@@ -65,6 +65,8 @@ assert.deepEqual(
       false,
     costBudgetConfigured:
       false,
+    applicationInsightsLinked:
+      false,
     configured: false,
   },
 );
@@ -91,6 +93,20 @@ assert.throws(
     "COST_BUDGET_NOT_CONFIGURED",
 );
 
+assert.throws(
+  () =>
+    assertOperationsPolicy({
+      ...production,
+      MARKETOS_METRIC_ALERTS_CONFIGURED:
+        "true",
+      MARKETOS_COST_BUDGET_CONFIGURED:
+        "true",
+    }),
+  (error) =>
+    error.code ===
+    "APPLICATION_INSIGHTS_NOT_LINKED",
+);
+
 assert.deepEqual(
   assertOperationsPolicy({
     ...production,
@@ -98,11 +114,15 @@ assert.deepEqual(
       "TRUE",
     MARKETOS_COST_BUDGET_CONFIGURED:
       "true",
+    APPLICATIONINSIGHTS_CONNECTION_STRING:
+      "InstrumentationKey=test-only",
   }),
   {
     metricAlertsConfigured:
       true,
     costBudgetConfigured:
+      true,
+    applicationInsightsLinked:
       true,
     configured: true,
   },
@@ -184,6 +204,10 @@ assert.match(
   health,
   /costBudgetConfigured/,
 );
+assert.match(
+  health,
+  /operationsPolicy\(\)/,
+);
 
 const panel =
   readFileSync(
@@ -193,6 +217,10 @@ const panel =
 assert.match(
   panel,
   /Operations Guardrails/,
+);
+assert.match(
+  panel,
+  /App Insights/,
 );
 assert.match(
   panel,
