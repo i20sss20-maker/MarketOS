@@ -177,6 +177,39 @@ assert.doesNotMatch(
   /az staticwebapp create/,
 );
 
+const insightsVerifier =
+  readFileSync(
+    "infrastructure/azure/verify-application-insights.ps1",
+    "utf8",
+  );
+
+for (
+  const required
+  of [
+    "APPLICATIONINSIGHTS_CONNECTION_STRING",
+    "az monitor app-insights component show",
+    "az monitor app-insights query",
+    "/api/health",
+    "No connection string or instrumentation key was printed",
+  ]
+) {
+  assert.ok(
+    insightsVerifier.includes(
+      required,
+    ),
+    `Missing Application Insights verification marker: ${required}`,
+  );
+}
+
+assert.doesNotMatch(
+  insightsVerifier,
+  /Write-Host\s+\$connectionString|Write-Output\s+\$connectionString/,
+);
+assert.doesNotMatch(
+  insightsVerifier,
+  /TWELVE_DATA_API_KEY|COSMOS_CONNECTION_STRING/,
+);
+
 const readiness =
   readFileSync(
     "services/api/src/functions/productionReadiness.ts",
