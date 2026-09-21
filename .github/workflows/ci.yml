@@ -49,6 +49,9 @@ jobs:
       - name: Azure monitoring and cost guardrails smoke test
         run: pnpm smoke:operations-guardrails
 
+      - name: Strict Azure production deployment workflow smoke test
+        run: pnpm smoke:azure-production-deploy
+
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
 
