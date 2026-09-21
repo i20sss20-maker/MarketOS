@@ -55,14 +55,17 @@ jobs:
       - name: Strict Azure production deployment workflow smoke test
         run: pnpm smoke:azure-production-deploy
 
-      - name: Live Cosmos acceptance workflow source smoke test
-        run: pnpm smoke:cosmos-live-acceptance-source
-
       - name: Full account-data erasure smoke test
         run: pnpm smoke:account-data-erasure
 
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
+
+      - name: Cosmos runtime no-provision smoke test
+        run: pnpm smoke:cosmos-runtime-no-provision
+
+      - name: Live Cosmos acceptance workflow source smoke test
+        run: pnpm smoke:cosmos-live-acceptance-source
 
       - name: Forecast generation quota concurrency smoke test
         run: pnpm smoke:forecast-quota

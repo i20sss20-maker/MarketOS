@@ -9,6 +9,7 @@ import {
   type UserStatePutOptions,
   type UserStateStore,
 } from "./types.js";
+import { existingUserPartitionContainer } from "./existingCosmosContainer.js";
 
 function statusCode(error: unknown) {
   return typeof error === "object" &&
@@ -47,7 +48,7 @@ export class CosmosUserStateStore implements UserStateStore {
   readonly mode = "cosmos" as const;
 
   private readonly client: CosmosClient;
-  private containerPromise: Promise<Container> | null = null;
+  private readonly container: () => Promise<Container>;
 
   constructor(
     connectionString: string,
@@ -55,29 +56,12 @@ export class CosmosUserStateStore implements UserStateStore {
     private readonly containerId = "userState",
   ) {
     this.client = new CosmosClient(connectionString);
-  }
-
-  private container() {
-    if (!this.containerPromise) {
-      this.containerPromise = (async () => {
-        const { database } =
-          await this.client.databases.createIfNotExists({
-            id: this.databaseId,
-          });
-
-        const { container } =
-          await database.containers.createIfNotExists({
-            id: this.containerId,
-            partitionKey: {
-              paths: ["/userId"],
-            },
-          });
-
-        return container;
-      })();
-    }
-
-    return this.containerPromise;
+    this.container = existingUserPartitionContainer(
+      this.client,
+      this.databaseId,
+      this.containerId,
+      "Cloud user-state container",
+    );
   }
 
   async get(userId: string) {
