@@ -79,8 +79,9 @@ export class CosmosForecastQuotaStore implements ForecastQuotaStore {
         return { allowed: false, day: window.day, used: current.count, limit, remaining: 0, resetAt: window.resetAt };
       }
 
+      const { _etag, ...currentData } = current;
       const next: ForecastUsageRecord = {
-        ...current,
+        ...currentData,
         count: current.count + 1,
         limit,
         updatedAt: now,
