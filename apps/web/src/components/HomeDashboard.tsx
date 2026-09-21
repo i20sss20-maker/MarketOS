@@ -219,13 +219,18 @@ export default function HomeDashboard({
 
     const refreshIntelligence =
       async () => {
-        if (import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" && !signedIn) return;
+        const strictRealData =
+          import.meta.env
+            ?.VITE_MARKETOS_REQUIRE_REAL_DATA ===
+          "true";
+        if (strictRealData && !signedIn) return;
         const cached =
           loadAnalystRadarCache(
             analystCandidates,
           );
 
         if (
+          !strictRealData &&
           analystCandidates.length >
             0 &&
           isAnalystRadarCacheStale(
