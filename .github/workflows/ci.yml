@@ -248,6 +248,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-production-storage.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-market-data-policy.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-operations-guardrails.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4

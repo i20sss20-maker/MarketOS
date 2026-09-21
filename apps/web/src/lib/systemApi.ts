@@ -49,6 +49,7 @@ export type SystemHealth = {
   operations: {
     metricAlertsConfigured: boolean;
     costBudgetConfigured: boolean;
+    applicationInsightsLinked: boolean;
     configured: boolean;
   };
   marketDataQuota: {
