@@ -185,6 +185,28 @@ export default function SystemPanel({
 
                 <article className="system-service-card">
                   <div className="system-service-title">
+                    <StatusDot mode={health.operations.configured ? "provider" : "demo"} />
+                    <strong>Operations Guardrails</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.operations.configured ? "Azure guardrails configured" : "Setup required"}
+                  </span>
+                  <small>
+                    {health.operations.metricAlertsConfigured
+                      ? "Metric alerts ✓"
+                      : "Metric alerts —"}
+                    {" · "}
+                    {health.operations.costBudgetConfigured
+                      ? "Cost budget ✓"
+                      : "Cost budget —"}
+                  </small>
+                  <small>
+                    ميزانية Azure تنبّه عند تجاوز الحدود ولا توقف الاستهلاك تلقائيًا.
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
                     <StatusDot mode={health.backgroundAlerts.enabled ? "provider" : "demo"} />
                     <strong>Background Alerts</strong>
                   </div>
