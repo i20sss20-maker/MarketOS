@@ -77,6 +77,7 @@ type QuoteResponse = ApiError & {
   symbol?: string;
   currency?: string;
   timestamp?: number;
+  last_quote_at?: number;
   open?: string;
   high?: string;
   low?: string;
@@ -151,9 +152,18 @@ function quoteFromPayload(payload: QuoteResponse, symbol: MarketSymbol, source: 
     percentChange: numberOrUndefined(payload.percent_change),
     volume: numberOrUndefined(payload.volume),
     currency: payload.currency || symbol.currency,
-    timestamp: Number.isSafeInteger(payload.timestamp) && (payload.timestamp ?? 0) > 0
-      ? payload.timestamp!
-      : 0,
+    timestamp:
+      Number.isSafeInteger(payload.last_quote_at) && (payload.last_quote_at ?? 0) > 0
+        ? payload.last_quote_at!
+        : Number.isSafeInteger(payload.timestamp) && (payload.timestamp ?? 0) > 0
+          ? payload.timestamp!
+          : 0,
+    timestampKind:
+      Number.isSafeInteger(payload.last_quote_at) && (payload.last_quote_at ?? 0) > 0
+        ? "last-quote"
+        : Number.isSafeInteger(payload.timestamp) && (payload.timestamp ?? 0) > 0
+          ? "interval-open"
+          : undefined,
     isMarketOpen: payload.is_market_open,
     isExtendedHours: payload.is_extended_hours,
     source,
