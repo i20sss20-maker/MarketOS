@@ -172,6 +172,11 @@ export default function AnalystRadarView({
       null,
     );
 
+  const strictRealData =
+    import.meta.env
+      ?.VITE_MARKETOS_REQUIRE_REAL_DATA ===
+    "true";
+
   const candidates =
     useMemo(
       () =>
@@ -361,6 +366,7 @@ export default function AnalystRadarView({
     }
 
     if (
+      !strictRealData &&
       candidates.length > 0 &&
       isAnalystRadarCacheStale(
         cached,
@@ -389,6 +395,9 @@ export default function AnalystRadarView({
             Forecast، ثم يرتب الحالات
             حسب وضوح السيناريو والثقة
             والمعايرة والمخاطر.
+            {strictRealData
+              ? " في وضع البيانات الحقيقية يبدأ الفحص يدويًا فقط حتى لا تُستهلك حصة التحليل في الخلفية."
+              : ""}
           </p>
         </div>
 
