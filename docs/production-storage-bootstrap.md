@@ -3,11 +3,15 @@
 This script prepares the **storage foundation only**. It does not enable a market-data
 provider, real-data mode, a paid plan, or a public launch.
 
-Run:
+Run with an explicit provider-request ceiling chosen for the data plan:
 
 ```powershell
-./infrastructure/azure/bootstrap-production-storage.ps1
+./infrastructure/azure/bootstrap-production-storage.ps1 \
+  -MarketDataDailyRequestHardCap <approved-per-user-daily-units>
 ```
+
+The repository intentionally has no default for this market-data ceiling because the appropriate
+value depends on the selected provider plan, permitted usage and budget.
 
 The bootstrap is intentionally cost-conservative:
 
@@ -21,6 +25,7 @@ The bootstrap is intentionally cost-conservative:
 - a container with dedicated throughput is rejected rather than silently retained;
 - the connection string is written directly to Static Web Apps app settings and is never
   printed by the script.
+- the operator must choose a per-user daily provider-request ceiling; the script does not invent one.
 
 Azure Cosmos DB Free Tier currently covers the first 1000 RU/s and 25 GB in a Free Tier
 account. Usage above those limits can be billed. This bootstrap cannot guarantee a zero
