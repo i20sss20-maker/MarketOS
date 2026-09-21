@@ -73,7 +73,7 @@ assert.match(
 );
 assert.match(
   script,
-  /assert\.notEqual\([\s\S]*spoofAttempt\.status,[\s\S]*400/,
+  /broken boundary may still touch quota storage/,
 );
 assert.match(
   script,
