@@ -73,6 +73,7 @@
     "smoke:production-storage-bootstrap": "node scripts/production-storage-bootstrap-smoke.mjs",
     "smoke:cosmos-runtime-no-provision": "node scripts/cosmos-runtime-no-provision-smoke.mjs",
     "smoke:cosmos-live-acceptance-source": "node scripts/cosmos-live-acceptance-source-smoke.mjs",
+    "smoke:live-account-erasure-storage-source": "node scripts/live-account-erasure-storage-acceptance-source-smoke.mjs",
     "smoke:market-data-request-quota": "node scripts/market-data-request-quota-smoke.mjs",
     "smoke:production-readiness-ui": "node scripts/production-readiness-ui-smoke.mjs",
     "smoke:hosted-ingress-load-source": "node scripts/hosted-ingress-load-source-smoke.mjs",
