@@ -29,7 +29,9 @@ modified capacity can affect charges. Verify the subscription's Cost Management 
 provisioning.
 
 The script configures persistent user state, persistent entitlements, the server forecast
-journal, and the operator forecast daily hard cap. It deliberately leaves these settings
+journal, the operator forecast daily hard cap, and a weighted provider-request daily hard cap.
+The provider-request default is 1000 weighted units/day; it is a safety ceiling, not a statement
+about the provider plan or monetary cost, and should be reduced to match the purchased entitlement. It deliberately leaves these settings
 untouched:
 
 ```text
