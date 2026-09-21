@@ -76,6 +76,9 @@ jobs:
       - name: Live account erasure storage acceptance source smoke test
         run: pnpm smoke:live-account-erasure-storage-source
 
+      - name: Live quota concurrency acceptance source smoke test
+        run: pnpm smoke:live-quota-concurrency-source
+
       - name: Market-data request quota concurrency and ordering smoke test
         run: pnpm smoke:market-data-request-quota
 
