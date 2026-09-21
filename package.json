@@ -62,6 +62,7 @@
     "smoke:production-foundation": "node scripts/production-foundation-smoke.mjs",
     "smoke:production-market-auth": "node scripts/production-market-auth-smoke.mjs",
     "smoke:hosted-boundary-source": "node scripts/hosted-boundary-acceptance-source-smoke.mjs",
+    "smoke:market-data-provenance": "node scripts/market-data-provenance-smoke.mjs",
     "smoke:production-storage-bootstrap": "node scripts/production-storage-bootstrap-smoke.mjs",
     "smoke:production-client": "node scripts/production-client-smoke.mjs",
     "smoke:forecast-quota": "node scripts/forecast-quota-smoke.mjs",
