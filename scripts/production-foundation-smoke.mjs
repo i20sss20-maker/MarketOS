@@ -21,7 +21,7 @@ const symbolParser = source.slice(source.indexOf("const assetClasses"), source.i
 const overrides = new Map([
   ["@azure/functions", azureUrl],
   ["@azure/cosmos", url("export class CosmosClient { constructor() { throw new Error('Actual Cosmos must not run in smoke tests'); } }")],
-  [resolve(api + "functions/analystForecast.ts"), url(compile(symbolParser) + "\nexport async function analystForecast() { throw new Error('Inject a test generator'); }")],
+  [resolve(api + "functions/analystForecast.ts"), url(compile(symbolParser) + "\nexport async function analystForecast() { throw new Error('Inject a test generator'); }\nexport const generateJournalForecast = analystForecast;")],
   [resolve(api + "providers/index.ts"), url("export const marketDataProvider={id:'demo',getStatus(){return {provider:'demo',mode:'demo',configured:false}}};")],
   [resolve(api + "entitlements/index.ts"), url("export const entitlementStore={mode:'memory'}; export async function getResolvedUserEntitlement(){return {definition:{limits:{aiQueriesPerDay:10}}};}")],
   [resolve(api + "usage/cosmosForecastQuota.ts"), url("export function getForecastQuotaStore(){throw new Error('Inject a quota test double');}")],
