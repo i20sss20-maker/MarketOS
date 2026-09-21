@@ -38,6 +38,9 @@ import {
   json,
   preflight,
 } from "../http/responses.js";
+import {
+  consumeProductionMarketQuota,
+} from "../production/marketAccess.js";
 
 const assetClasses =
   new Set<AssetClass>([
@@ -138,6 +141,26 @@ function forecastTimeframes(
   ];
 }
 
+export function forecastProviderRequestUnits(
+  symbol: MarketSymbol,
+) {
+  // Conservative provider-call reservation:
+  // quote + one candle request per forecast timeframe + events +
+  // press releases for stock/ETF forecasts. Provider-side cache hits may
+  // consume fewer upstream credits, but the quota is an operator ceiling.
+  return (
+    1 +
+    forecastTimeframes(symbol).length +
+    1 +
+    (
+      symbol.assetClass === "stock" ||
+      symbol.assetClass === "etf"
+        ? 1
+        : 0
+    )
+  );
+}
+
 function calibrationPlan(
   symbol: MarketSymbol,
 ): {
@@ -235,6 +258,13 @@ export async function analystForecast(
       sanitizeSymbol(body.symbol);
     const timeframes =
       forecastTimeframes(symbol);
+
+    if (realDataRequired()) {
+      await consumeProductionMarketQuota(
+        getAuthenticatedUser(request),
+        forecastProviderRequestUnits(symbol),
+      );
+    }
 
     const quotePromise =
       marketDataProvider
