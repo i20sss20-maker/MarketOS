@@ -55,6 +55,9 @@ jobs:
       - name: Hosted forecast evaluator rollout smoke test
         run: pnpm smoke:forecast-evaluator-rollout
 
+      - name: Live hosted forecast evaluator acceptance source smoke test
+        run: pnpm smoke:live-forecast-evaluation-source
+
       - name: Secure Azure deployment-token sync smoke test
         run: pnpm smoke:deployment-token-sync
 
@@ -75,6 +78,9 @@ jobs:
 
       - name: Live Cosmos acceptance workflow source smoke test
         run: pnpm smoke:cosmos-live-acceptance-source
+
+      - name: Live account erasure storage acceptance source smoke test
+        run: pnpm smoke:live-account-erasure-storage-source
 
       - name: Live quota concurrency acceptance source smoke test
         run: pnpm smoke:live-quota-concurrency-source
