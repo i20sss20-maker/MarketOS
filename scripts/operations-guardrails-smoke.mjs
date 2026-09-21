@@ -65,6 +65,8 @@ assert.deepEqual(
       false,
     costBudgetConfigured:
       false,
+    applicationInsightsLinked:
+      false,
     configured: false,
   },
 );
@@ -91,6 +93,20 @@ assert.throws(
     "COST_BUDGET_NOT_CONFIGURED",
 );
 
+assert.throws(
+  () =>
+    assertOperationsPolicy({
+      ...production,
+      MARKETOS_METRIC_ALERTS_CONFIGURED:
+        "true",
+      MARKETOS_COST_BUDGET_CONFIGURED:
+        "true",
+    }),
+  (error) =>
+    error.code ===
+    "APPLICATION_INSIGHTS_NOT_LINKED",
+);
+
 assert.deepEqual(
   assertOperationsPolicy({
     ...production,
@@ -98,11 +114,15 @@ assert.deepEqual(
       "TRUE",
     MARKETOS_COST_BUDGET_CONFIGURED:
       "true",
+    APPLICATIONINSIGHTS_CONNECTION_STRING:
+      "InstrumentationKey=test-only",
   }),
   {
     metricAlertsConfigured:
       true,
     costBudgetConfigured:
+      true,
+    applicationInsightsLinked:
       true,
     configured: true,
   },
@@ -157,6 +177,39 @@ assert.doesNotMatch(
   /az staticwebapp create/,
 );
 
+const insightsVerifier =
+  readFileSync(
+    "infrastructure/azure/verify-application-insights.ps1",
+    "utf8",
+  );
+
+for (
+  const required
+  of [
+    "APPLICATIONINSIGHTS_CONNECTION_STRING",
+    "az monitor app-insights component show",
+    "az monitor app-insights query",
+    "/api/health",
+    "No connection string or instrumentation key was printed",
+  ]
+) {
+  assert.ok(
+    insightsVerifier.includes(
+      required,
+    ),
+    `Missing Application Insights verification marker: ${required}`,
+  );
+}
+
+assert.doesNotMatch(
+  insightsVerifier,
+  /Write-Host\s+\$connectionString|Write-Output\s+\$connectionString/,
+);
+assert.doesNotMatch(
+  insightsVerifier,
+  /TWELVE_DATA_API_KEY|COSMOS_CONNECTION_STRING/,
+);
+
 const readiness =
   readFileSync(
     "services/api/src/functions/productionReadiness.ts",
@@ -184,6 +237,10 @@ assert.match(
   health,
   /costBudgetConfigured/,
 );
+assert.match(
+  health,
+  /operationsPolicy\(\)/,
+);
 
 const panel =
   readFileSync(
@@ -193,6 +250,10 @@ const panel =
 assert.match(
   panel,
   /Operations Guardrails/,
+);
+assert.match(
+  panel,
+  /App Insights/,
 );
 assert.match(
   panel,

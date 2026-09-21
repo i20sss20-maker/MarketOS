@@ -169,6 +169,13 @@ assert.equal(
 assert.equal(
   health.body
     ?.operations
+    ?.applicationInsightsLinked,
+  true,
+  "Hosted production requires Application Insights linked to the Static Web App.",
+);
+assert.equal(
+  health.body
+    ?.operations
     ?.configured,
   true,
 );

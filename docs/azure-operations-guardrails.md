@@ -6,7 +6,9 @@ This bootstrap prepares two operational controls for MarketOS:
 2. A monthly Azure Cost Management budget at the MarketOS resource-group scope.
 
 It does **not** enable Application Insights and it does **not** stop resources when a
-budget threshold is crossed.
+budget threshold is crossed. Production configuration now also requires Application Insights
+to be linked to the Static Web App; MarketOS detects that from the non-empty
+`APPLICATIONINSIGHTS_CONNECTION_STRING` setting created by Azure when monitoring is enabled.
 
 ## Explicit consent
 
@@ -53,7 +55,8 @@ MARKETOS_METRIC_ALERTS_CONFIGURED=true
 MARKETOS_COST_BUDGET_CONFIGURED=true
 ```
 
-Production configuration readiness requires both flags.
+Production configuration readiness requires both flags **and** an actual linked
+`APPLICATIONINSIGHTS_CONNECTION_STRING`. MarketOS never exposes that connection string.
 
 ## Important limits
 
@@ -67,6 +70,20 @@ therefore requires explicit acknowledgement before creating them.
 Detailed request/exception investigation still requires the separate
 `APPLICATION_INSIGHTS_AND_LOG_REVIEW` production acceptance gate. MarketOS does not mark
 itself fully production-ready merely because metric alerts and a budget exist.
+
+For managed Static Web Apps functions, Azure documents Application Insights as the supported
+logging path. Enable Application Insights on the MarketOS Static Web App in Azure, then verify
+the link and actual telemetry ingestion without printing the connection string:
+
+```powershell
+./infrastructure/azure/verify-application-insights.ps1 \
+  -ApplicationInsightsApp "<MarketOS Application Insights resource name>"
+```
+
+The verifier confirms the selected component matches the Static Web App connection string,
+makes one safe `/api/health` request, waits for ingestion, and requires that request to appear
+in Application Insights. It does not call market-data providers or Cosmos. After it passes,
+review **Failures**, **Performance**, and **Logs** in Application Insights before launch.
 
 References:
 

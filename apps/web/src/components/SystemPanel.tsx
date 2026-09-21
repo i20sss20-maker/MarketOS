@@ -239,6 +239,10 @@ export default function SystemPanel({
                     {health.operations.costBudgetConfigured
                       ? "Cost budget ✓"
                       : "Cost budget —"}
+                    {" · "}
+                    {health.operations.applicationInsightsLinked
+                      ? "App Insights ✓"
+                      : "App Insights —"}
                   </small>
                   <small>
                     ميزانية Azure تنبّه عند تجاوز الحدود ولا توقف الاستهلاك تلقائيًا.
