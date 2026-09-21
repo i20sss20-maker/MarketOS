@@ -55,6 +55,10 @@ assert.match(
 );
 assert.match(
   workflow,
+  /smoke:account-data-erasure/,
+);
+assert.match(
+  workflow,
   /hosted-boundary-acceptance\.mjs/,
 );
 assert.match(
