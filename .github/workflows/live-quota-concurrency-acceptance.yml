@@ -1,0 +1,67 @@
+name: Live Quota Concurrency Acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-quota-concurrency-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: Live Cosmos quota concurrency
+    runs-on: ubuntu-latest
+    environment: azure-production
+    timeout-minutes: 8
+    env:
+      COSMOS_CONNECTION_STRING: ${{ secrets.COSMOS_CONNECTION_STRING }}
+      COSMOS_DATABASE: ${{ vars.COSMOS_DATABASE || 'marketos' }}
+      FORECAST_JOURNAL_CONTAINER: ${{ vars.FORECAST_JOURNAL_CONTAINER || 'forecastJournal' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require production Cosmos credential without printing it
+        shell: bash
+        run: |
+          if [ -z "$COSMOS_CONNECTION_STRING" ]; then
+            echo "::error::COSMOS_CONNECTION_STRING is missing from the azure-production environment."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build quota implementation
+        run: |
+          pnpm --filter @marketos/market-core build
+          pnpm --filter @marketos/entitlements-core build
+          pnpm --filter @marketos/api build
+
+      - name: Verify live quota concurrency without provider calls
+        run: node scripts/live-quota-concurrency-acceptance.mjs
+
+      - name: Upload non-secret acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-quota-concurrency-acceptance
+          path: artifacts/live-quota-concurrency-acceptance.json
+          retention-days: 14
+          if-no-files-found: warn
