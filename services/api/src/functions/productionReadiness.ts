@@ -4,6 +4,7 @@ import { assertRealProvider, assertRequestOrigin, forecastLedgerConfig, Producti
 import { marketDataProvider } from "../providers/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { assertMarketDataPolicy } from "../production/marketDataPolicy.js";
 
 export async function productionReadiness(_request: HttpRequest): Promise<HttpResponseInit> {
   const blockers: string[] = [];
@@ -11,6 +12,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     () => assertRealProvider(marketDataProvider),
     () => forecastLedgerConfig(),
     () => assertRequestOrigin(null),
+    () => assertMarketDataPolicy(),
     () => configuredForecastHardCap(),
     () => {
       if (entitlementStore.mode !== "cosmos") {
@@ -31,7 +33,7 @@ export async function productionReadiness(_request: HttpRequest): Promise<HttpRe
     configured: blockers.length === 0,
     blockers,
     requiredAcceptanceChecks: [
-      "HOSTED_AUTH_AND_OWNER_ISOLATION", "COSMOS_WRITE_READ_RESTART", "LICENSED_MARKET_DATA_AND_TIMESTAMPS",
+      "HOSTED_AUTH_AND_OWNER_ISOLATION", "COSMOS_WRITE_READ_RESTART", "HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS",
       "CLIENT_DEMO_FALLBACK_REMOVAL", "SERVER_OUTCOME_EVALUATION", "HOSTED_QUOTA_CONCURRENCY",
       "LOAD_TESTING_AND_RECOVERY", "OBSERVABILITY_AND_COST_ALERTS",
     ],
