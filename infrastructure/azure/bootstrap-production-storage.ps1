@@ -9,7 +9,9 @@ param(
   [ValidateRange(400, 1000)]
   [int]$SharedThroughput = 1000,
   [ValidateRange(1, 500)]
-  [int]$ForecastDailyHardCap = 10
+  [int]$ForecastDailyHardCap = 10,
+  [ValidateRange(100, 100000)]
+  [int]$MarketApiDailyHardCap = 1000
 )
 
 $ErrorActionPreference = "Stop"
@@ -146,7 +148,7 @@ if (-not $connectionString) {
 }
 
 Write-Host "Writing MarketOS storage and quota settings..." -ForegroundColor Cyan
-& az staticwebapp appsettings set --name $StaticWebApp --resource-group $ResourceGroup --setting-names "USER_DATA_PROVIDER=cosmos" "ENTITLEMENT_DATA_PROVIDER=cosmos" "COSMOS_CONNECTION_STRING=$connectionString" "COSMOS_DATABASE=$Database" "COSMOS_CONTAINER=$UserStateContainer" "COSMOS_ENTITLEMENTS_CONTAINER=$EntitlementsContainer" "FORECAST_JOURNAL_ENABLED=true" "FORECAST_JOURNAL_CONTAINER=$ForecastJournalContainer" "FORECAST_DAILY_HARD_CAP=$ForecastDailyHardCap" --output none
+& az staticwebapp appsettings set --name $StaticWebApp --resource-group $ResourceGroup --setting-names "USER_DATA_PROVIDER=cosmos" "ENTITLEMENT_DATA_PROVIDER=cosmos" "COSMOS_CONNECTION_STRING=$connectionString" "COSMOS_DATABASE=$Database" "COSMOS_CONTAINER=$UserStateContainer" "COSMOS_ENTITLEMENTS_CONTAINER=$EntitlementsContainer" "FORECAST_JOURNAL_ENABLED=true" "FORECAST_JOURNAL_CONTAINER=$ForecastJournalContainer" "FORECAST_DAILY_HARD_CAP=$ForecastDailyHardCap" "MARKET_API_DAILY_HARD_CAP=$MarketApiDailyHardCap" --output none
 if ($LASTEXITCODE -ne 0) {
   throw "Could not write MarketOS Static Web App storage settings."
 }
@@ -160,6 +162,7 @@ Write-Host "Database: $Database ($currentThroughput RU/s shared)"
 Write-Host "Containers: $UserStateContainer, $EntitlementsContainer, $ForecastJournalContainer"
 Write-Host "Partition key: /userId"
 Write-Host "Forecast hard cap: $ForecastDailyHardCap per UTC day (operator ceiling)"
+Write-Host "Market API hard cap: $MarketApiDailyHardCap weighted units per UTC day (operator ceiling)"
 Write-Host ""
 Write-Host "No market-data provider, paid subscription, production flag or provider API key was enabled by this script." -ForegroundColor Yellow
 Write-Host "The Cosmos connection string was written directly to Azure app settings and was not printed." -ForegroundColor Green
