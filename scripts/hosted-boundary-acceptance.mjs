@@ -179,6 +179,13 @@ assert.equal(
     ?.configured,
   true,
 );
+assert.equal(
+  health.body
+    ?.forecastEvaluation
+    ?.configured,
+  true,
+  "Hosted production requires the server forecast evaluator and worker credential to be configured.",
+);
 const expectedBuildSha =
   (
     process.env

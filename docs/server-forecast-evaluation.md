@@ -78,6 +78,18 @@ characters). Do not expose it in VITE variables, browser code, logs, URLs or cha
 Existing API settings and the separate `/userId` journal container remain required.
 Disabling the feature flag stops evaluation without removing original reports or results.
 
+For an existing deployed worker, use:
+
+```powershell
+./infrastructure/azure/configure-forecast-evaluation.ps1
+```
+
+The helper reuses the existing worker credential in memory, configures the existing Function App,
+restarts it, and refuses to enable the API flag until Azure reports `forecastEvaluationTimer` as
+an indexed function. It does not create Azure resources. A one-off live sweep is optional and
+requires both `-RunOneLiveEvaluation` and `-IUnderstandEvaluationConsumesMarketData`, because
+a real sweep may consume provider quota while checking pending forecasts.
+
 The authenticated server history displays pending/resolved results, return, Brier,
 recorded horizon, and confirmation time. Pagination permits pending -> resolved updates,
 rejects conflicting outcomes, and does not roll a stored result back from stale pages.

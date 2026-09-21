@@ -43,9 +43,6 @@ jobs:
       - name: Hosted production boundary workflow source smoke test
         run: pnpm smoke:hosted-boundary-source
 
-      - name: Live quota concurrency acceptance source smoke test
-        run: pnpm smoke:live-quota-concurrency-source
-
       - name: Live provider acceptance source/freshness smoke test
         run: pnpm smoke:provider-live-acceptance-source
 
@@ -54,6 +51,9 @@ jobs:
 
       - name: Azure monitoring and cost guardrails smoke test
         run: pnpm smoke:operations-guardrails
+
+      - name: Hosted forecast evaluator rollout smoke test
+        run: pnpm smoke:forecast-evaluator-rollout
 
       - name: Secure Azure deployment-token sync smoke test
         run: pnpm smoke:deployment-token-sync
@@ -72,6 +72,9 @@ jobs:
 
       - name: Live Cosmos acceptance workflow source smoke test
         run: pnpm smoke:cosmos-live-acceptance-source
+
+      - name: Live quota concurrency acceptance source smoke test
+        run: pnpm smoke:live-quota-concurrency-source
 
       - name: Market-data request quota concurrency and ordering smoke test
         run: pnpm smoke:market-data-request-quota
@@ -256,6 +259,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-operations-guardrails.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/sync-deployment-token.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-forecast-evaluation.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4

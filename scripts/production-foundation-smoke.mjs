@@ -281,7 +281,7 @@ await test("readiness clearly distinguishes configuration from production accept
   const { productionReadiness } = await import(load(api+"functions/productionReadiness.ts"));
   const response=await productionReadiness(request(null,{method:"GET"}));
   assert.equal(response.jsonBody.productionReady,false);assert.equal(response.jsonBody.scope,"configuration-only");
-  assert.ok(response.jsonBody.requiredAcceptanceChecks.includes("SERVER_OUTCOME_EVALUATION"));
+  assert.ok(response.jsonBody.requiredAcceptanceChecks.includes("HOSTED_SERVER_OUTCOME_EVALUATION"));
 });
 
 mkdirSync("artifacts",{recursive:true});

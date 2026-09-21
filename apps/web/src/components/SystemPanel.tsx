@@ -225,6 +225,26 @@ export default function SystemPanel({
 
                 <article className="system-service-card">
                   <div className="system-service-title">
+                    <StatusDot mode={health.forecastEvaluation.configured ? "provider" : "demo"} />
+                    <strong>Server Forecast Evaluation</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.forecastEvaluation.configured ? "Scheduled evaluator configured" : "Setup required"}
+                  </span>
+                  <small>
+                    {health.forecastEvaluation.enabled ? "Evaluation ✓" : "Evaluation —"}
+                    {" · "}
+                    {health.forecastEvaluation.workerCredentialConfigured ? "Worker credential ✓" : "Worker credential —"}
+                    {" · "}
+                    {health.forecastEvaluation.schedule}
+                  </small>
+                  <small>
+                    هذه حالة الإعداد فقط؛ قبول التشغيل الحي يحتاج إثبات timer + HTTPS + نتيجة محفوظة فعلية.
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
                     <StatusDot mode={health.operations.configured ? "provider" : "demo"} />
                     <strong>Operations Guardrails</strong>
                   </div>

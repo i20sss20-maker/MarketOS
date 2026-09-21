@@ -49,6 +49,10 @@ assert.match(
 );
 assert.match(
   script,
+  /forecastEvaluation/,
+);
+assert.match(
+  script,
   /applicationInsightsLinked/,
 );
 assert.match(
