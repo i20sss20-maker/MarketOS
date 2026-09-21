@@ -65,3 +65,15 @@ workflow form.
 
 This prevents a green verification for one bundle followed by a different rebuild at deploy time,
 and prevents production acceptance from accidentally testing a different Static Web App.
+
+
+## Immutable build identity
+
+`prepare:azure-api` writes the full Git commit SHA into `dist/build-info.json` inside the
+standalone API artifact. The public health response exposes only the first 12 hexadecimal
+characters. During the production workflow, hosted acceptance receives `${{ github.sha }}`
+and requires the deployed health endpoint to report the matching prefix.
+
+This makes the release traceable to the exact workflow commit even though runtime GitHub
+environment variables are not guaranteed to exist inside managed Static Web Apps Functions.
+A deployment that serves a stale/different API bundle fails acceptance.
