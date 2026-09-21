@@ -185,6 +185,21 @@ export default function SystemPanel({
 
                 <article className="system-service-card">
                   <div className="system-service-title">
+                    <StatusDot mode={health.marketApiQuota.configured ? "provider" : "demo"} />
+                    <strong>Provider Cost Guard</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.marketApiQuota.configured
+                      ? `${health.marketApiQuota.hardCap?.toLocaleString("en-US") ?? "—"} units/day`
+                      : "Setup required"}
+                  </span>
+                  <small>
+                    حد يومي دائم قبل طلبات الأسعار والشموع والبحث والأحداث؛ بعض العمليات تستهلك أكثر من وحدة.
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
                     <StatusDot mode={health.operations.configured ? "provider" : "demo"} />
                     <strong>Operations Guardrails</strong>
                   </div>
