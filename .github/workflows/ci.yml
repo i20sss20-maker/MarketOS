@@ -49,6 +49,9 @@ jobs:
       - name: Azure monitoring and cost guardrails smoke test
         run: pnpm smoke:operations-guardrails
 
+      - name: Full account-data erasure smoke test
+        run: pnpm smoke:account-data-erasure
+
       - name: Free-tier production storage bootstrap smoke test
         run: pnpm smoke:production-storage-bootstrap
 
