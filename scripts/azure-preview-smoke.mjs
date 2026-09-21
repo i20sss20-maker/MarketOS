@@ -6,7 +6,7 @@ const configPath = "apps/web/dist/staticwebapp.config.json";
 assert.ok(existsSync(configPath), "Vite build must copy staticwebapp.config.json into web dist");
 
 const config = JSON.parse(readFileSync(configPath, "utf8"));
-assert.equal(config?.platform?.apiRuntime, "node:20", "Azure managed API runtime must be Node 20");
+assert.equal(config?.platform?.apiRuntime, "node:22", "Azure managed API runtime must be Node 22");
 assert.equal(config?.navigationFallback?.rewrite, "/index.html", "SPA navigation fallback must target index.html");
 assert.ok(
   config?.globalHeaders?.["Content-Security-Policy"]?.includes("default-src 'self'"),
@@ -52,7 +52,7 @@ assert.ok(existsSync(apiDist), "Standalone Azure API dist folder must exist afte
 const stagedPackagePath = "artifacts/azure-api/package.json";
 assert.ok(existsSync(stagedPackagePath), "Standalone Azure API package.json must exist");
 const stagedPackage = JSON.parse(readFileSync(stagedPackagePath, "utf8"));
-assert.equal(stagedPackage?.engines?.node, "20.x", "Standalone Azure API must target Node 20");
+assert.equal(stagedPackage?.engines?.node, "22.x", "Standalone Azure API must target Node 22");
 assert.equal(
   stagedPackage?.dependencies?.["@azure/functions"],
   "^4.0.0",

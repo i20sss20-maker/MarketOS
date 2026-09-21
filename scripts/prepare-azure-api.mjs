@@ -19,7 +19,7 @@ const packageJson = {
   type: "module",
   main: "dist/src/functions/*.js",
   engines: {
-    node: "20.x",
+    node: "22.x",
   },
   dependencies: {
     "@azure/functions": "^4.0.0",

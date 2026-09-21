@@ -68,6 +68,6 @@
     "typescript": "^5.7.2"
   },
   "engines": {
-    "node": "20.x"
+    "node": "22.x"
   }
 }
