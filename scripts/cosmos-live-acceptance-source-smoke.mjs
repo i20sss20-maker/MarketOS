@@ -68,10 +68,33 @@ assert.doesNotMatch(
   /databases\.create|containers\.create|createIfNotExists/,
   "Live acceptance must never provision Cosmos infrastructure or throughput.",
 );
+const evidenceStart =
+  live.indexOf(
+    "const evidence = {",
+  );
+const evidenceEnd =
+  live.indexOf(
+    "\n};",
+    evidenceStart,
+  );
+
+assert.ok(
+  evidenceStart >= 0 &&
+    evidenceEnd >
+      evidenceStart,
+  "Acceptance evidence object must be statically inspectable.",
+);
+
+const evidenceSource =
+  live.slice(
+    evidenceStart,
+    evidenceEnd,
+  );
+
 assert.doesNotMatch(
-  live,
-  /writeFileSync[\s\S]{0,300}connectionString/,
-  "Evidence must not serialize the Cosmos connection string.",
+  evidenceSource,
+  /connectionString|nonce|owner/,
+  "Evidence must not serialize the Cosmos connection string or temporary record identifiers.",
 );
 
 console.log(
