@@ -194,6 +194,9 @@ function eventWindow() {
   };
 }
 
+const trustedInternalForecastRequests =
+  new WeakSet<object>();
+
 export async function analystForecast(
   request: HttpRequest,
 ): Promise<HttpResponseInit> {
@@ -201,6 +204,21 @@ export async function analystForecast(
     request.method === "OPTIONS"
   ) {
     return preflight();
+  }
+
+  if (
+    realDataRequired() &&
+    !trustedInternalForecastRequests.has(
+      request,
+    )
+  ) {
+    return json(410, {
+      ok: false,
+      code:
+        "DIRECT_FORECAST_DISABLED",
+      error:
+        "Real-data forecasts must be generated through the authenticated server journal.",
+    });
   }
 
   try {
@@ -442,6 +460,27 @@ export async function analystForecast(
       ok: false,
       error: message,
     });
+  }
+}
+
+/**
+ * Strict production generation is an in-process operation owned by
+ * /api/user/forecasts. The public analyst route cannot manufacture this marker.
+ */
+export async function generateJournalForecast(
+  request: HttpRequest,
+) {
+  trustedInternalForecastRequests.add(
+    request,
+  );
+  try {
+    return await analystForecast(
+      request,
+    );
+  } finally {
+    trustedInternalForecastRequests.delete(
+      request,
+    );
   }
 }
 
