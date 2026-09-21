@@ -46,6 +46,11 @@ export type SystemHealth = {
     provider: "memory" | "cosmos";
     persistent: boolean;
   };
+  operations: {
+    metricAlertsConfigured: boolean;
+    costBudgetConfigured: boolean;
+    configured: boolean;
+  };
   backgroundAlerts: {
     enabled: boolean;
     mode: "scheduled-worker";
