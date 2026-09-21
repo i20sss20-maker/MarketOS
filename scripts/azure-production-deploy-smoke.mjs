@@ -59,7 +59,39 @@ assert.match(
 );
 assert.match(
   workflow,
+  /smoke:forecast-quota/,
+);
+assert.match(
+  workflow,
+  /smoke:market-data-request-quota/,
+);
+assert.match(
+  workflow,
+  /smoke:strict-forecast-usage/,
+);
+assert.match(
+  workflow,
+  /smoke:production-readiness-ui/,
+);
+assert.match(
+  workflow,
+  /smoke:hosted-ingress-load-source/,
+);
+assert.match(
+  workflow,
   /hosted-boundary-acceptance\.mjs/,
+);
+assert.match(
+  workflow,
+  /hosted-ingress-load-acceptance\.mjs/,
+);
+assert.match(
+  workflow,
+  /MARKETOS_LOAD_REQUESTS: "100"/,
+);
+assert.match(
+  workflow,
+  /MARKETOS_LOAD_CONCURRENCY: "5"/,
 );
 assert.match(
   workflow,
@@ -91,5 +123,5 @@ assert.doesNotMatch(
 );
 
 console.log(
-  "Azure production deploy source smoke passed: manual exact confirmation, strict bundle, isolated deployment token and hosted acceptance are required.",
+  "Azure production deploy source smoke passed: manual exact confirmation, strict bundle, both quota guards, isolated deployment token, hosted boundary and bounded ingress load acceptance are required.",
 );
