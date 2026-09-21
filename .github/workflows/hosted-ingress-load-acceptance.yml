@@ -1,0 +1,55 @@
+name: Hosted Ingress Load Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "MarketOS production HTTPS origin"
+        required: true
+        type: string
+      requests:
+        description: "Bounded health requests (20-500)"
+        required: true
+        default: "100"
+        type: string
+      concurrency:
+        description: "Concurrent workers (1-20)"
+        required: true
+        default: "5"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-ingress-load-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: Bounded hosted ingress load
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MARKETOS_ACCEPTANCE_BASE_URL: ${{ inputs.base_url }}
+      MARKETOS_LOAD_REQUESTS: ${{ inputs.requests }}
+      MARKETOS_LOAD_CONCURRENCY: ${{ inputs.concurrency }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run bounded health load
+        run: node scripts/hosted-ingress-load-acceptance.mjs
+
+      - name: Upload non-secret load evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-ingress-load-acceptance
+          path: artifacts/hosted-ingress-load-acceptance.json
+          retention-days: 14
+          if-no-files-found: warn
