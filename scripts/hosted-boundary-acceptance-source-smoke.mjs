@@ -49,6 +49,10 @@ assert.match(
 );
 assert.match(
   script,
+  /marketDataQuota/,
+);
+assert.match(
+  script,
   /metricAlertsConfigured/,
 );
 assert.match(
