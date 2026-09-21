@@ -18,6 +18,12 @@ import type {
 import {
   buildAnalystModelHealth,
 } from "../lib/analystModelHealth";
+import {
+  FORECAST_USAGE_EVENT,
+  loadForecastUsage,
+  normalizeForecastUsage,
+  type ForecastUsageSnapshot,
+} from "../lib/forecastUsage";
 
 type Props = {
   result: AnalystForecastResponse | null;
@@ -219,6 +225,47 @@ export default function AnalystForecastView({
   ] = useState<
     string | null
   >(null);
+  const [
+    forecastUsage,
+    setForecastUsage,
+  ] = useState<
+    ForecastUsageSnapshot | null
+  >(
+    () =>
+      loadForecastUsage(),
+  );
+
+  useEffect(() => {
+    const onUsage = (
+      event: Event,
+    ) => {
+      const usage =
+        normalizeForecastUsage(
+          (
+            event as
+              CustomEvent<unknown>
+          ).detail,
+        );
+
+      if (usage) {
+        setForecastUsage(
+          usage,
+        );
+      }
+    };
+
+    window.addEventListener(
+      FORECAST_USAGE_EVENT,
+      onUsage,
+    );
+
+    return () => {
+      window.removeEventListener(
+        FORECAST_USAGE_EVENT,
+        onUsage,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     setWatchMessage(null);
@@ -300,7 +347,37 @@ export default function AnalystForecastView({
       </div>
 
       {import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" ? (
-        <p className="server-journal-notice">التقرير المحفوظ متاح في «سجل الخادم». إحصاءات المتصفح المحلية مستبعدة؛ التقييم الآلي على الخادم لم يُفعّل بعد.</p>
+        <>
+          <p className="server-journal-notice">
+            التقرير المحفوظ متاح في «سجل الخادم». إحصاءات المتصفح المحلية مستبعدة؛ تقييم النتائج يعتمد على خدمة الخادم عند تفعيل بيئة الإنتاج.
+          </p>
+          {forecastUsage ? (
+            <p className="server-quota-notice">
+              استخدام Analyst اليوم:{" "}
+              <strong>
+                {forecastUsage.used}/{forecastUsage.limit}
+              </strong>
+              {" · "}
+              المتبقي{" "}
+              <strong>
+                {forecastUsage.remaining}
+              </strong>
+              {" · "}
+              إعادة الضبط{" "}
+              {new Intl.DateTimeFormat(
+                "ar-SA",
+                {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
+              ).format(
+                new Date(
+                  forecastUsage.resetAt,
+                ),
+              )}
+            </p>
+          ) : null}
+        </>
       ) : null}
       {error ? (
         <div className="analyst-error">
