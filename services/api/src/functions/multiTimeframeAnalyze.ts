@@ -7,6 +7,7 @@ import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { buildMultiTimeframeAnalysis } from "../ai/multiTimeframeEngine.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
+import { authorizeProductionMarketRequest } from "../production/marketAccess.js";
 
 const allowedTimeframes = new Set<Timeframe>([
   "1m",
@@ -122,6 +123,14 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
     const timeframes = sanitizeTimeframes(body.timeframes);
     const indicators = sanitizeIndicators(body.indicators);
     const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 1200) : undefined;
+
+    await authorizeProductionMarketRequest(
+      request,
+      Math.min(
+        10,
+        1 + timeframes.length * 2,
+      ),
+    );
 
     const quote = await marketDataProvider.getQuote(symbol).catch(() => null);
 
