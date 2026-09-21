@@ -53,6 +53,65 @@ export class CosmosForecastLedger implements ForecastLedger {
     }, { partitionKey: userId, maxItemCount: Math.min(50, Math.max(1, limit)), continuationToken: cursor }).fetchNext();
     return { records: page.resources, cursor: page.continuationToken || undefined };
   }
+
+  async deleteUserData(userId: string) {
+    await this.ensureContainer();
+    if (!userId) {
+      throw new ProductionGateError("INVALID_ERASURE_OWNER", "A forecast owner is required for data erasure.", 400);
+    }
+
+    let deleted = 0;
+
+    // Use stable transactional batches instead of Cosmos' delete-by-partition
+    // preview feature. Re-query the same logical partition after each batch,
+    // so no continuation token can skip items that disappeared mid-erasure.
+    for (let batchIndex = 0; batchIndex < 100; batchIndex += 1) {
+      const page = await this.container.items.query<{ id: string }>({
+        query: "SELECT TOP 100 c.id FROM c WHERE c.userId = @userId",
+        parameters: [{ name: "@userId", value: userId }],
+      }, {
+        partitionKey: userId,
+        maxItemCount: 100,
+      }).fetchNext();
+
+      const ids = (page.resources ?? [])
+        .map(item => item?.id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+      if (ids.length === 0) {
+        return { deleted };
+      }
+
+      const response = await this.container.items.batch(
+        ids.map(id => ({
+          operationType: "Delete" as const,
+          id,
+        })),
+        userId,
+      );
+
+      const failed = response.result.find(item =>
+        typeof item.statusCode === "number" &&
+        (item.statusCode < 200 || item.statusCode >= 300),
+      );
+
+      if (failed) {
+        throw new ProductionGateError(
+          "FORECAST_ERASURE_FAILED",
+          "Forecast data erasure did not complete. It is safe to retry.",
+          503,
+        );
+      }
+
+      deleted += ids.length;
+    }
+
+    throw new ProductionGateError(
+      "FORECAST_ERASURE_LIMIT",
+      "Forecast data erasure exceeded the bounded batch limit. Retry to continue.",
+      503,
+    );
+  }
 }
 
 let ledger: CosmosForecastLedger | undefined;
