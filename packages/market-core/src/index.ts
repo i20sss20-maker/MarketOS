@@ -40,6 +40,7 @@ export type Quote = {
   volume?: number;
   currency?: string;
   timestamp: number;
+  timestampKind?: "last-quote" | "interval-open";
   isMarketOpen?: boolean;
   isExtendedHours?: boolean;
   source: string;

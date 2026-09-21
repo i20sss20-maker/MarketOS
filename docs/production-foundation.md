@@ -17,6 +17,7 @@ All resources must remain within MarketOS, separate from all other projects.
 - Real-data forecast generation requires an authenticated SWA user, a verified quote,
   two successful timeframes, and the calibration timeframe. Missing real news/events may be
   omitted; synthetic ones are not used. Forecast probabilities remain experimental.
+- In strict real-data mode, the public `/api/analyst/forecast` route is disabled. Real forecasts can only enter through `/api/user/forecasts`, where persistent entitlement/quota checks run before the in-process generator is marked trusted. The marker is a process-local `WeakSet`, not a client header, so callers cannot manufacture it over HTTP.
 - `POST /api/user/forecasts` accepts **only** `symbol` and optional `requestId`.
   It generates the forecast server-side and stores the complete original report before
   returning success. The browser cannot submit a price, probability, result or owner ID.

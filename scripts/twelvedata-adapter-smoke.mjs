@@ -66,6 +66,7 @@ globalThis.fetch = async (input) => {
           symbol: "AAPL",
           currency: "USD",
           timestamp: 1789800000,
+          last_quote_at: 1789800300,
           open: "200",
           high: "205",
           low: "198",
@@ -81,6 +82,7 @@ globalThis.fetch = async (input) => {
           symbol: "NVDA",
           currency: "USD",
           timestamp: 1789800000,
+          last_quote_at: 1789800300,
           open: "170",
           high: "175",
           low: "169",
@@ -100,6 +102,7 @@ globalThis.fetch = async (input) => {
       symbol: requested,
       currency: "USD",
       timestamp: 1789800000,
+      last_quote_at: 1789800300,
       open: "200",
       high: "205",
       low: "198",
@@ -166,6 +169,8 @@ try {
     provider.getQuote(aapl),
   ]);
   assert.equal(quoteOne.price, 203);
+  assert.equal(quoteOne.timestamp, 1789800300, "last_quote_at must win over the quote interval-open timestamp");
+  assert.equal(quoteOne.timestampKind, "last-quote");
   assert.equal(quoteTwo.isMarketOpen, true);
   assert.equal(calls.quote, 1, "Concurrent identical quotes should coalesce");
 

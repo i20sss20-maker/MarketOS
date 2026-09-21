@@ -280,3 +280,36 @@ export function deleteCloudState() {
     "DELETE",
   );
 }
+
+export async function eraseAccountData() {
+  const response = await fetch("/api/user/account-data/erase", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      confirmation: "DELETE MARKETOS DATA",
+    }),
+    cache: "no-store",
+    credentials: "same-origin",
+  });
+
+  const payload = await response.json().catch(() => null) as
+    | {
+        ok?: boolean;
+        erased?: boolean;
+        forecastItemsDeleted?: number;
+        error?: string;
+      }
+    | null;
+
+  if (!response.ok || !payload?.ok || !payload.erased) {
+    throw new Error(
+      payload?.error ??
+      `Account data erasure failed (${response.status}).`,
+    );
+  }
+
+  return payload;
+}

@@ -1,10 +1,12 @@
-import type { SystemHealth } from "../lib/systemApi";
+import type { ProductionReadiness, SystemHealth } from "../lib/systemApi";
 
 type Props = {
   open: boolean;
   health: SystemHealth | null;
+  readiness: ProductionReadiness | null;
   loading: boolean;
   error: string | null;
+  readinessError: string | null;
   onRefresh: () => void;
   onClose: () => void;
 };
@@ -30,6 +32,41 @@ function dataUsageLabel(
   return "حقوق الاستخدام غير معلنة";
 }
 
+const readinessLabels: Record<string, string> = {
+  REAL_DATA_MODE_DISABLED: "وضع البيانات الحقيقية غير مفعّل",
+  REAL_DATA_REQUIRED: "مزود البيانات الحقيقي غير مهيأ",
+  FORECAST_STORAGE_NOT_CONFIGURED: "سجل التوقعات الدائم غير مهيأ",
+  WEB_ORIGIN_NOT_CONFIGURED: "رابط MarketOS الإنتاجي غير مهيأ",
+  MARKET_DATA_TIMING_UNDECLARED: "توقيت بيانات السوق غير معلن",
+  MARKET_DATA_DELAY_INVALID: "مدة تأخير البيانات غير صالحة",
+  MARKET_DATA_USAGE_SCOPE_UNDECLARED: "نطاق حقوق استخدام البيانات غير معلن",
+  MARKET_DATA_RIGHTS_UNCONFIRMED: "حقوق استخدام البيانات غير مؤكدة",
+  MARKET_DATA_RIGHTS_CONFIRMATION_INVALID: "تاريخ تأكيد حقوق البيانات غير صالح",
+  MARKET_DATA_RIGHTS_EXPIRED: "إقرار حقوق البيانات منتهي",
+  ENTITLEMENTS_NOT_PERSISTENT: "الصلاحيات ليست محفوظة في Cosmos",
+  METRIC_ALERTS_NOT_CONFIGURED: "تنبيهات Azure التشغيلية غير مهيأة",
+  COST_BUDGET_NOT_CONFIGURED: "ميزانية Azure التنبيهية غير مهيأة",
+  CONFIGURATION_INVALID: "إعداد إنتاجي غير صالح",
+};
+
+const acceptanceLabels: Record<string, string> = {
+  HOSTED_AUTH_AND_OWNER_ISOLATION: "اختبار الدخول وعزل المستخدمين على الموقع المنشور",
+  COSMOS_WRITE_READ_RESTART: "اختبار Cosmos حي: كتابة وقراءة واستمرارية",
+  HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS: "اختبار ترخيص/توقيت بيانات السوق الحية",
+  CLIENT_DEMO_FALLBACK_REMOVAL: "التأكد من عدم ظهور Demo في نسخة الإنتاج",
+  SERVER_OUTCOME_EVALUATION: "تشغيل تقييم نتائج التوقعات على الخادم",
+  HOSTED_QUOTA_CONCURRENCY: "اختبار حدود الاستخدام مع الطلبات المتزامنة",
+  LOAD_TESTING_AND_RECOVERY: "اختبار الضغط والتعافي",
+  APPLICATION_INSIGHTS_AND_LOG_REVIEW: "تفعيل ومراجعة سجلات Application Insights",
+};
+
+function readableGate(
+  value: string,
+  labels: Record<string, string>,
+) {
+  return labels[value] ?? value.replaceAll("_", " ");
+}
+
 function StatusDot({ mode }: { mode: string }) {
   const state =
     mode === "provider"
@@ -44,8 +81,10 @@ function StatusDot({ mode }: { mode: string }) {
 export default function SystemPanel({
   open,
   health,
+  readiness,
   loading,
   error,
+  readinessError,
   onRefresh,
   onClose,
 }: Props) {
@@ -235,6 +274,45 @@ export default function SystemPanel({
                   </small>
                 </article>
               </div>
+
+              <article className="system-service-card">
+                <div className="system-service-title">
+                  <StatusDot mode={readiness?.configured ? "provider" : "demo"} />
+                  <strong>Production Gate</strong>
+                </div>
+                <span className="system-service-provider">
+                  {readiness?.configured
+                    ? "Configuration checks passed"
+                    : "Configuration blocked"}
+                </span>
+                <small>
+                  نجاح الإعدادات لا يعني أن الإطلاق التجاري معتمد؛ اختبارات القبول الحية تبقى مستقلة.
+                </small>
+                {readinessError ? (
+                  <div className="system-warning">{readinessError}</div>
+                ) : null}
+                {readiness?.blockers.length ? (
+                  <div className="system-capabilities">
+                    {readiness.blockers.map((item) => (
+                      <span key={item}>✕ {readableGate(item, readinessLabels)}</span>
+                    ))}
+                  </div>
+                ) : readiness ? (
+                  <div className="system-capabilities">
+                    <span>إعدادات الإنتاج ✓</span>
+                  </div>
+                ) : null}
+                {readiness?.requiredAcceptanceChecks.length ? (
+                  <details>
+                    <summary>اختبارات القبول المتبقية ({readiness.requiredAcceptanceChecks.length})</summary>
+                    <div className="system-capabilities">
+                      {readiness.requiredAcceptanceChecks.map((item) => (
+                        <span key={item}>• {readableGate(item, acceptanceLabels)}</span>
+                      ))}
+                    </div>
+                  </details>
+                ) : null}
+              </article>
 
               <div className="system-footnote">
                 آخر فحص:{" "}

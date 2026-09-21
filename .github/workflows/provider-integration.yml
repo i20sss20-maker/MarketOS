@@ -2,26 +2,75 @@ name: Real Provider Check
 
 on:
   workflow_dispatch:
+    inputs:
+      timing:
+        description: "Declared timing for the primary production feed"
+        required: true
+        type: choice
+        options:
+          - realtime
+          - delayed
+          - end-of-day
+      delay_minutes:
+        description: "Delay minutes when timing=delayed; ignored otherwise"
+        required: true
+        default: "15"
+        type: string
+      usage_scope:
+        description: "Rights scope confirmed with the provider/exchange"
+        required: true
+        type: choice
+        options:
+          - personal
+          - commercial
+      rights_confirmed_at:
+        description: "Rights confirmation date YYYY-MM-DD"
+        required: true
+        type: string
+      confirmation:
+        description: "Type I CONFIRM MARKET DATA RIGHTS"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   twelvedata:
-    name: Twelve Data live integration
+    name: Twelve Data live acceptance
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: market-data-acceptance
     env:
       TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+      MARKETOS_ENVIRONMENT: production
+      MARKET_DATA_TIMING: ${{ inputs.timing }}
+      MARKET_DATA_DELAY_MINUTES: ${{ inputs.delay_minutes }}
+      MARKET_DATA_USAGE_SCOPE: ${{ inputs.usage_scope }}
+      MARKET_DATA_RIGHTS_CONFIRMED: "true"
+      MARKET_DATA_RIGHTS_CONFIRMED_AT: ${{ inputs.rights_confirmed_at }}
 
     steps:
+      - name: Require explicit rights confirmation
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if [ "$CONFIRMATION" != "I CONFIRM MARKET DATA RIGHTS" ]; then
+            echo "::error::Live provider acceptance requires the exact rights confirmation phrase."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Require provider secret
         shell: bash
         run: |
           if [ -z "$TWELVE_DATA_API_KEY" ]; then
-            echo "::error::Missing TWELVE_DATA_API_KEY GitHub Actions secret."
+            echo "::error::Missing TWELVE_DATA_API_KEY in the market-data-acceptance environment."
             exit 1
           fi
 
@@ -44,5 +93,14 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Live provider integration check
+      - name: Live provider acceptance
         run: pnpm smoke:provider-live
+
+      - name: Upload non-secret provider evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-live-acceptance
+          path: artifacts/provider-live-acceptance.json
+          retention-days: 14
+          if-no-files-found: warn

@@ -66,6 +66,7 @@ import {
   applyCloudStateToLocal,
   collectLocalCloudState,
   deleteCloudState,
+  eraseAccountData,
   getAuthPrincipal,
   getCloudState,
   putCloudState,
@@ -98,7 +99,7 @@ import {
   parseMarketShareState,
 } from "./lib/exportTools";
 import { getMarketEvents } from "./lib/eventsApi";
-import { getSystemHealth, type SystemHealth } from "./lib/systemApi";
+import { getProductionReadiness, getSystemHealth, type ProductionReadiness, type SystemHealth } from "./lib/systemApi";
 import {
   loadChartSettings,
   resetChartSettings,
@@ -619,8 +620,10 @@ export default function App() {
   const [showStrategyTester, setShowStrategyTester] = useState(false);
   const [showSystemPanel, setShowSystemPanel] = useState(false);
   const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [productionReadiness, setProductionReadiness] = useState<ProductionReadiness | null>(null);
   const [systemHealthLoading, setSystemHealthLoading] = useState(false);
   const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
+  const [productionReadinessError, setProductionReadinessError] = useState<string | null>(null);
   const [showExportPanel, setShowExportPanel] = useState(false);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -1213,6 +1216,56 @@ export default function App() {
         error instanceof Error
           ? error.message
           : "تعذر حذف النسخة السحابية.",
+      );
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const eraseAllServerAccountData = async () => {
+    if (!authUser || cloudBusy) return;
+
+    const confirmation = window.prompt(
+      "هذا يمسح جميع بيانات MarketOS السحابية لهذا الحساب، بما فيها سجل التوقعات والصلاحيات وعدادات الاستخدام. بيانات الجهاز المحلية وحساب Microsoft/GitHub نفسه لن تُحذف.\n\nللتأكيد اكتب بالضبط:\nDELETE MARKETOS DATA",
+    );
+
+    if (confirmation !== "DELETE MARKETOS DATA") {
+      if (confirmation !== null) {
+        setCloudError("لم يتم الحذف لأن عبارة التأكيد غير مطابقة.");
+      }
+      return;
+    }
+
+    setCloudBusy(true);
+    setCloudError(null);
+    setCloudMessage(null);
+
+    try {
+      if (pushState.subscribed) {
+        try {
+          setPushState(await disablePushNotifications());
+        } catch {
+          // Server erasure below removes the registered endpoint even if
+          // the browser's local Push subscription cannot be changed now.
+        }
+      }
+
+      const result = await eraseAccountData();
+
+      setCloudState(null);
+      setAlertInboxEvents([]);
+      setShowAlertInbox(false);
+      await refreshEntitlement();
+      await refreshPushState();
+
+      setCloudMessage(
+        `تم حذف بيانات MarketOS السحابية. حُذف ${result.forecastItemsDeleted ?? 0} عنصرًا من سجل التوقعات/الاستخدام. بيانات هذا الجهاز المحلية لم تُحذف.`,
+      );
+    } catch (error) {
+      setCloudError(
+        error instanceof Error
+          ? error.message
+          : "تعذر حذف جميع بيانات MarketOS السحابية.",
       );
     } finally {
       setCloudBusy(false);
@@ -2334,18 +2387,33 @@ export default function App() {
   const refreshSystemHealth = useCallback(async () => {
     setSystemHealthLoading(true);
     setSystemHealthError(null);
+    setProductionReadinessError(null);
 
-    try {
-      const health = await getSystemHealth();
-      setSystemHealth(health);
-    } catch {
+    const [healthResult, readinessResult] =
+      await Promise.allSettled([
+        getSystemHealth(),
+        getProductionReadiness(),
+      ]);
+
+    if (healthResult.status === "fulfilled") {
+      setSystemHealth(healthResult.value);
+    } else {
       setSystemHealth(null);
       setSystemHealthError(
         "تعذر الوصول إلى MarketOS API. في النسخة المحلية أو قبل نشر Azure قد يكون الـBackend غير متصل.",
       );
-    } finally {
-      setSystemHealthLoading(false);
     }
+
+    if (readinessResult.status === "fulfilled") {
+      setProductionReadiness(readinessResult.value);
+    } else {
+      setProductionReadiness(null);
+      setProductionReadinessError(
+        "تعذر قراءة بوابة جاهزية الإنتاج.",
+      );
+    }
+
+    setSystemHealthLoading(false);
   }, []);
 
   const openSystemPanel = () => {
@@ -5578,6 +5646,7 @@ export default function App() {
         onUpload={() => void uploadCurrentDeviceToCloud()}
         onRestore={() => void restoreCloudToThisDevice()}
         onDeleteCloud={() => void removeCloudCopy()}
+        onEraseAccountData={() => void eraseAllServerAccountData()}
         onEnablePush={() => void enablePushOnThisDevice()}
         onDisablePush={() => void disablePushOnThisDevice()}
         onRefreshPush={() => void refreshPushState()}
@@ -5813,8 +5882,10 @@ export default function App() {
       <SystemPanel
         open={showSystemPanel}
         health={systemHealth}
+        readiness={productionReadiness}
         loading={systemHealthLoading}
         error={systemHealthError}
+        readinessError={productionReadinessError}
         onRefresh={() => void refreshSystemHealth()}
         onClose={() => setShowSystemPanel(false)}
       />

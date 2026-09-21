@@ -8,7 +8,7 @@ MarketOS preview uses:
 
 - Azure Static Web Apps Free
 - Managed Azure Functions under the same `/api` origin
-- Node.js 20 API runtime
+- Node.js 22 API runtime
 - GitHub Actions manual deployment
 - Demo market data/events and the local chart intelligence engine by default
 
@@ -85,6 +85,31 @@ az staticwebapp appsettings list -n marketos-preview -g rg-marketos-dev
 ```
 
 Do not paste a real provider key into commits, screenshots, issues, or chat logs.
+
+## Production deployment gate
+
+Production deployment is separate from Preview.
+
+Workflow: `.github/workflows/azure-production.yml`
+
+It is manual-only and requires:
+
+- the exact confirmation `DEPLOY MARKETOS PRODUCTION`;
+- the exact HTTPS MarketOS production origin;
+- `AZURE_STATIC_WEB_APPS_API_TOKEN` available to the `azure-production` job;
+- a strict browser build with `VITE_MARKETOS_REQUIRE_REAL_DATA=true`;
+- production client/server/auth/provenance/operations checks before upload;
+- post-deploy hosted boundary acceptance.
+
+The workflow deliberately receives **no** market-data API key, Cosmos connection string, or
+worker secret. Those remain Azure application settings. A successful upload is not considered
+a successful production acceptance if the hosted readiness/boundary check fails.
+
+The current repository cannot create the deployment credential from GitHub alone. Run the
+Azure bootstrap while signed into the correct MarketOS Azure subscription. The bootstrap no
+longer prints the token if GitHub CLI is unavailable; move credentials directly between Azure
+and GitHub secret storage.
+
 
 
 ## Persistent user accounts and cloud sync

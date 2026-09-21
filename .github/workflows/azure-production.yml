@@ -1,0 +1,194 @@
+name: Azure Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Exact HTTPS MarketOS production origin"
+        required: true
+        type: string
+      confirmation:
+        description: "Type DEPLOY MARKETOS PRODUCTION"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify strict production build
+    if: ${{ inputs.confirmation == 'DEPLOY MARKETOS PRODUCTION' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_MARKETOS_REQUIRE_REAL_DATA: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build strict browser and API
+        run: pnpm build
+
+      - name: Strict browser data/history checks
+        run: pnpm smoke:production-client
+
+      - name: Production server foundation checks
+        run: pnpm smoke:production-foundation
+
+      - name: Direct forecast bypass boundary
+        run: pnpm smoke:direct-forecast-boundary
+
+      - name: Provider endpoint authentication checks
+        run: pnpm smoke:production-market-auth
+
+      - name: Market-data provenance checks
+        run: pnpm smoke:market-data-provenance
+
+      - name: Operations guardrail checks
+        run: pnpm smoke:operations-guardrails
+
+      - name: Account-data erasure checks
+        run: pnpm smoke:account-data-erasure
+
+      - name: Prepare standalone Azure API
+        run: pnpm prepare:azure-api
+
+      - name: Azure packaging checks
+        run: pnpm smoke:azure
+
+      - name: Upload exact production bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: marketos-production-bundle
+          path: |
+            apps/web/dist
+            artifacts/azure-api
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy strict bundle
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: azure-production
+    env:
+      AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+      VITE_MARKETOS_REQUIRE_REAL_DATA: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require production deployment token
+        shell: bash
+        run: |
+          if [ -z "$AZURE_STATIC_WEB_APPS_API_TOKEN" ]; then
+            echo "::error::Missing AZURE_STATIC_WEB_APPS_API_TOKEN in the azure-production environment."
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Rebuild exact strict bundle
+        run: pnpm build
+
+      - name: Prepare standalone Azure API
+        run: pnpm prepare:azure-api
+
+      - name: Install Azure API runtime dependencies
+        run: npm install --omit=dev --ignore-scripts --prefix artifacts/azure-api
+
+      - name: Deploy prebuilt strict web and API
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: "apps/web/dist"
+          api_location: "artifacts/azure-api"
+          output_location: ""
+          skip_app_build: true
+          skip_api_build: true
+
+  acceptance:
+    name: Verify hosted production boundary
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      MARKETOS_ACCEPTANCE_BASE_URL: ${{ inputs.base_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Wait for deployed health endpoint
+        shell: bash
+        run: |
+          for attempt in {1..18}; do
+            code="$(curl --silent --show-error --location --max-time 10 --output /dev/null --write-out '%{http_code}' "$MARKETOS_ACCEPTANCE_BASE_URL/api/health" || true)"
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            echo "Health not ready yet (attempt $attempt/18, HTTP $code)."
+            sleep 10
+          done
+          echo "::error::Hosted MarketOS health endpoint did not become ready."
+          exit 1
+
+      - name: Run hosted boundary acceptance
+        run: node scripts/hosted-boundary-acceptance.mjs
+
+      - name: Upload non-secret acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-hosted-boundary-evidence
+          path: artifacts/hosted-boundary-acceptance.json
+          retention-days: 14
+          if-no-files-found: warn
