@@ -14539,3 +14539,21 @@ button.bear:hover {
 .server-forecast-history article { border: 1px solid currentColor; border-radius: 10px; padding: 12px; margin-top: 14px; }
 .server-journal-notice { padding: 10px; border-inline-start: 3px solid currentColor; font-size: 13px; line-height: 1.7; }
 .server-journal-scenarios { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+
+
+/* Strict forecast usage -------------------------------------------------- */
+.server-quota-notice {
+  margin: 6px 0 0;
+  border: 1px solid rgba(148,163,184,.06);
+  border-radius: 7px;
+  padding: 6px 8px;
+  background: rgba(148,163,184,.02);
+  color: #66758a;
+  font-size: 5.5px;
+  line-height: 1.6;
+}
+
+.server-quota-notice strong {
+  color: #9ca8b9;
+  font-size: 6px;
+}
