@@ -46,6 +46,18 @@ export type SystemHealth = {
     provider: "memory" | "cosmos";
     persistent: boolean;
   };
+  marketApiQuota: {
+    configured: boolean;
+    hardCap: number | null;
+    window: "utc-day";
+    storage: "forecastJournal";
+  };
+  forecastQuota: {
+    configured: boolean;
+    hardCap: number | null;
+    entitlementStorage: "memory" | "cosmos";
+    window: "utc-day";
+  };
   operations: {
     metricAlertsConfigured: boolean;
     costBudgetConfigured: boolean;
