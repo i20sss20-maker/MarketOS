@@ -10,14 +10,14 @@ import { assertSameRequest, createForecastRecord, forecastRecordId, ownerKey, pu
 import { assertRealProvider, assertRequestOrigin, ProductionGateError, realDataRequired } from "../production/policy.js";
 import { marketDataProvider } from "../providers/index.js";
 import { json, preflight } from "../http/responses.js";
-import { analystForecast, sanitizeSymbol } from "./analystForecast.js";
+import { generateJournalForecast, sanitizeSymbol } from "./analystForecast.js";
 import { getForecastQuotaStore } from "../usage/cosmosForecastQuota.js";
 import { effectiveForecastDailyLimit, quotaExceeded, type ForecastQuotaDecision, type ForecastQuotaStore } from "../usage/forecastQuota.js";
 
 // Dependencies are injectable for deterministic endpoint tests; production always uses Cosmos.
 const defaultUserForecastDependencies = {
   ledger: getForecastLedger as () => ForecastLedger,
-  generate: analystForecast,
+  generate: generateJournalForecast,
   provider: marketDataProvider,
   quota: getForecastQuotaStore as () => ForecastQuotaStore,
   entitlement: getResolvedUserEntitlement,
