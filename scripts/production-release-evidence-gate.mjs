@@ -3,6 +3,10 @@ import {
   mkdirSync,
   writeFileSync,
 } from "node:fs";
+import {
+  evaluateReleaseEvidence,
+  selectSuccessfulRun,
+} from "./production-release-evidence-lib.mjs";
 
 const repository =
   process.env.GITHUB_REPOSITORY?.trim() ??
@@ -48,11 +52,6 @@ const apiBase =
   `https://api.github.com/repos/${owner}/${repo}`;
 const now =
   Date.now();
-const maxAgeMs =
-  maxAgeHours *
-  60 *
-  60 *
-  1000;
 
 const required = [
   {
@@ -141,7 +140,7 @@ async function githubJson(
   return response.json();
 }
 
-async function findRun(
+async function lookup(
   item,
 ) {
   const params =
@@ -158,165 +157,27 @@ async function findRun(
       `/actions/workflows/${encodeURIComponent(item.workflow)}/runs?${params.toString()}`,
     );
 
-  const runs =
-    Array.isArray(
-      payload.workflow_runs,
-    )
-      ? payload.workflow_runs
-      : [];
-
-  const candidates =
-    runs
-      .filter(
-        (run) =>
-          run.head_sha?.toLowerCase() ===
-            sha &&
-          run.head_branch ===
-            "main" &&
-          run.event ===
-            item.event &&
-          run.status ===
-            "completed" &&
-          run.conclusion ===
-            "success",
-      )
-      .sort(
-        (a, b) =>
-          Date.parse(
-            b.updated_at ??
-              b.created_at,
-          ) -
-          Date.parse(
-            a.updated_at ??
-              a.created_at,
-          ),
-      );
-
-  return (
-    candidates[0] ??
-    null
+  return selectSuccessfulRun(
+    payload.workflow_runs,
+    {
+      sha,
+      event:
+        item.event,
+    },
   );
 }
 
-const results = {};
-const missing = [];
-
-for (
-  const item
-  of required
-) {
-  const run =
-    await findRun(item);
-
-  if (!run) {
-    missing.push({
-      id: item.id,
-      workflow:
-        item.workflow,
-      reason:
-        "no successful exact-SHA run",
-    });
-    continue;
-  }
-
-  const completedAt =
-    Date.parse(
-      run.updated_at ??
-        run.created_at,
-    );
-  const ageMs =
-    now - completedAt;
-
-  if (
-    !Number.isFinite(
-      completedAt,
-    ) ||
-    ageMs < 0 ||
-    ageMs > maxAgeMs
-  ) {
-    missing.push({
-      id: item.id,
-      workflow:
-        item.workflow,
-      reason:
-        `successful run is older than ${maxAgeHours} hours`,
-      runId:
-        run.id,
-    });
-    continue;
-  }
-
-  results[item.id] = {
-    workflow:
-      item.workflow,
-    label:
-      item.label,
-    runId:
-      run.id,
-    runNumber:
-      run.run_number,
-    event:
-      run.event,
-    headSha:
-      run.head_sha,
-    createdAt:
-      run.created_at,
-    updatedAt:
-      run.updated_at,
-    htmlUrl:
-      run.html_url,
-  };
-}
-
-const deployment =
-  results.deployment;
-
-if (deployment) {
-  const deployedAt =
-    Date.parse(
-      deployment.updatedAt ??
-        deployment.createdAt,
-    );
-
-  for (
-    const item
-    of required.filter(
-      (entry) =>
-        entry.afterDeployment,
-    )
-  ) {
-    const accepted =
-      results[item.id];
-
-    if (!accepted) {
-      continue;
-    }
-
-    const acceptedAt =
-      Date.parse(
-        accepted.updatedAt ??
-          accepted.createdAt,
-      );
-
-    if (
-      acceptedAt <
-      deployedAt
-    ) {
-      delete results[
-        item.id
-      ];
-      missing.push({
-        id: item.id,
-        workflow:
-          item.workflow,
-        reason:
-          "acceptance run predates the exact production deployment",
-        runId:
-          accepted.runId,
-      });
-    }
-  }
-}
+const {
+  results,
+  missing,
+} =
+  await evaluateReleaseEvidence({
+    required,
+    lookup,
+    sha,
+    now,
+    maxAgeHours,
+  });
 
 const evidence = {
   repository,
