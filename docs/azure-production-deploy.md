@@ -65,3 +65,24 @@ workflow form.
 
 This prevents a green verification for one bundle followed by a different rebuild at deploy time,
 and prevents production acceptance from accidentally testing a different Static Web App.
+
+
+## Securely populate the deployment-token secret
+
+The Azure deployment token is not committed and must not be pasted into chat, source files,
+workflow inputs, or shell command arguments. After signing in locally to both Azure CLI and
+GitHub CLI, the repository includes a helper that retrieves the token into memory and pipes it
+directly to the existing GitHub environments:
+
+```powershell
+./infrastructure/azure/sync-deployment-token.ps1
+```
+
+By default it verifies and writes `AZURE_STATIC_WEB_APPS_API_TOKEN` to both
+`azure-preview` and `azure-production`. Use `-Target azure-production` or
+`-Target azure-preview` to scope it to one environment.
+
+The helper refuses to create GitHub environments or Azure resources. It requires the environments
+to exist, verifies the secret by **name only**, clears the in-memory variable afterward, and never
+prints the deployment token. This step authorizes deployment only; it does not make MarketOS
+production-ready by itself.
