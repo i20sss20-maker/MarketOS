@@ -12,6 +12,22 @@ export type SystemHealth = {
     supportsSearch: boolean;
     supportsQuotes: boolean;
     supportsCandles: boolean;
+    dataPolicy?: {
+      timing:
+        | "realtime"
+        | "delayed"
+        | "end-of-day"
+        | "unknown";
+      delayMinutes?: number;
+      usageScope:
+        | "personal"
+        | "commercial"
+        | "unknown";
+      rightsConfirmed: boolean;
+      rightsConfirmedAt?: string;
+      rightsExpiresAt?: string;
+      configured: boolean;
+    };
     message?: string;
   };
   marketEvents: {
