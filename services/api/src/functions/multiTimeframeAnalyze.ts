@@ -7,6 +7,7 @@ import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { buildMultiTimeframeAnalysis } from "../ai/multiTimeframeEngine.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
+import { assertProductionMarketAccess, consumeProductionMarketDataQuota } from "../production/marketAccess.js";
 
 const allowedTimeframes = new Set<Timeframe>([
   "1m",
@@ -117,6 +118,16 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
         feature: "multiTimeframeAi",
       });
     }
+
+    const marketUser =
+      assertProductionMarketAccess(
+        request,
+      );
+    await consumeProductionMarketDataQuota(
+      marketUser,
+      5,
+    );
+
     const body = await request.json() as Record<string, unknown>;
     const symbol = sanitizeSymbol(body.symbol);
     const timeframes = sanitizeTimeframes(body.timeframes);
