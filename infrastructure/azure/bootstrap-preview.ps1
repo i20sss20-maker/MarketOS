@@ -68,9 +68,8 @@ if (Get-Command "gh" -ErrorAction SilentlyContinue) {
   }
 } else {
   Write-Host ""
-  Write-Host "GitHub CLI is not installed, so the deployment token was NOT written anywhere." -ForegroundColor Yellow
-  Write-Host "Add this token manually as GitHub Actions secret AZURE_STATIC_WEB_APPS_API_TOKEN:" -ForegroundColor Yellow
-  Write-Host $token
+  Write-Host "GitHub CLI is not installed, so the deployment token was NOT printed or written anywhere." -ForegroundColor Yellow
+  Write-Host "Install/authenticate GitHub CLI and rerun this script, or copy the deployment token directly from Azure Portal into the GitHub Actions secret without pasting it into chat, screenshots, terminals, or source files." -ForegroundColor Yellow
 }
 
 Write-Host ""
