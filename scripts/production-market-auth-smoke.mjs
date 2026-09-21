@@ -196,14 +196,22 @@ for (const name of protectedFiles) {
 
   assert.match(
     source,
-    /assertProductionMarketAccess\(request\)/,
-    `${name} must enforce strict authenticated market access`,
+    /(?:assertProductionMarketAccess|authorizeProductionMarketRequest)\(request\)/,
+    `${name} must enforce strict authenticated market access before provider work`,
   );
 
-  const guard =
+  const accessIndex =
     source.indexOf(
       "assertProductionMarketAccess(request)",
     );
+  const quotaIndex =
+    source.indexOf(
+      "authorizeProductionMarketRequest(request)",
+    );
+  const guard =
+    [accessIndex, quotaIndex]
+      .filter((index) => index >= 0)
+      .sort((a, b) => a - b)[0] ?? -1;
   const providerCall =
     Math.min(
       ...[
