@@ -204,12 +204,7 @@ assert.ok(
   [401, 403].includes(
     spoofAttempt.status,
   ),
-  "Static Web Apps must strip/reject a client-supplied principal header. The empty search query ensures this check cannot reach the market-data provider even if the boundary is broken.",
-);
-assert.notEqual(
-  spoofAttempt.status,
-  400,
-  "A 400 response would prove the forged principal reached the application as authenticated.",
+  "Static Web Apps must strip/reject a client-supplied principal header. The empty search query ensures this check cannot reach the market-data provider even if the boundary is broken; a broken boundary may still touch quota storage.",
 );
 evidence.checks
   .spoofedPrincipal =
