@@ -1,11 +1,11 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { json, marketError } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
-import { assertProductionMarketAccess } from "../production/marketAccess.js";
+import { authorizeProductionMarketRequest } from "../production/marketAccess.js";
 
 export async function marketSearch(request: HttpRequest): Promise<HttpResponseInit> {
   try {
-    assertProductionMarketAccess(request);
+    await authorizeProductionMarketRequest(request);
     const query = request.query.get("q")?.trim() ?? "";
     if (!query) return json(400, { ok: false, error: "Missing search query." });
     const symbols = await marketDataProvider.searchSymbols(query);
