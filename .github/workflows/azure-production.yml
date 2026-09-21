@@ -181,6 +181,7 @@ jobs:
     timeout-minutes: 8
     env:
       MARKETOS_ACCEPTANCE_BASE_URL: ${{ needs.deploy.outputs.deployed_url }}
+      MARKETOS_ACCEPTANCE_EXPECTED_BUILD_SHA: ${{ github.sha }}
 
     steps:
       - name: Checkout
