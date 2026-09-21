@@ -73,6 +73,9 @@ jobs:
       - name: Production readiness UI semantics smoke test
         run: pnpm smoke:production-readiness-ui
 
+      - name: Hosted ingress load workflow source smoke test
+        run: pnpm smoke:hosted-ingress-load-source
+
       - name: Forecast generation quota concurrency smoke test
         run: pnpm smoke:forecast-quota
 
