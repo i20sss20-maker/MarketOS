@@ -46,6 +46,12 @@ MARKET_DATA_PROVIDER=twelvedata
 TWELVE_DATA_API_KEY=<secret from the selected data subscription>
 MARKET_EVENTS_PROVIDER=twelvedata
 MARKET_FEED_PROVIDER=twelvedata
+MARKET_DATA_TIMING=<realtime|delayed|end-of-day>
+MARKET_DATA_DELAY_MINUTES=<required only for delayed data>
+MARKET_DATA_USAGE_SCOPE=<personal|commercial>
+MARKET_DATA_RIGHTS_CONFIRMED=true
+MARKET_DATA_RIGHTS_CONFIRMED_AT=<YYYY-MM-DD>
+MARKET_DATA_RIGHTS_EXPIRES_AT=<optional YYYY-MM-DD>
 USER_DATA_PROVIDER=cosmos
 COSMOS_CONNECTION_STRING=<MarketOS-only secret>
 COSMOS_DATABASE=marketos
@@ -56,6 +62,12 @@ FORECAST_JOURNAL_CONTAINER=forecastJournal
 
 Set `VITE_MARKETOS_REQUIRE_REAL_DATA=true` when building the web bundle. This is a public
 boolean, not a secret. Provider keys and Cosmos credentials must never have a VITE_ prefix.
+
+The market-data timing and usage-rights fields are an **operator declaration**, not independent
+license verification. Production readiness fails closed when they are absent, malformed, future-dated,
+or expired. The System panel and workspace ribbon expose the declared timing so delayed/EOD data is
+not presented as realtime. For a customer-facing product, set `MARKET_DATA_USAGE_SCOPE=commercial`
+only after the provider/exchange terms actually permit that use.
 
 Provision `forecastJournal` separately with partition key `/userId`, using approved
 throughput/retention settings. Do not point it at `userState`: that would interfere with
