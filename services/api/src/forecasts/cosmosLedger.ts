@@ -90,7 +90,7 @@ export class CosmosForecastLedger implements ForecastLedger {
         userId,
       );
 
-      const failed = response.result.find(item =>
+      const failed = (response.result ?? []).find(item =>
         typeof item.statusCode === "number" &&
         (item.statusCode < 200 || item.statusCode >= 300),
       );
