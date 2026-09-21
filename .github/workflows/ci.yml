@@ -40,6 +40,9 @@ jobs:
       - name: Forecast generation quota concurrency smoke test
         run: pnpm smoke:forecast-quota
 
+      - name: Strict forecast usage and manual Radar smoke test
+        run: pnpm smoke:strict-forecast-usage
+
       - name: Build
         run: pnpm build
 
