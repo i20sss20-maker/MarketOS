@@ -52,6 +52,9 @@ jobs:
       - name: Azure monitoring and cost guardrails smoke test
         run: pnpm smoke:operations-guardrails
 
+      - name: Hosted forecast evaluator rollout smoke test
+        run: pnpm smoke:forecast-evaluator-rollout
+
       - name: Strict Azure production deployment workflow smoke test
         run: pnpm smoke:azure-production-deploy
 
@@ -249,6 +252,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-market-data-policy.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/bootstrap-operations-guardrails.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-forecast-evaluation.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4
