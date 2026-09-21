@@ -59,6 +59,7 @@ COSMOS_DATABASE=marketos
 COSMOS_CONTAINER=userState
 FORECAST_JOURNAL_ENABLED=true
 FORECAST_JOURNAL_CONTAINER=forecastJournal
+MARKET_DATA_DAILY_REQUEST_HARD_CAP=<operator-approved per-user daily units>
 ```
 
 Set `VITE_MARKETOS_REQUIRE_REAL_DATA=true` when building the web bundle. This is a public
@@ -69,6 +70,7 @@ license verification. Production readiness fails closed when they are absent, ma
 or expired. The System panel and workspace ribbon expose the declared timing so delayed/EOD data is
 not presented as realtime. For a customer-facing product, set `MARKET_DATA_USAGE_SCOPE=commercial`
 only after the provider/exchange terms actually permit that use.
+The provider-request hard cap is also operator-selected: MarketOS deliberately does not guess a value because provider credits, commercial terms and budget have not been chosen. It counts planned provider HTTP requests, not a provider's proprietary credit units.
 
 Provision `forecastJournal` separately with partition key `/userId`, using approved
 throughput/retention settings. Do not point it at `userState`: that would interfere with
