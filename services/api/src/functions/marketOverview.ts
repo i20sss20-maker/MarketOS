@@ -2,6 +2,7 @@ import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import type { AssetClass, MarketSymbol } from "@marketos/market-core";
 import { json, marketError, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
+import { assertProductionMarketAccess } from "../production/marketAccess.js";
 
 const assetClasses = new Set<AssetClass>([
   "stock",
@@ -46,6 +47,7 @@ export async function marketOverview(request: HttpRequest): Promise<HttpResponse
   if (request.method === "OPTIONS") return preflight();
 
   try {
+    assertProductionMarketAccess(request);
     const body = await request.json() as { symbols?: unknown[] } | null;
     const symbols = Array.isArray(body?.symbols)
       ? body.symbols
