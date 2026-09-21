@@ -74,6 +74,21 @@ jobs:
       - name: Account-data erasure checks
         run: pnpm smoke:account-data-erasure
 
+      - name: Forecast quota concurrency checks
+        run: pnpm smoke:forecast-quota
+
+      - name: Market-data request quota concurrency and ordering
+        run: pnpm smoke:market-data-request-quota
+
+      - name: Strict forecast usage and manual Radar checks
+        run: pnpm smoke:strict-forecast-usage
+
+      - name: Production readiness UI semantics
+        run: pnpm smoke:production-readiness-ui
+
+      - name: Hosted ingress load workflow source safety
+        run: pnpm smoke:hosted-ingress-load-source
+
       - name: Prepare standalone Azure API
         run: pnpm prepare:azure-api
 
@@ -155,6 +170,8 @@ jobs:
     timeout-minutes: 8
     env:
       MARKETOS_ACCEPTANCE_BASE_URL: ${{ inputs.base_url }}
+      MARKETOS_LOAD_REQUESTS: "100"
+      MARKETOS_LOAD_CONCURRENCY: "5"
 
     steps:
       - name: Checkout
@@ -184,11 +201,16 @@ jobs:
       - name: Run hosted boundary acceptance
         run: node scripts/hosted-boundary-acceptance.mjs
 
+      - name: Run bounded hosted ingress load acceptance
+        run: node scripts/hosted-ingress-load-acceptance.mjs
+
       - name: Upload non-secret acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: production-hosted-boundary-evidence
-          path: artifacts/hosted-boundary-acceptance.json
+          path: |
+            artifacts/hosted-boundary-acceptance.json
+            artifacts/hosted-ingress-load-acceptance.json
           retention-days: 14
           if-no-files-found: warn
