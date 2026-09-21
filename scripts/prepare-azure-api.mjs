@@ -55,4 +55,22 @@ writeFileSync(
   `${JSON.stringify(packageJson, null, 2)}\n`,
 );
 
+const rawBuildSha =
+  (
+    process.env.MARKETOS_BUILD_SHA ??
+    process.env.GITHUB_SHA ??
+    "dev"
+  ).trim();
+const buildSha =
+  /^[0-9a-f]{40}$/i.test(rawBuildSha)
+    ? rawBuildSha.toLowerCase()
+    : "dev";
+
+writeFileSync(
+  `${target}/dist/build-info.json`,
+  `${JSON.stringify({
+    buildSha,
+  }, null, 2)}\n`,
+);
+
 console.log("Prepared Azure API bundle at artifacts/azure-api");
