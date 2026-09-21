@@ -21,7 +21,7 @@ const symbolParser = source.slice(source.indexOf("const assetClasses"), source.i
 const overrides = new Map([
   ["@azure/functions", azureUrl],
   ["@azure/cosmos", url("export class CosmosClient { constructor() { throw new Error('Actual Cosmos must not run in smoke tests'); } }")],
-  [resolve(api + "functions/analystForecast.ts"), url(compile(symbolParser) + "\nexport async function analystForecast() { throw new Error('Inject a test generator'); }")],
+  [resolve(api + "functions/analystForecast.ts"), url(compile(symbolParser) + "\nexport async function analystForecast() { throw new Error('Inject a test generator'); }\nexport const generateJournalForecast = analystForecast;")],
   [resolve(api + "providers/index.ts"), url("export const marketDataProvider={id:'demo',getStatus(){return {provider:'demo',mode:'demo',configured:false}}};")],
   [resolve(api + "entitlements/index.ts"), url("export const entitlementStore={mode:'memory'}; export async function getResolvedUserEntitlement(){return {definition:{limits:{aiQueriesPerDay:10}}};}")],
   [resolve(api + "usage/cosmosForecastQuota.ts"), url("export function getForecastQuotaStore(){throw new Error('Inject a quota test double');}")],
@@ -93,6 +93,37 @@ await test("unknown, future and fabricated quote timestamps fail closed", () => 
   validateProviderQuote(quote,"twelvedata");
   for(const bad of [{timestamp:0},{timestamp:Infinity},{timestamp:quote.timestamp*1000},{timestamp:Date.now()/1000+600},{source:"browser-demo"},{price:NaN},{price:0}])
     assert.throws(()=>validateProviderQuote({...quote,...bad},"twelvedata"),errorCode("INVALID_PROVIDER_DATA"));
+});
+await test("realtime and delayed policy require a recent last-quote timestamp while market is open", () => {
+  const previous = {
+    environment: process.env.MARKETOS_ENVIRONMENT,
+    strict: process.env.MARKETOS_REQUIRE_REAL_DATA,
+    timing: process.env.MARKET_DATA_TIMING,
+    delay: process.env.MARKET_DATA_DELAY_MINUTES,
+  };
+  try {
+    process.env.MARKETOS_ENVIRONMENT="production";
+    process.env.MARKETOS_REQUIRE_REAL_DATA="true";
+    process.env.MARKET_DATA_TIMING="realtime";
+    const now=Math.floor(Date.now()/1000);
+    validateProviderQuote({...quote,timestamp:now-30,timestampKind:"last-quote",isMarketOpen:true},"twelvedata",now);
+    assert.throws(()=>validateProviderQuote({...quote,timestamp:now-30,timestampKind:"interval-open",isMarketOpen:true},"twelvedata",now),errorCode("INVALID_PROVIDER_DATA"));
+    assert.throws(()=>validateProviderQuote({...quote,timestamp:now-16*60,timestampKind:"last-quote",isMarketOpen:true},"twelvedata",now),errorCode("INVALID_PROVIDER_DATA"));
+    process.env.MARKET_DATA_TIMING="delayed";
+    process.env.MARKET_DATA_DELAY_MINUTES="20";
+    validateProviderQuote({...quote,timestamp:now-30*60,timestampKind:"last-quote",isMarketOpen:true},"twelvedata",now);
+    assert.throws(()=>validateProviderQuote({...quote,timestamp:now-36*60,timestampKind:"last-quote",isMarketOpen:true},"twelvedata",now),errorCode("INVALID_PROVIDER_DATA"));
+    validateProviderQuote({...quote,timestamp:now-24*60*60,timestampKind:"interval-open",isMarketOpen:false},"twelvedata",now);
+  } finally {
+    for(const [key,value] of Object.entries({
+      MARKETOS_ENVIRONMENT:previous.environment,
+      MARKETOS_REQUIRE_REAL_DATA:previous.strict,
+      MARKET_DATA_TIMING:previous.timing,
+      MARKET_DATA_DELAY_MINUTES:previous.delay,
+    })) {
+      if(value===undefined) delete process.env[key]; else process.env[key]=value;
+    }
+  }
 });
 await test("OHLC validation rejects duplicates, disorder, impossible prices and future bars", () => {
   validateProviderCandles(candles);
