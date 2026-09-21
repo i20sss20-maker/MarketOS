@@ -73,6 +73,48 @@ assert.match(
   workflow,
   /skip_api_build: true/,
 );
+assert.match(
+  workflow,
+  /npm install --package-lock-only --ignore-scripts --prefix artifacts\/azure-api/,
+);
+assert.match(
+  workflow,
+  /npm ci --omit=dev --ignore-scripts --prefix artifacts\/azure-api/,
+);
+assert.match(
+  workflow,
+  /actions\/download-artifact@v4/,
+);
+assert.match(
+  workflow,
+  /name: marketos-production-bundle/,
+);
+assert.match(
+  workflow,
+  /id: deploy_swa/,
+);
+assert.match(
+  workflow,
+  /steps\.deploy_swa\.outputs\.static_web_app_url/,
+);
+assert.match(
+  workflow,
+  /needs\.deploy\.outputs\.deployed_url/,
+);
+assert.match(
+  workflow,
+  /does not match Azure deployment/,
+);
+const deploySection =
+  workflow.slice(
+    workflow.indexOf("\n  deploy:"),
+    workflow.indexOf("\n  acceptance:"),
+  );
+assert.doesNotMatch(
+  deploySection,
+  /pnpm build|pnpm prepare:azure-api|pnpm install/,
+  "Deploy job must use the verified artifact instead of rebuilding application source.",
+);
 assert.doesNotMatch(
   workflow,
   /TWELVE_DATA_API_KEY|COSMOS_CONNECTION_STRING|MARKETOS_WORKER_SECRET/,
