@@ -59,6 +59,9 @@ jobs:
       - name: Production server foundation checks
         run: pnpm smoke:production-foundation
 
+      - name: Direct forecast bypass boundary
+        run: pnpm smoke:direct-forecast-boundary
+
       - name: Provider endpoint authentication checks
         run: pnpm smoke:production-market-auth
 
