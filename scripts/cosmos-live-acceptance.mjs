@@ -82,6 +82,51 @@ function code(error) {
     : undefined;
 }
 
+async function readEventually(
+  container,
+  id,
+  partitionKey,
+  label,
+) {
+  let lastError;
+
+  for (
+    let attempt = 0;
+    attempt < 6;
+    attempt += 1
+  ) {
+    try {
+      return await container
+        .item(
+          id,
+          partitionKey,
+        )
+        .read();
+    } catch (error) {
+      lastError = error;
+
+      if (
+        code(error) !== 404
+      ) {
+        throw error;
+      }
+
+      await new Promise(
+        (resolve) =>
+          setTimeout(
+            resolve,
+            250 *
+              (attempt + 1),
+          ),
+      );
+    }
+  }
+
+  throw new Error(
+    `${label} was not visible to an independent Cosmos client after bounded retries (last status: ${code(lastError) ?? "unknown"}).`,
+  );
+}
+
 async function expect404(
   action,
   label,
@@ -182,12 +227,12 @@ try {
     const {
       resource,
     } =
-      await container
-        .item(
-          id,
-          owner,
-        )
-        .read();
+      await readEventually(
+        container,
+        id,
+        owner,
+        `${containerId} acceptance record`,
+      );
 
     assert.equal(
       resource?.id,
