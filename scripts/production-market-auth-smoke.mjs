@@ -35,7 +35,7 @@ export function getAuthenticatedUser(request) {
 
 const ledgerUrl = dataUrl(`
 export function ownerKey(user) {
-  return `${user.identityProvider}:${user.userId}`;
+  return user.identityProvider + ":" + user.userId;
 }
 `);
 
