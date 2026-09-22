@@ -84,7 +84,8 @@
     "smoke:hosted-ingress-load-source": "node scripts/hosted-ingress-load-source-smoke.mjs",
     "smoke:production-client": "node scripts/production-client-smoke.mjs",
     "smoke:forecast-quota": "node scripts/forecast-quota-smoke.mjs",
-    "smoke:strict-forecast-usage": "node scripts/strict-forecast-usage-smoke.mjs"
+    "smoke:strict-forecast-usage": "node scripts/strict-forecast-usage-smoke.mjs",
+    "smoke:cosmos-backup-policy": "node scripts/cosmos-backup-policy-smoke.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
