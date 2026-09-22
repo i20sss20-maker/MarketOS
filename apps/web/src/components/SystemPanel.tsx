@@ -46,6 +46,10 @@ const readinessLabels: Record<string, string> = {
   ENTITLEMENTS_NOT_PERSISTENT: "الصلاحيات ليست محفوظة في Cosmos",
   METRIC_ALERTS_NOT_CONFIGURED: "تنبيهات Azure التشغيلية غير مهيأة",
   COST_BUDGET_NOT_CONFIGURED: "ميزانية Azure التنبيهية غير مهيأة",
+  COSMOS_BACKUP_NOT_VERIFIED: "سياسة نسخ Cosmos الاحتياطي غير متحقق منها",
+  COSMOS_BACKUP_MODE_UNKNOWN: "وضع نسخ Cosmos الاحتياطي غير معروف",
+  COSMOS_BACKUP_VERIFICATION_INVALID: "تاريخ التحقق من نسخ Cosmos غير صالح",
+  COSMOS_BACKUP_VERIFICATION_STALE: "التحقق من نسخ Cosmos أقدم من 30 يومًا",
   CONFIGURATION_INVALID: "إعداد إنتاجي غير صالح",
 };
 
@@ -220,6 +224,28 @@ export default function SystemPanel({
                     {health.userData.persistent
                       ? "تخزين مستخدم دائم ومهيأ للمزامنة"
                       : "تخزين مؤقت للتطوير فقط"}
+                  </small>
+                </article>
+
+                <article className="system-service-card">
+                  <div className="system-service-title">
+                    <StatusDot mode={health.cosmosBackup.configured ? "provider" : "demo"} />
+                    <strong>Cosmos Backup</strong>
+                  </div>
+                  <span className="system-service-provider">
+                    {health.cosmosBackup.configured
+                      ? health.cosmosBackup.mode === "continuous"
+                        ? "Continuous backup verified"
+                        : "Periodic backup verified"
+                      : "Verification required"}
+                  </span>
+                  <small>
+                    {health.cosmosBackup.verifiedAt
+                      ? `آخر تحقق: ${health.cosmosBackup.verifiedAt}`
+                      : "لا يوجد تحقق حديث من Azure"}
+                  </small>
+                  <small>
+                    التحقق من وجود النسخ لا يثبت نجاح الاستعادة؛ تمرين الاستعادة يبقى بوابة قبول مستقلة.
                   </small>
                 </article>
 
