@@ -8,6 +8,7 @@ import { getWebPushConfiguration } from "../push/webPush.js";
 import { userStateStore } from "../storage/index.js";
 import { entitlementStore } from "../entitlements/index.js";
 import { configuredForecastHardCap } from "../usage/forecastQuota.js";
+import { cosmosBackupPolicy } from "../production/cosmosBackupPolicy.js";
 import { configuredMarketDataHardCap } from "../usage/marketDataQuota.js";
 import { operationsPolicy } from "../production/operationsPolicy.js";
 import { forecastEvaluationPolicy } from "../production/forecastEvaluationPolicy.js";
@@ -55,6 +56,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
     "dev"
   ).trim();
   const webPush = getWebPushConfiguration();
+  const cosmosBackup = cosmosBackupPolicy();
   const operations = operationsPolicy();
   const forecastEvaluation = forecastEvaluationPolicy();
   let forecastHardCap: number | null = null;
@@ -86,6 +88,7 @@ export async function health(_request: HttpRequest, context: InvocationContext):
         provider: companyFeedProvider.id,
         mode: companyFeedProvider.id.includes("demo") ? "demo" : "provider",
       },
+      cosmosBackup,
       userData: {
         provider: userStateStore.mode,
         persistent: userStateStore.mode === "cosmos",
