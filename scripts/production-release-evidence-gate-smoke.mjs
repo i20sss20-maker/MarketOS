@@ -284,6 +284,8 @@ for (
     "live-account-erasure-storage-acceptance.yml",
     "hosted-ingress-load-acceptance.yml",
     "live-forecast-evaluation-acceptance.yml",
+    "application-insights-live-acceptance.yml",
+    "cosmos-restore-drill-acceptance.yml",
   ]
 ) {
   assert.ok(
