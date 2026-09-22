@@ -7,7 +7,10 @@ on:
     branches: ["main"]
 
 concurrency:
-  group: marketos-ci-${{ github.workflow }}-${{ github.ref }}
+  # Use the same key for a branch push and its pull_request run so feature/**
+  # does not execute the full suite twice. Keep branch identity in the key so
+  # a newer commit still cancels an older in-progress run on that branch.
+  group: marketos-ci-${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
