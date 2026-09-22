@@ -12,6 +12,10 @@ type Props = {
     | "radar"
     | "performance"
     | null;
+  performanceMessage?:
+    string | null;
+  performanceServerBacked?:
+    boolean;
   onSelectSymbol:
     (symbol: MarketSymbol) =>
       void;
@@ -177,6 +181,8 @@ function timeLabel(
 export default function AnalystBriefCard({
   brief,
   refreshing,
+  performanceMessage = null,
+  performanceServerBacked = false,
   onSelectSymbol,
   onOpenAnalyst,
 }: Props) {
@@ -209,7 +215,9 @@ export default function AnalystBriefCard({
               ? "Radar يحدّث…"
               : refreshing ===
                   "performance"
-                ? "النتائج تتحقق…"
+                ? performanceServerBacked
+                  ? "سجل الخادم يحدّث…"
+                  : "النتائج تتحقق…"
                 : (
                     <>
                       Radar{" "}
@@ -437,6 +445,19 @@ export default function AnalystBriefCard({
             <span>
               أداء المحلل
             </span>
+            {performanceMessage ? (
+              <div>
+                <strong>—</strong>
+                <b>
+                  {performanceServerBacked
+                    ? "سجل الخادم"
+                    : "الأداء"}
+                </b>
+                <small>
+                  {performanceMessage}
+                </small>
+              </div>
+            ) : (
             <div>
               <strong>
                 {brief.performance
@@ -518,8 +539,12 @@ export default function AnalystBriefCard({
                 null
                   ? ` · ECE ${brief.performance.reliabilityEce}`
                   : ` · ${brief.performance.reliabilityResolved}/20`}
+                {performanceServerBacked
+                  ? " · سجل الخادم"
+                  : ""}
               </small>
             </div>
+            )}
           </div>
 
           <div className="home-analyst-brief-block watch">
