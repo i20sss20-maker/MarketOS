@@ -109,6 +109,9 @@ jobs:
       - name: Strict forecast usage and manual Radar smoke test
         run: pnpm smoke:strict-forecast-usage
 
+      - name: Strict chart AI authentication and shared quota smoke test
+        run: pnpm smoke:strict-chart-ai-quota
+
       - name: Build
         run: pnpm build
 
