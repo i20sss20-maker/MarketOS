@@ -85,6 +85,11 @@ makes one safe `/api/health` request, waits for ingestion, and requires that req
 in Application Insights. It does not call market-data providers or Cosmos. After it passes,
 review **Failures**, **Performance**, and **Logs** in Application Insights before launch.
 
+For exact-release evidence, run **Application Insights Live Acceptance** on `main`. The workflow
+uses the `AZURE_CREDENTIALS` secret from the `azure-production` environment only for Azure
+management-plane reads and the telemetry query, then uploads a non-secret evidence artifact.
+It never writes the Application Insights connection string or instrumentation key to evidence.
+
 References:
 
 - https://learn.microsoft.com/azure/static-web-apps/metrics
