@@ -16,6 +16,7 @@ const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/$/
 type ChartAnalyzeResponse = {
   ok: boolean;
   analysis: ChartAnalysisResponse;
+  usage?: unknown;
   error?: string;
 };
 
@@ -34,6 +35,12 @@ export async function analyzeChart(
   });
 
   const payload = await response.json().catch(() => null) as ChartAnalyzeResponse | null;
+  if (
+    import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" &&
+    payload?.usage
+  ) {
+    recordForecastUsage(payload.usage);
+  }
   if (!response.ok || !payload?.ok || !payload.analysis) {
     throw new Error(payload?.error || `Chart analysis request failed (${response.status}).`);
   }
