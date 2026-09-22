@@ -61,6 +61,9 @@ jobs:
       - name: Hosted forecast evaluator rollout smoke test
         run: pnpm smoke:forecast-evaluator-rollout
 
+      - name: Server forecast evaluation and journal runtime tests
+        run: pnpm smoke:server-forecast-evaluation
+
       - name: Live hosted forecast evaluator acceptance source smoke test
         run: pnpm smoke:live-forecast-evaluation-source
 
