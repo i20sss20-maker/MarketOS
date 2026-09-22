@@ -74,6 +74,10 @@ assert.match(
 );
 assert.match(
   insightsWorkflow,
+  /az extension add --name application-insights/,
+);
+assert.match(
+  insightsWorkflow,
   /application-insights-live-acceptance\.json/,
 );
 assert.doesNotMatch(
