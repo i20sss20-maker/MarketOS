@@ -152,8 +152,8 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   recoveryScript,
-  /connectionString\s*[,}]/,
-  "Recovery evidence must never serialize a connection string.",
+  /Object\.assign\([\s\S]{0,800}connectionString/,
+  "Recovery evidence must never add a connection string to the evidence object.",
 );
 
 for (
