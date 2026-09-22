@@ -102,6 +102,11 @@ const home =
     "apps/web/src/components/HomeDashboard.tsx",
     "utf8",
   );
+const multiTimeframe =
+  readFileSync(
+    "services/api/src/functions/multiTimeframeAnalyze.ts",
+    "utf8",
+  );
 
 assert.match(
   aiApi,
@@ -144,6 +149,86 @@ assert.match(
   /scanAnalystRadar/,
 );
 
+for (
+  const marker
+  of [
+    "consumeProductionAiQuery",
+    "consumeProductionMarketQuota",
+    "assertRealProvider",
+    "assertForecastEvidenceFresh",
+    "assertMarketDataPolicy",
+  ]
+) {
+  assert.ok(
+    multiTimeframe.includes(
+      marker,
+    ),
+    `Strict Multi-Timeframe AI missing protection: ${marker}`,
+  );
+}
+
+const multiHandlerIndex =
+  multiTimeframe.indexOf(
+    "export async function multiTimeframeAnalyze",
+  );
+const multiAiQuotaIndex =
+  multiTimeframe.indexOf(
+    "consumeProductionAiQuery",
+    multiHandlerIndex,
+  );
+const multiMarketQuotaIndex =
+  multiTimeframe.indexOf(
+    "consumeProductionMarketQuota",
+    multiHandlerIndex,
+  );
+const multiProviderIndex =
+  multiTimeframe.indexOf(
+    "marketDataProvider.getQuote",
+    multiHandlerIndex,
+  );
+const multiFreshnessIndex =
+  multiTimeframe.indexOf(
+    "assertForecastEvidenceFresh",
+    multiHandlerIndex,
+  );
+const multiBuildIndex =
+  multiTimeframe.indexOf(
+    "buildMultiTimeframeAnalysis",
+    multiHandlerIndex,
+  );
+
+assert.ok(
+  multiHandlerIndex >= 0 &&
+    multiAiQuotaIndex >
+      multiHandlerIndex &&
+    multiMarketQuotaIndex >
+      multiAiQuotaIndex &&
+    multiProviderIndex >
+      multiMarketQuotaIndex &&
+    multiFreshnessIndex >
+      multiProviderIndex &&
+    multiBuildIndex >
+      multiFreshnessIndex,
+  "Strict Multi-Timeframe AI must reserve AI quota, reserve market-data quota, load provider evidence, validate freshness, then build analysis.",
+);
+
+const multiClientIndex =
+  aiApi.indexOf(
+    "export async function analyzeMultipleTimeframes",
+  );
+const multiUsageIndex =
+  aiApi.indexOf(
+    "recordForecastUsage",
+    multiClientIndex,
+  );
+
+assert.ok(
+  multiClientIndex >= 0 &&
+    multiUsageIndex >
+      multiClientIndex,
+  "Strict Multi-Timeframe client must record the shared AI usage receipt.",
+);
+
 console.log(
-  "Strict forecast usage smoke passed: receipt validation, visible usage, and no hidden strict Radar generation.",
+  "Strict forecast usage smoke passed: receipt validation, visible usage, no hidden strict Radar generation, and Multi-Timeframe AI shares strict quota plus fresh provider evidence.",
 );

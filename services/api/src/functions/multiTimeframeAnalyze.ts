@@ -1,14 +1,17 @@
 import { app, type HttpRequest, type HttpResponseInit } from "@azure/functions";
 import { canUseFeature } from "@marketos/entitlements-core";
-import type { AssetClass, MarketSymbol, Timeframe } from "@marketos/market-core";
+import type { AssetClass, Candle, MarketSymbol, Timeframe } from "@marketos/market-core";
 import { analyzeChartContext, sanitizeChartContext } from "../ai/localChartEngine.js";
 import { getAuthenticatedUser } from "../auth/clientPrincipal.js";
 import { getResolvedUserEntitlement } from "../entitlements/index.js";
 import { buildMultiTimeframeAnalysis } from "../ai/multiTimeframeEngine.js";
+import { assertForecastEvidenceFresh } from "../ai/forecastEvidence.js";
 import { json, preflight } from "../http/responses.js";
 import { marketDataProvider } from "../providers/index.js";
 import { assertProductionMarketAccess, consumeProductionMarketQuota } from "../production/marketAccess.js";
-import { ProductionGateError } from "../production/policy.js";
+import { assertMarketDataPolicy } from "../production/marketDataPolicy.js";
+import { assertRealProvider, ProductionGateError, realDataRequired } from "../production/policy.js";
+import { consumeProductionAiQuery, type AiQueryQuotaResult } from "../usage/aiQueryQuota.js";
 
 const allowedTimeframes = new Set<Timeframe>([
   "1m",
@@ -89,6 +92,8 @@ function sanitizeIndicators(value: unknown) {
 export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpResponseInit> {
   if (request.method === "OPTIONS") return preflight();
 
+  let aiUsage: AiQueryQuotaResult | null = null;
+
   const user = getAuthenticatedUser(request);
   if (!user) {
     return json(401, {
@@ -127,12 +132,25 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
     const symbol = sanitizeSymbol(body.symbol);
     const timeframes = sanitizeTimeframes(body.timeframes);
     const indicators = sanitizeIndicators(body.indicators);
+    const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 1200) : undefined;
+
+    if (realDataRequired()) {
+      assertRealProvider(
+        marketDataProvider,
+      );
+    }
+
+    // Multi-Timeframe AI shares the same persistent daily AI/forecast budget.
+    // Reserve the AI unit before any provider-backed analysis starts.
+    aiUsage =
+      await consumeProductionAiQuery(
+        request,
+      );
 
     await consumeProductionMarketQuota(
       productionUser,
       1 + timeframes.length,
     );
-    const prompt = typeof body.prompt === "string" ? body.prompt.slice(0, 1200) : undefined;
 
     const quote = await marketDataProvider.getQuote(symbol).catch(() => null);
 
@@ -150,22 +168,42 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
         });
         return {
           timeframe,
+          candles,
           analysis: analyzeChartContext(context),
         };
       }),
     );
 
     const analyses: Array<{ timeframe: Timeframe; analysis: ReturnType<typeof analyzeChartContext> }> = [];
+    const candleHistory =
+      new Map<
+        Timeframe,
+        Candle[]
+      >();
     const failures: Array<{ timeframe: Timeframe; error: string }> = [];
 
     settled.forEach((result, index) => {
       const timeframe = timeframes[index];
       if (result.status === "fulfilled") {
-        analyses.push(result.value);
+        analyses.push({
+          timeframe:
+            result.value.timeframe,
+          analysis:
+            result.value.analysis,
+        });
+        candleHistory.set(
+          timeframe,
+          result.value.candles,
+        );
       } else {
         failures.push({
           timeframe,
-          error: result.reason instanceof Error ? result.reason.message : "Unknown timeframe error.",
+          error:
+            realDataRequired()
+              ? "Market data is unavailable for this timeframe."
+              : result.reason instanceof Error
+                ? result.reason.message
+                : "Unknown timeframe error.",
         });
       }
     });
@@ -175,6 +213,28 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
         ok: false,
         error: "No requested timeframe could be analyzed.",
         failures,
+        ...(aiUsage
+          ? { usage: aiUsage }
+          : {}),
+      });
+    }
+
+    if (realDataRequired()) {
+      if (!quote) {
+        throw new ProductionGateError(
+          "INCOMPLETE_MARKET_EVIDENCE",
+          "Multi-Timeframe AI requires a verified provider quote.",
+          502,
+        );
+      }
+
+      assertForecastEvidenceFresh({
+        providerId:
+          marketDataProvider.id,
+        policy:
+          assertMarketDataPolicy(),
+        quote,
+        candleHistory,
       });
     }
 
@@ -189,6 +249,9 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
       ok: true,
       provider: marketDataProvider.id,
       analysis,
+      ...(aiUsage
+        ? { usage: aiUsage }
+        : {}),
     });
   } catch (error) {
     if (error instanceof ProductionGateError) {
@@ -196,6 +259,9 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
         ok: false,
         code: error.code,
         error: error.message,
+        ...(aiUsage
+          ? { usage: aiUsage }
+          : {}),
       });
     }
 
@@ -203,6 +269,9 @@ export async function multiTimeframeAnalyze(request: HttpRequest): Promise<HttpR
     return json(400, {
       ok: false,
       error: message,
+      ...(aiUsage
+        ? { usage: aiUsage }
+        : {}),
     });
   }
 }
