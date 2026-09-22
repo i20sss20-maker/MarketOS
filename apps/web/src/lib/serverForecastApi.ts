@@ -1,4 +1,8 @@
 import type { AnalystForecastResponse } from "@marketos/market-core";
+import type {
+  ForecastJournalRecord,
+  ForecastOutcome,
+} from "./forecastJournal";
 
 const API_BASE_URL = (import.meta.env?.VITE_API_BASE_URL || "/api").replace(/\/$/, "");
 type EvaluationPlan = {
@@ -124,3 +128,232 @@ export function mergeServerForecastPages(current: ServerForecastRecord[], next: 
   }
   return [...records.values()].sort((a, b) => b.recordedAt - a.recordedAt).slice(0, 200);
 }
+
+function scenarioProbabilities(
+  forecast: AnalystForecastResponse,
+) {
+  return {
+    bull:
+      forecast.scenarios.find(
+        (item) => item.id === "bull",
+      )?.probability ?? 0,
+    base:
+      forecast.scenarios.find(
+        (item) => item.id === "base",
+      )?.probability ?? 0,
+    bear:
+      forecast.scenarios.find(
+        (item) => item.id === "bear",
+      )?.probability ?? 0,
+  };
+}
+
+function topScenario(
+  forecast: AnalystForecastResponse,
+) {
+  return [...forecast.scenarios].sort(
+    (a, b) =>
+      b.probability -
+      a.probability,
+  )[0];
+}
+
+function plannedDueAt(
+  record: ServerForecastRecord,
+) {
+  if (record.evaluation) {
+    return record.evaluation
+      .targetBarTime;
+  }
+
+  if (!record.evaluationPlan) {
+    return record.forecast
+      .generatedAt;
+  }
+
+  const seconds =
+    record.evaluationPlan
+      .timeframe === "1d"
+      ? 24 * 60 * 60
+      : 4 * 60 * 60;
+
+  return (
+    record.evaluationPlan
+      .issuedAt +
+    (
+      record.evaluationPlan
+        .horizonBars *
+      seconds
+    )
+  );
+}
+
+export function serverForecastToJournalRecord(
+  record: ServerForecastRecord,
+): ForecastJournalRecord {
+  const forecast =
+    record.forecast;
+  const expected =
+    topScenario(forecast);
+  const evaluation =
+    record.evaluation;
+  const dueAt =
+    plannedDueAt(record);
+  const evaluatedAt =
+    evaluation
+      ? Math.floor(
+          evaluation.confirmedAt /
+            1000,
+        )
+      : undefined;
+
+  return {
+    id: record.id,
+    symbolId:
+      forecast.symbol.id,
+    ticker:
+      forecast.symbol.ticker,
+    symbol:
+      forecast.symbol,
+    engine:
+      forecast.engine,
+    generatedAt:
+      forecast.generatedAt,
+    dueAt,
+    evaluationTimeframe:
+      record.evaluationPlan
+        ?.timeframe,
+    evaluationBars:
+      record.evaluationPlan
+        ?.horizonBars,
+    referencePrice:
+      forecast.referencePrice,
+    confidence:
+      forecast.confidence,
+    dataMode: "provider",
+    expectedOutcome:
+      expected.id as ForecastOutcome,
+    expectedProbability:
+      expected.probability,
+    probabilities:
+      scenarioProbabilities(
+        forecast,
+      ),
+    thresholdPercent:
+      record.evaluationPlan
+        ?.thresholdPercent ??
+      forecast.calibration
+        ?.outcomeThresholdPercent ??
+      1,
+    status:
+      evaluation
+        ? "resolved"
+        : "pending",
+    evaluatedAt,
+    evaluationPrice:
+      evaluation
+        ?.evaluationPrice,
+    evaluationMethod:
+      evaluation
+        ? "horizon-bars"
+        : undefined,
+    evaluationDelaySeconds:
+      evaluation &&
+      evaluatedAt !==
+        undefined
+        ? Math.max(
+            0,
+            evaluatedAt -
+              dueAt,
+          )
+        : undefined,
+    realizedReturnPercent:
+      evaluation
+        ?.realizedReturnPercent,
+    realizedOutcome:
+      evaluation
+        ?.realizedOutcome,
+    correct:
+      evaluation
+        ?.correct,
+  };
+}
+
+export function serverForecastsToJournalRecords(
+  records: ServerForecastRecord[],
+) {
+  return records
+    .map(
+      serverForecastToJournalRecord,
+    )
+    .sort(
+      (a, b) =>
+        b.generatedAt -
+        a.generatedAt,
+    );
+}
+
+export async function listAllServerForecasts(
+  signal?: AbortSignal,
+  maxRecords = 200,
+) {
+  if (
+    !Number.isInteger(
+      maxRecords,
+    ) ||
+    maxRecords < 1 ||
+    maxRecords > 200
+  ) {
+    throw new ForecastHistoryError(
+      400,
+      "حد سجل الخادم غير صالح.",
+    );
+  }
+
+  let records:
+    ServerForecastRecord[] = [];
+  let cursor:
+    string | undefined;
+  const seen =
+    new Set<string>();
+
+  while (
+    records.length <
+    maxRecords
+  ) {
+    const page =
+      await listServerForecasts(
+        signal,
+        cursor,
+      );
+
+    records =
+      mergeServerForecastPages(
+        records,
+        page.records,
+      );
+
+    if (
+      !page.cursor ||
+      page.cursor ===
+        cursor ||
+      seen.has(
+        page.cursor,
+      )
+    ) {
+      break;
+    }
+
+    seen.add(
+      page.cursor,
+    );
+    cursor =
+      page.cursor;
+  }
+
+  return records.slice(
+    0,
+    maxRecords,
+  );
+}
+
