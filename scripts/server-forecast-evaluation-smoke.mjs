@@ -132,7 +132,7 @@ await test('server forecast records convert into provider performance records wi
  assert.equal(pendingJournal.expectedOutcome,'bull');assert.equal(pendingJournal.correct,undefined);
  r.evaluation=resolveResult(r).evaluation;const resolved=serverForecastToJournalRecord(publicForecastRecord(r));
  assert.equal(resolved.status,'resolved');assert.equal(resolved.correct,true);assert.equal(resolved.realizedOutcome,'bull');
- assert.equal(resolved.realizedReturnPercent,3);assert.equal(resolved.evaluationPrice,103);
+ assert.ok(Math.abs(resolved.realizedReturnPercent-3)<1e-9);assert.equal(resolved.evaluationPrice,103);
  assert.equal(resolved.evaluatedAt,Math.floor(now/1000));
 });
 await test('server performance conversion preserves newest-first order and pending current engine context',()=>{
