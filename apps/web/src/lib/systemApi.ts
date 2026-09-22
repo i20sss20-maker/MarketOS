@@ -42,6 +42,15 @@ export type SystemHealth = {
     provider: string;
     mode: "local" | "provider";
   };
+  cosmosBackup: {
+    verified: boolean;
+    mode:
+      | "periodic"
+      | "continuous"
+      | "unknown";
+    verifiedAt?: string;
+    configured: boolean;
+  };
   userData: {
     provider: "memory" | "cosmos";
     persistent: boolean;
