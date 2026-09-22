@@ -125,6 +125,18 @@ Add-Check (Has-Text $settings "COSMOS_ENTITLEMENTS_CONTAINER") "Entitlements con
 Add-Check (Equals-Setting $settings "FORECAST_JOURNAL_ENABLED" @("true")) "Forecast journal enabled" "FORECAST_JOURNAL_ENABLED is not true."
 Add-Check (Has-Text $settings "FORECAST_JOURNAL_CONTAINER") "Forecast journal container configured" "FORECAST_JOURNAL_CONTAINER is missing."
 
+Add-Check (Equals-Setting $settings "MARKETOS_COSMOS_BACKUP_VERIFIED" @("true")) "Cosmos backup policy verified" "MARKETOS_COSMOS_BACKUP_VERIFIED is not true."
+Add-Check (Equals-Setting $settings "MARKETOS_COSMOS_BACKUP_MODE" @("periodic", "continuous")) "Cosmos backup mode recorded" "MARKETOS_COSMOS_BACKUP_MODE is missing or invalid."
+$backupVerificationFresh = $false
+if (Has-Text $settings "MARKETOS_COSMOS_BACKUP_VERIFIED_AT") {
+  $verifiedAt = [datetime]::MinValue
+  if ([datetime]::TryParseExact(([string]$settings.MARKETOS_COSMOS_BACKUP_VERIFIED_AT).Trim(), "yyyy-MM-dd", [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$verifiedAt)) {
+    $ageDays = [math]::Floor(((Get-Date).ToUniversalTime().Date - $verifiedAt.ToUniversalTime().Date).TotalDays)
+    $backupVerificationFresh = $ageDays -ge 0 -and $ageDays -le 30
+  }
+}
+Add-Check $backupVerificationFresh "Cosmos backup verification is current" "MARKETOS_COSMOS_BACKUP_VERIFIED_AT is missing, future-dated, or older than 30 days."
+
 Add-Check (Positive-Integer-Setting $settings "FORECAST_DAILY_HARD_CAP") "Forecast daily hard cap configured" "FORECAST_DAILY_HARD_CAP is missing or invalid."
 Add-Check (Positive-Integer-Setting $settings "MARKET_DATA_DAILY_REQUEST_HARD_CAP") "Market-data daily hard cap configured" "MARKET_DATA_DAILY_REQUEST_HARD_CAP is missing or invalid."
 
