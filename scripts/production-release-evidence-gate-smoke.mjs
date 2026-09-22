@@ -28,6 +28,7 @@ function run({
   status =
     "completed",
   branch = "main",
+  jobs = [],
 }) {
   return {
     id,
@@ -45,6 +46,29 @@ function run({
       updatedAt,
     html_url:
       `https://github.invalid/run/${id}`,
+    jobs,
+  };
+}
+
+function job(
+  name,
+  {
+    id = 1,
+    status = "completed",
+    conclusion = "success",
+  } = {},
+) {
+  return {
+    id,
+    name,
+    status,
+    conclusion,
+    started_at:
+      "2026-09-21T10:00:00Z",
+    completed_at:
+      "2026-09-21T10:01:00Z",
+    html_url:
+      `https://github.invalid/job/${id}`,
   };
 }
 
@@ -81,6 +105,9 @@ const required = [
       "azure-production.yml",
     event:
       "workflow_dispatch",
+    requiredJobs: [
+      "Deploy exact verified strict bundle",
+    ],
   },
   {
     id: "load",
@@ -88,6 +115,9 @@ const required = [
       "hosted-ingress-load-acceptance.yml",
     event:
       "workflow_dispatch",
+    requiredJobs: [
+      "Bounded hosted ingress load",
+    ],
     afterDeployment: true,
   },
   {
@@ -96,6 +126,9 @@ const required = [
       "provider-integration.yml",
     event:
       "workflow_dispatch",
+    requiredJobs: [
+      "Twelve Data live acceptance",
+    ],
   },
 ];
 
@@ -107,6 +140,12 @@ const greenRuns =
         id: 10,
         updatedAt:
           "2026-09-21T10:00:00Z",
+        jobs: [
+          job(
+            "Deploy exact verified strict bundle",
+            { id: 101 },
+          ),
+        ],
       }),
     ],
     [
@@ -115,6 +154,12 @@ const greenRuns =
         id: 11,
         updatedAt:
           "2026-09-21T10:30:00Z",
+        jobs: [
+          job(
+            "Bounded hosted ingress load",
+            { id: 102 },
+          ),
+        ],
       }),
     ],
     [
@@ -123,6 +168,12 @@ const greenRuns =
         id: 12,
         updatedAt:
           "2026-09-21T09:30:00Z",
+        jobs: [
+          job(
+            "Twelve Data live acceptance",
+            { id: 103 },
+          ),
+        ],
       }),
     ],
   ]);
@@ -194,6 +245,12 @@ const beforeDeploy =
               id: 21,
               updatedAt:
                 "2026-09-21T09:59:59Z",
+              jobs: [
+                job(
+                  "Bounded hosted ingress load",
+                  { id: 104 },
+                ),
+              ],
             })
           : greenRuns.get(
               item.id,
@@ -215,6 +272,58 @@ assert.ok(
 );
 assert.equal(
   beforeDeploy.results.load,
+  undefined,
+);
+
+const skippedJob =
+  await evaluateReleaseEvidence({
+    required,
+    lookup:
+      async (item) =>
+        item.id ===
+        "deployment"
+          ? run({
+              id: 30,
+              updatedAt:
+                "2026-09-21T10:00:00Z",
+              jobs: [
+                job(
+                  "Deploy exact verified strict bundle",
+                  {
+                    id: 105,
+                    conclusion:
+                      "skipped",
+                  },
+                ),
+              ],
+            })
+          : greenRuns.get(
+              item.id,
+            ),
+    sha,
+    now,
+    maxAgeHours: 72,
+  });
+
+assert.ok(
+  skippedJob.missing.some(
+    (item) =>
+      item.id ===
+        "deployment" &&
+      item.reason.includes(
+        "required workflow jobs",
+      ) &&
+      item.jobs?.some(
+        (entry) =>
+          entry.name ===
+            "Deploy exact verified strict bundle" &&
+          entry.conclusion ===
+            "skipped",
+      ),
+  ),
+);
+assert.equal(
+  skippedJob.results.deployment,
   undefined,
 );
 
@@ -306,7 +415,15 @@ assert.match(
   gate,
   /afterDeployment: true/,
 );
+assert.match(
+  gate,
+  /requiredJobs/,
+);
+assert.match(
+  gate,
+  /\/jobs\?filter=latest/,
+);
 
 console.log(
-  "Production release evidence gate smoke passed: exact SHA, freshness, missing evidence and post-deployment ordering are enforced without production secrets.",
+  "Production release evidence gate smoke passed: exact SHA, freshness, required job execution, missing evidence and post-deployment ordering are enforced without production secrets.",
 );
