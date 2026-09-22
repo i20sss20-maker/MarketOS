@@ -152,6 +152,9 @@ $productionSecrets = GitHub-Environment-SecretNames "azure-production"
 Add-Check ($null -ne $productionSecrets) "GitHub azure-production environment readable" "GitHub environment 'azure-production' is missing or unreadable."
 if ($productionSecrets) {
   Add-Check ($productionSecrets -contains "AZURE_STATIC_WEB_APPS_API_TOKEN") "Production deployment token secret exists" "AZURE_STATIC_WEB_APPS_API_TOKEN is missing from azure-production."
+  Add-Check ($productionSecrets -contains "COSMOS_CONNECTION_STRING") "Live acceptance Cosmos secret exists" "COSMOS_CONNECTION_STRING is missing from azure-production; Cosmos persistence/quota/erasure and recovery-marker workflows cannot run."
+  Add-Check ($productionSecrets -contains "MARKETOS_WORKER_SECRET") "Hosted evaluator worker secret exists" "MARKETOS_WORKER_SECRET is missing from azure-production; hosted forecast-evaluation acceptance cannot run."
+  Add-Check ($productionSecrets -contains "AZURE_CREDENTIALS") "Telemetry Azure management credential exists" "AZURE_CREDENTIALS is missing from azure-production; Application Insights live acceptance cannot run."
 }
 
 $providerSecrets = GitHub-Environment-SecretNames "market-data-acceptance"
@@ -167,6 +170,7 @@ Write-Host "Default host: https://$($swa.defaultHostname)"
 Write-Host "Blockers: $($script:Blockers.Count)"
 Write-Host ""
 Write-Host "No secret values were printed. This preflight checks configuration presence/shape only; live acceptance workflows are still required." -ForegroundColor Yellow
+Write-Host "COSMOS_RESTORE_CONNECTION_STRING is intentionally not required here; create it only after restoring the exact release marker to a separate Cosmos account." -ForegroundColor Yellow
 
 if ($script:Blockers.Count -gt 0) {
   exit 2

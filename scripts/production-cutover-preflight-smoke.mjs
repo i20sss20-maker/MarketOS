@@ -28,6 +28,9 @@ for (const marker of [
   "MARKETOS_WORKER_SECRET",
   "azure-production",
   "AZURE_STATIC_WEB_APPS_API_TOKEN",
+  "COSMOS_CONNECTION_STRING",
+  "MARKETOS_WORKER_SECRET",
+  "AZURE_CREDENTIALS",
   "market-data-acceptance",
   "No secret values were printed",
 ]) {
@@ -48,6 +51,10 @@ assert.match(
 assert.match(
   source,
   /exit 2/,
+);
+assert.match(
+  source,
+  /COSMOS_RESTORE_CONNECTION_STRING is intentionally not required here/,
 );
 
 assert.doesNotMatch(
