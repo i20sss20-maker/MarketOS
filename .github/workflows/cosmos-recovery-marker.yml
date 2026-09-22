@@ -1,0 +1,68 @@
+name: Cosmos Recovery Marker Seed
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type SEED MARKETOS RECOVERY MARKER"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cosmos-recovery-marker-seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    name: Seed non-user recovery marker
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'SEED MARKETOS RECOVERY MARKER' }}
+    runs-on: ubuntu-latest
+    environment: azure-production
+    timeout-minutes: 5
+    env:
+      COSMOS_CONNECTION_STRING: ${{ secrets.COSMOS_CONNECTION_STRING }}
+      COSMOS_DATABASE: ${{ vars.COSMOS_DATABASE || 'marketos' }}
+      COSMOS_CONTAINER: ${{ vars.COSMOS_CONTAINER || 'userState' }}
+      COSMOS_ENTITLEMENTS_CONTAINER: ${{ vars.COSMOS_ENTITLEMENTS_CONTAINER || 'entitlements' }}
+      FORECAST_JOURNAL_CONTAINER: ${{ vars.FORECAST_JOURNAL_CONTAINER || 'forecastJournal' }}
+      MARKETOS_RECOVERY_DRILL_MODE: seed
+      MARKETOS_RECOVERY_MARKER_ID: recovery-${{ github.sha }}-${{ github.run_id }}
+
+    steps:
+      - name: Checkout exact release candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require production Cosmos credential without printing it
+        shell: bash
+        run: |
+          if [ -z "$COSMOS_CONNECTION_STRING" ]; then
+            echo "::error::COSMOS_CONNECTION_STRING is missing from azure-production."
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Seed retained recovery marker
+        run: node scripts/cosmos-recovery-drill.mjs
+
+      - name: Upload marker evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosmos-recovery-marker
+          path: artifacts/cosmos-recovery-marker.json
+          retention-days: 90
+          if-no-files-found: error

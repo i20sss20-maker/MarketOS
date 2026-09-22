@@ -72,6 +72,7 @@
     "smoke:market-data-credential-sync": "node scripts/market-data-credential-sync-smoke.mjs",
     "smoke:azure-production-deploy": "node scripts/azure-production-deploy-smoke.mjs",
     "smoke:production-release-evidence": "node scripts/production-release-evidence-gate-smoke.mjs",
+    "smoke:recovery-observability-evidence": "node scripts/recovery-observability-evidence-smoke.mjs",
     "smoke:production-cutover-preflight": "node scripts/production-cutover-preflight-smoke.mjs",
     "smoke:account-data-erasure": "node scripts/account-data-erasure-smoke.mjs",
     "smoke:production-storage-bootstrap": "node scripts/production-storage-bootstrap-smoke.mjs",

@@ -82,8 +82,18 @@ the link and actual telemetry ingestion without printing the connection string:
 
 The verifier confirms the selected component matches the Static Web App connection string,
 makes one safe `/api/health` request, waits for ingestion, and requires that request to appear
-in Application Insights. It does not call market-data providers or Cosmos. After it passes,
+in Application Insights. A unique query marker and probe timestamp isolate the current request;
+older health traffic cannot satisfy this check. It retries ingestion up to three times, requires
+successful HTTP 200 telemetry, and fails if sampling or query redaction hides the probe.
+It does not call market-data providers or Cosmos. After it passes,
 review **Failures**, **Performance**, and **Logs** in Application Insights before launch.
+
+For exact-release evidence, run **Application Insights Live Acceptance** on `main`. The workflow
+uses the `AZURE_CREDENTIALS` secret from the `azure-production` environment only for Azure
+management-plane reads and the telemetry query, then uploads a non-secret evidence artifact.
+It never writes the Application Insights connection string or instrumentation key to evidence.
+Evidence records the full GitHub release SHA and verifies the health endpoint's published
+12-character build prefix and production environment before checking ingestion.
 
 References:
 

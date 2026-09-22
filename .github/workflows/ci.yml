@@ -73,6 +73,13 @@ jobs:
       - name: Exact-SHA production release evidence gate smoke test
         run: pnpm smoke:production-release-evidence
 
+      - name: Recovery and telemetry release evidence smoke test
+        run: pnpm smoke:recovery-observability-evidence
+
+      - name: Application Insights verifier runtime smoke test
+        shell: pwsh
+        run: ./scripts/application-insights-verifier-smoke.ps1
+
       - name: Production cutover preflight safety smoke test
         run: pnpm smoke:production-cutover-preflight
 
