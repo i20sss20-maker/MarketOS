@@ -90,11 +90,18 @@ function validServerEvaluation(item: Partial<ServerForecastRecord>) {
     Math.abs(brier - result.brierScore) < 1e-7;
 }
 
-export async function listServerForecasts(signal?: AbortSignal, cursor?: string): Promise<ServerForecastPage> {
+export async function listServerForecasts(
+  signal?: AbortSignal,
+  cursor?: string,
+  limit = 20,
+): Promise<ServerForecastPage> {
   if (cursor !== undefined && (typeof cursor !== "string" || cursor.length > 8192)) {
     throw new ForecastHistoryError(400, "تعذر قراءة صفحة السجل؛ حدّث القائمة.");
   }
-  const params = new URLSearchParams({ limit: "20" });
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new ForecastHistoryError(400, "حد صفحة سجل الخادم غير صالح.");
+  }
+  const params = new URLSearchParams({ limit: String(limit) });
   if (cursor) params.set("cursor", cursor);
   const response = await fetch(`${API_BASE_URL}/user/forecasts?${params}`, {
     signal, credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" },
@@ -167,26 +174,10 @@ function plannedDueAt(
       .targetBarTime;
   }
 
-  if (!record.evaluationPlan) {
-    return record.forecast
-      .generatedAt;
-  }
-
-  const seconds =
-    record.evaluationPlan
-      .timeframe === "1d"
-      ? 24 * 60 * 60
-      : 4 * 60 * 60;
-
-  return (
-    record.evaluationPlan
-      .issuedAt +
-    (
-      record.evaluationPlan
-        .horizonBars *
-      seconds
-    )
-  );
+  // A pending server record is authoritative: calendar arithmetic cannot
+  // know when N future *closed market bars* will exist across weekends,
+  // holidays or provider gaps. Keep it pending until the server evaluates it.
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export function serverForecastToJournalRecord(
@@ -326,6 +317,11 @@ export async function listAllServerForecasts(
       await listServerForecasts(
         signal,
         cursor,
+        Math.min(
+          50,
+          maxRecords -
+            records.length,
+        ),
       );
 
     records =
