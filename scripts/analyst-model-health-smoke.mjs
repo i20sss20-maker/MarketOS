@@ -335,6 +335,22 @@ assert.match(
 );
 assert.match(
   view,
+  /listAllServerForecasts/,
+);
+assert.match(
+  view,
+  /serverForecastsToJournalRecords/,
+);
+assert.match(
+  view,
+  /لم نستخدم سجل المتصفح كبديل/,
+);
+assert.match(
+  view,
+  /المصدر: سجل الخادم فقط/,
+);
+assert.match(
+  view,
   /صحة المحرك/,
 );
 assert.match(
