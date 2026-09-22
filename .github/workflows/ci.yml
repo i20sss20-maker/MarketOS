@@ -2,15 +2,15 @@ name: MarketOS CI
 
 on:
   push:
-    branches: ["main", "foundation/**", "feature/**"]
+    branches: ["main", "foundation/**"]
   pull_request:
     branches: ["main"]
 
 concurrency:
-  # Use the same key for a branch push and its pull_request run so feature/**
-  # does not execute the full suite twice. Keep branch identity in the key so
-  # a newer commit still cancels an older in-progress run on that branch.
-  group: marketos-ci-${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  # Feature branches are validated by pull_request only, so one logical
+  # change has one CI run. Using github.ref preserves monotonic cancellation
+  # within main, foundation branches, and each pull request.
+  group: marketos-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -60,6 +60,9 @@ jobs:
 
       - name: Hosted forecast evaluator rollout smoke test
         run: pnpm smoke:forecast-evaluator-rollout
+
+      - name: Server forecast evaluation and journal runtime tests
+        run: pnpm smoke:server-forecast-evaluation
 
       - name: Live hosted forecast evaluator acceptance source smoke test
         run: pnpm smoke:live-forecast-evaluation-source

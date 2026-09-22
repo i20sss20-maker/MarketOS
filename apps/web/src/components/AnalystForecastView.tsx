@@ -11,6 +11,7 @@ import {
   saveForecastJournal,
   summarizeForecastJournal,
   updateForecastJournal,
+  type ForecastJournalRecord,
 } from "../lib/forecastJournal";
 import type {
   ForecastWatchSide,
@@ -18,6 +19,14 @@ import type {
 import {
   buildAnalystModelHealth,
 } from "../lib/analystModelHealth";
+import {
+  ForecastHistoryError,
+  listAllServerForecasts,
+  serverForecastsToJournalRecords,
+} from "../lib/serverForecastApi";
+import {
+  REQUIRE_REAL_DATA,
+} from "../lib/productionMode";
 import {
   FORECAST_USAGE_EVENT,
   loadForecastUsage,
@@ -235,6 +244,32 @@ export default function AnalystForecastView({
       loadForecastUsage(),
   );
 
+  const [
+    serverJournal,
+    setServerJournal,
+  ] = useState<
+    ForecastJournalRecord[]
+  >([]);
+  const [
+    serverJournalState,
+    setServerJournalState,
+  ] = useState<
+    "idle" |
+    "loading" |
+    "ready" |
+    "error"
+  >(
+    REQUIRE_REAL_DATA
+      ? "loading"
+      : "idle",
+  );
+  const [
+    serverJournalError,
+    setServerJournalError,
+  ] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
     const onUsage = (
       event: Event,
@@ -270,7 +305,7 @@ export default function AnalystForecastView({
   useEffect(() => {
     setWatchMessage(null);
 
-    if (!result || import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true") return;
+    if (!result || REQUIRE_REAL_DATA) return;
 
     setJournal((current) => {
       const next =
@@ -284,17 +319,84 @@ export default function AnalystForecastView({
     });
   }, [result]);
 
+  useEffect(() => {
+    if (!REQUIRE_REAL_DATA) {
+      return undefined;
+    }
+
+    const controller =
+      new AbortController();
+
+    setServerJournalState(
+      "loading",
+    );
+    setServerJournalError(
+      null,
+    );
+
+    void listAllServerForecasts(
+      controller.signal,
+    )
+      .then((records) => {
+        if (
+          controller.signal
+            .aborted
+        ) {
+          return;
+        }
+
+        setServerJournal(
+          serverForecastsToJournalRecords(
+            records,
+          ),
+        );
+        setServerJournalState(
+          "ready",
+        );
+      })
+      .catch((caught) => {
+        if (
+          controller.signal
+            .aborted
+        ) {
+          return;
+        }
+
+        setServerJournal([]);
+        setServerJournalState(
+          "error",
+        );
+        setServerJournalError(
+          caught instanceof
+          ForecastHistoryError
+            ? caught.message
+            : "تعذر تحميل أداء المحلل من سجل الخادم.",
+        );
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [
+    result?.generatedAt,
+  ]);
+
+  const effectiveJournal =
+    REQUIRE_REAL_DATA
+      ? serverJournal
+      : journal;
+
   const symbolJournal =
     useMemo(
       () =>
         result
-          ? journal.filter(
+          ? effectiveJournal.filter(
               (record) =>
                 record.symbolId ===
                 result.symbol.id,
             )
           : [],
-      [journal, result],
+      [effectiveJournal, result],
     );
 
   const scorecard =
@@ -310,10 +412,15 @@ export default function AnalystForecastView({
     useMemo(
       () =>
         buildAnalystModelHealth(
-          journal,
+          effectiveJournal,
         ),
-      [journal],
+      [effectiveJournal],
     );
+
+  const serverPerformanceReady =
+    !REQUIRE_REAL_DATA ||
+    serverJournalState ===
+      "ready";
 
   return (
     <section
@@ -346,7 +453,7 @@ export default function AnalystForecastView({
         </button>
       </div>
 
-      {import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" ? (
+      {REQUIRE_REAL_DATA ? (
         <>
           <p className="server-journal-notice">
             التقرير المحفوظ متاح في «سجل الخادم». إحصاءات المتصفح المحلية مستبعدة؛ تقييم النتائج يعتمد على خدمة الخادم عند تفعيل بيئة الإنتاج.
@@ -462,6 +569,30 @@ export default function AnalystForecastView({
                 : "Demo"}
             </small>
           </div>
+
+          {REQUIRE_REAL_DATA &&
+          serverJournalState ===
+            "loading" ? (
+            <p className="server-journal-notice">
+              جاري تحميل Scorecard وصحة المحرك من سجل الخادم…
+            </p>
+          ) : null}
+
+          {REQUIRE_REAL_DATA &&
+          serverJournalState ===
+            "error" ? (
+            <p
+              className="analyst-error"
+              role="alert"
+            >
+              {serverJournalError ??
+                "تعذر تحميل سجل الخادم."}
+              {" "}
+              لم نستخدم سجل المتصفح كبديل.
+            </p>
+          ) : null}
+
+          {serverPerformanceReady ? (
           <div
             className={
               `analyst-model-health health-${modelHealth.status}`
@@ -557,8 +688,12 @@ export default function AnalystForecastView({
               صحة المحرك تقيس أداءه التاريخي
               منفصلة عن ثقة السيناريو الحالي،
               ولا تغيّر احتمالات هذا التقرير.
+              {REQUIRE_REAL_DATA
+                ? " المصدر: سجل الخادم فقط."
+                : ""}
             </p>
           </div>
+          ) : null}
 
 
           {result.calibration ? (
@@ -778,6 +913,7 @@ export default function AnalystForecastView({
             </div>
           ) : null}
 
+          {serverPerformanceReady ? (
           <div className="analyst-scorecard">
             <header>
               <div>
@@ -901,13 +1037,21 @@ export default function AnalystForecastView({
                               قيد التحقق
                             </strong>
                             <small>
-                              حتى{" "}
-                              {new Date(
-                                record.dueAt *
-                                  1000,
-                              ).toLocaleDateString(
-                                "ar-SA",
-                              )}
+                              {REQUIRE_REAL_DATA &&
+                              record.evaluationBars &&
+                              record.evaluationTimeframe
+                                ? `${record.evaluationBars} شموع · ${record.evaluationTimeframe.toUpperCase()}`
+                                : (
+                                  <>
+                                    حتى{" "}
+                                    {new Date(
+                                      record.dueAt *
+                                        1000,
+                                    ).toLocaleDateString(
+                                      "ar-SA",
+                                    )}
+                                  </>
+                                )}
                             </small>
                           </>
                         )}
@@ -918,13 +1062,24 @@ export default function AnalystForecastView({
             ) : null}
 
             <p>
-              الدقة الرسمية تحسب فقط
-              توقعات <b>بيانات المزود</b>.
-              نتائج Demo تبقى في السجل
-              للتجربة ولا تدخل في نسبة
-              الدقة.
+              {REQUIRE_REAL_DATA ? (
+                <>
+                  الدقة هنا من سجل الخادم فقط،
+                  ولا يتم استخدام نتائج المتصفح
+                  كبديل.
+                </>
+              ) : (
+                <>
+                  الدقة الرسمية تحسب فقط
+                  توقعات <b>بيانات المزود</b>.
+                  نتائج Demo تبقى في السجل
+                  للتجربة ولا تدخل في نسبة
+                  الدقة.
+                </>
+              )}
             </p>
           </div>
+          ) : null}
 
           <div className="analyst-levels">
             <div>
