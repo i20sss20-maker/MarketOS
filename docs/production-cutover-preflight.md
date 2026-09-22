@@ -47,10 +47,11 @@ the Production Release Evidence Gate.
 
 Recommended sequence:
 
-1. if Cosmos/worker credentials changed, run the live-acceptance secret sync, then run the cutover preflight;
-2. run live provider and Cosmos persistence acceptance for the exact `main` SHA;
+1. run the cutover preflight;
+2. run live provider and Cosmos acceptance for the exact `main` SHA;
 3. run live quota concurrency and account-erasure acceptance;
-4. seed **Cosmos Recovery Marker** for that exact SHA, restore it to a separate account using the account's actual Azure backup policy, then run **Cosmos Restore Drill Acceptance**;
+4. run the separate-account Cosmos restore drill for that same SHA;
 5. run **Azure Production Deploy** for that same SHA;
-6. after deployment, run bounded hosted load, one hosted forecast-evaluator sweep, and **Application Insights Live Acceptance**;
-7. run **Production Release Evidence Gate** and require all exact-SHA workflow **and required job** evidence to be fresh and green.
+6. run bounded hosted load and live forecast-evaluator acceptance after deployment;
+7. run live Application Insights telemetry acceptance after deployment;
+8. run **Production Release Evidence Gate** and require every exact-SHA workflow and its required jobs to be fresh and green.
