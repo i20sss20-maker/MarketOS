@@ -115,6 +115,10 @@ await test('server receipt validates computed return, direction and Brier, not a
  const r=fixture();r.evaluation=resolveResult(r).evaluation;const publicRecord=publicForecastRecord(r);assert.equal(isServerForecastRecord(publicRecord),true);
  for(const change of [{correct:false},{realizedReturnPercent:90},{brierScore:0},{forecastHash:'0'.repeat(64)},{provider:'demo'}])assert.equal(isServerForecastRecord({...publicRecord,evaluation:{...publicRecord.evaluation,...change}}),false);
 });
+await test('server history rejects invalid confidence before performance conversion',()=>{
+ const r=publicForecastRecord(fixture());
+ for(const confidence of [-1,101,Number.NaN])assert.equal(isServerForecastRecord({...r,forecast:{...r.forecast,confidence}}),false);
+});
 await test('history transitions pending to resolved and never rolls a stored result back',()=>{
  const r=fixture(),pending=publicForecastRecord(r);r.evaluation=resolveResult(r).evaluation;const resolved=publicForecastRecord(r);
  assert.equal(mergeServerForecastPages([pending],[resolved])[0].evaluationStatus,'resolved');
@@ -132,7 +136,7 @@ await test('server forecast records convert into provider performance records wi
  assert.equal(resolved.evaluatedAt,Math.floor(now/1000));
 });
 await test('server performance conversion preserves newest-first order and pending current engine context',()=>{
- const old=fixture();old.id='1'.repeat(64);old.forecast.generatedAt-=100;old.evaluationPlan.issuedAt=old.forecast.generatedAt;old.forecastHash=digest(old.forecast);old.planHash=digest(old.evaluationPlan);old.evaluation=resolveResult(fixture()).evaluation;
+ const old=fixture();old.id='1'.repeat(64);old.forecast.generatedAt-=100;old.evaluationPlan.issuedAt=old.forecast.generatedAt;old.forecastHash=digest(old.forecast);old.planHash=digest(old.evaluationPlan);
  const latest=fixture();latest.id='2'.repeat(64);latest.forecast.engine='test-next';latest.forecastHash=digest(latest.forecast);
  const journal=serverForecastsToJournalRecords([publicForecastRecord(old),publicForecastRecord(latest)]);
  assert.equal(journal.length,2);assert.equal(journal[0].engine,'test-next');assert.equal(journal[0].status,'pending');
