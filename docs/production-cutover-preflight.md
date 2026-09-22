@@ -1,6 +1,14 @@
 # Production cutover preflight
 
-Run this before any production acceptance or deployment:
+Before the preflight, whenever the app's Cosmos connection or forecast-worker credential has changed, securely copy those **same Azure app-setting values** to the existing GitHub `azure-production` environment:
+
+```powershell
+./infrastructure/azure/sync-live-acceptance-secrets.ps1
+```
+
+The helper reads the two values into memory, pipes them to `gh secret set` over stdin, verifies only their secret names, and clears the in-memory variables. It does not print them, write them to disk, create GitHub environments, or change Azure resources. It intentionally does not manage `AZURE_CREDENTIALS` or the temporary restored-account credential.
+
+Run the read-only preflight before any production acceptance or deployment:
 
 ```powershell
 ./infrastructure/azure/production-cutover-preflight.ps1
@@ -39,7 +47,7 @@ the Production Release Evidence Gate.
 
 Recommended sequence:
 
-1. run the cutover preflight;
+1. if Cosmos/worker credentials changed, run the live-acceptance secret sync, then run the cutover preflight;
 2. run live provider and Cosmos persistence acceptance for the exact `main` SHA;
 3. run live quota concurrency and account-erasure acceptance;
 4. seed **Cosmos Recovery Marker** for that exact SHA, restore it to a separate account using the account's actual Azure backup policy, then run **Cosmos Restore Drill Acceptance**;

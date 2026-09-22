@@ -70,6 +70,7 @@
     "smoke:live-forecast-evaluation-source": "node scripts/live-forecast-evaluation-acceptance-source-smoke.mjs",
     "smoke:deployment-token-sync": "node scripts/deployment-token-sync-smoke.mjs",
     "smoke:market-data-credential-sync": "node scripts/market-data-credential-sync-smoke.mjs",
+    "smoke:live-acceptance-secret-sync": "node scripts/live-acceptance-secret-sync-smoke.mjs",
     "smoke:azure-production-deploy": "node scripts/azure-production-deploy-smoke.mjs",
     "smoke:production-release-evidence": "node scripts/production-release-evidence-gate-smoke.mjs",
     "smoke:recovery-observability-evidence": "node scripts/recovery-observability-evidence-smoke.mjs",
