@@ -31,6 +31,27 @@ separately.
 A production release still needs a restore runbook drill appropriate to the selected policy.
 MarketOS deliberately does not automate a destructive or billable restore from CI.
 
+## Release-bound restore drill
+
+The repository now separates the drill into three explicit stages:
+
+1. Run **Cosmos Recovery Marker Seed** on the exact release SHA. It writes one tiny, non-user
+   marker to each of the three production containers and retains it for backup recovery.
+   Download the `cosmos-recovery-marker` evidence; it contains the marker ID and a SHA-256 of
+   the source account endpoint, never the connection string or endpoint itself.
+2. Perform the Azure restore using the account's actual backup mode. This step stays outside
+   CI because restore behavior, permissions, time and charges differ between periodic and
+   continuous backup. Restore to a **separate account** for this MarketOS drill.
+3. Store only that restored account's connection string as the temporary
+   `COSMOS_RESTORE_CONNECTION_STRING` secret in the `azure-production` GitHub environment,
+   then run **Cosmos Restore Drill Acceptance** with the marker ID and source endpoint hash.
+   The workflow is read-only: it requires a distinct restored account and verifies the marker
+   exists in `userState`, `entitlements`, and `forecastJournal` with `/userId` partitioning.
+
+After evidence is captured, remove the temporary restore secret and dispose of the restored
+account according to the approved Azure runbook. The workflow intentionally does not delete
+the restored account for you.
+
 References:
 
 - https://learn.microsoft.com/en-us/azure/cosmos-db/online-backup-and-restore
