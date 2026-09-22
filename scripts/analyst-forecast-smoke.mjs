@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import {
   buildAnalystForecast,
 } from "../services/api/dist/src/ai/analystForecastEngine.js";
+import {
+  assertForecastEvidenceFresh,
+} from "../services/api/dist/src/ai/forecastEvidence.js";
 
 function analysis(
   timeframe,
@@ -338,6 +341,260 @@ assert.equal(
   "24–72 ساعة مع سياق يومي",
 );
 
+
+const evidenceNow =
+  1_800_000_000;
+
+function candleAt(time) {
+  return {
+    time,
+    open: 100,
+    high: 102,
+    low: 99,
+    close: 101,
+  };
+}
+
+const realtimePolicy = {
+  timing: "realtime",
+  delayMinutes: 0,
+  usageScope: "commercial",
+  rightsConfirmed: true,
+  configured: true,
+};
+
+const freshHistory =
+  new Map([
+    [
+      "1h",
+      [
+        candleAt(
+          evidenceNow -
+            2 * 60 * 60,
+        ),
+        candleAt(
+          evidenceNow -
+            60 * 60,
+        ),
+      ],
+    ],
+    [
+      "4h",
+      [
+        candleAt(
+          evidenceNow -
+            8 * 60 * 60,
+        ),
+        candleAt(
+          evidenceNow -
+            4 * 60 * 60,
+        ),
+      ],
+    ],
+  ]);
+
+const freshEvidence =
+  assertForecastEvidenceFresh({
+    providerId: "test",
+    policy:
+      realtimePolicy,
+    quote: {
+      symbol: "TEST",
+      price: 112,
+      timestamp:
+        evidenceNow - 60,
+      timestampKind:
+        "last-quote",
+      isMarketOpen: true,
+      source: "test",
+    },
+    candleHistory:
+      freshHistory,
+    nowSeconds:
+      evidenceNow,
+  });
+
+assert.equal(
+  freshEvidence.quoteTimestamp,
+  evidenceNow - 60,
+);
+assert.equal(
+  freshEvidence
+    .latestByTimeframe["1h"],
+  evidenceNow -
+    60 * 60,
+);
+
+assert.throws(
+  () =>
+    assertForecastEvidenceFresh({
+      providerId: "test",
+      policy:
+        realtimePolicy,
+      quote: {
+        symbol: "TEST",
+        price: 112,
+        timestamp:
+          evidenceNow -
+          60 * 60,
+        timestampKind:
+          "last-quote",
+        isMarketOpen: true,
+        source: "test",
+      },
+      candleHistory:
+        freshHistory,
+      nowSeconds:
+        evidenceNow,
+    }),
+  (error) =>
+    error.code ===
+      "STALE_MARKET_EVIDENCE" &&
+    error.status === 502,
+);
+
+assert.throws(
+  () =>
+    assertForecastEvidenceFresh({
+      providerId: "test",
+      policy:
+        realtimePolicy,
+      quote: {
+        symbol: "TEST",
+        price: 112,
+        timestamp:
+          evidenceNow - 60,
+        timestampKind:
+          "last-quote",
+        isMarketOpen: true,
+        source: "demo",
+      },
+      candleHistory:
+        freshHistory,
+      nowSeconds:
+        evidenceNow,
+    }),
+  (error) =>
+    error.code ===
+      "INVALID_MARKET_EVIDENCE",
+);
+
+assert.throws(
+  () =>
+    assertForecastEvidenceFresh({
+      providerId: "test",
+      policy:
+        realtimePolicy,
+      quote: {
+        symbol: "TEST",
+        price: 112,
+        timestamp:
+          evidenceNow - 60,
+        timestampKind:
+          "last-quote",
+        isMarketOpen: true,
+        source: "test",
+      },
+      candleHistory:
+        new Map([
+          [
+            "1h",
+            [
+              candleAt(
+                evidenceNow -
+                  5 *
+                    60 *
+                    60,
+              ),
+              candleAt(
+                evidenceNow -
+                  4 *
+                    60 *
+                    60,
+              ),
+            ],
+          ],
+          [
+            "4h",
+            freshHistory.get(
+              "4h",
+            ),
+          ],
+        ]),
+      nowSeconds:
+        evidenceNow,
+    }),
+  (error) =>
+    error.code ===
+      "STALE_MARKET_EVIDENCE",
+);
+
+assert.doesNotThrow(
+  () =>
+    assertForecastEvidenceFresh({
+      providerId: "test",
+      policy:
+        realtimePolicy,
+      quote: {
+        symbol: "TEST",
+        price: 112,
+        timestamp:
+          evidenceNow -
+          2 *
+            24 *
+            60 *
+            60,
+        timestampKind:
+          "interval-open",
+        isMarketOpen: false,
+        source: "test",
+      },
+      candleHistory:
+        new Map([
+          [
+            "1h",
+            [
+              candleAt(
+                evidenceNow -
+                  3 *
+                    24 *
+                    60 *
+                    60,
+              ),
+              candleAt(
+                evidenceNow -
+                  2 *
+                    24 *
+                    60 *
+                    60,
+              ),
+            ],
+          ],
+          [
+            "4h",
+            [
+              candleAt(
+                evidenceNow -
+                  3 *
+                    24 *
+                    60 *
+                    60,
+              ),
+              candleAt(
+                evidenceNow -
+                  2 *
+                    24 *
+                    60 *
+                    60,
+              ),
+            ],
+          ],
+        ]),
+      nowSeconds:
+        evidenceNow,
+    }),
+);
+
 console.log(
-  `Analyst Forecast smoke passed: bullish=${bullish.confidence}% / bearish=${bearish.confidence}%`,
+  `Analyst Forecast smoke passed: bullish=${bullish.confidence}% / bearish=${bearish.confidence}% / provider freshness guarded`,
 );
