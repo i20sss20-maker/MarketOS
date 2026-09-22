@@ -10,6 +10,9 @@ import {
   ProductionGateError,
   realDataRequired,
 } from "./policy.js";
+import {
+  assertMarketDataPolicy,
+} from "./marketDataPolicy.js";
 import { ownerKey } from "../forecasts/ledger.js";
 import { getMarketDataQuotaStore } from "../usage/cosmosMarketDataQuota.js";
 import {
@@ -44,6 +47,10 @@ export function assertProductionMarketAccess(
       401,
     );
   }
+
+  // Runtime provider access must fail closed if timing/rights policy
+  // becomes invalid after deployment; release-time readiness is not enough.
+  assertMarketDataPolicy();
 
   return user;
 }
