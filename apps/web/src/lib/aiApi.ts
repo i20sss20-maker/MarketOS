@@ -52,6 +52,7 @@ type MultiTimeframeResponse = {
   ok: boolean;
   provider?: string;
   analysis?: MultiTimeframeAnalysisResponse;
+  usage?: unknown;
   error?: string;
 };
 
@@ -78,6 +79,14 @@ export async function analyzeMultipleTimeframes(
   });
 
   const payload = await response.json().catch(() => null) as MultiTimeframeResponse | null;
+  if (
+    import.meta.env?.VITE_MARKETOS_REQUIRE_REAL_DATA === "true" &&
+    payload?.usage
+  ) {
+    recordForecastUsage(
+      payload.usage,
+    );
+  }
   if (!response.ok || !payload?.ok || !payload.analysis) {
     throw new Error(payload?.error || `Multi-timeframe analysis failed (${response.status}).`);
   }
