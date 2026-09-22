@@ -16,7 +16,9 @@ The gate requires successful evidence for:
 5. live Cosmos forecast + provider-request quota concurrency acceptance;
 6. live account-erasure persistent-store acceptance;
 7. bounded hosted ingress load acceptance;
-8. one live hosted forecast-evaluator sweep.
+8. one live hosted forecast-evaluator sweep;
+9. live Application Insights component/link/ingestion acceptance;
+10. a separate-account Cosmos backup restore drill that recovers the exact-SHA recovery marker across all three persistent containers.
 
 Every run must:
 
@@ -26,8 +28,10 @@ Every run must:
 - have completed successfully;
 - be no older than the configured evidence window (default 72 hours).
 
-Hosted load and evaluator acceptance must also complete **after** the exact production deployment
-for that SHA. Evidence from another commit cannot satisfy the gate.
+Hosted load, evaluator, and Application Insights acceptance must also complete **after** the exact
+production deployment for that SHA. Restore-drill evidence is release-bound by the recovery marker's
+full SHA and must come from a distinct restored Cosmos account. Evidence from another commit cannot
+satisfy the gate.
 
 The workflow uses the built-in GitHub token with read-only `actions: read` and `contents: read`
 permissions. It does not receive Azure deployment tokens, Cosmos credentials, provider keys or the
