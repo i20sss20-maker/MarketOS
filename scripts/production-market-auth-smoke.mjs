@@ -58,6 +58,23 @@ export function marketDataQuotaExceeded() {
 }
 `);
 
+const marketDataPolicyUrl = dataUrl(`
+export function assertMarketDataPolicy() {
+  if (globalThis.__marketosPolicyValid === false) {
+    const error = new Error("market data rights invalid");
+    error.code = "MARKET_DATA_RIGHTS_UNCONFIRMED";
+    error.status = 503;
+    throw error;
+  }
+  return {
+    timing: "realtime",
+    usageScope: "commercial",
+    rightsConfirmed: true,
+    configured: true,
+  };
+}
+`);
+
 const policyUrl = dataUrl(`
 export class ProductionGateError extends Error {
   constructor(code, message, status = 503) {
@@ -93,6 +110,10 @@ let compiled = transpile(
   .replaceAll(
     '"./policy.js"',
     JSON.stringify(policyUrl),
+  )
+  .replaceAll(
+    '"./marketDataPolicy.js"',
+    JSON.stringify(marketDataPolicyUrl),
   )
   .replaceAll(
     '"../forecasts/ledger.js"',
@@ -139,6 +160,8 @@ assert.equal(
 
 globalThis.__marketosStrict =
   true;
+globalThis.__marketosPolicyValid =
+  true;
 
 assert.throws(
   () =>
@@ -177,6 +200,21 @@ assert.equal(
   ),
   user,
 );
+
+globalThis.__marketosPolicyValid =
+  false;
+assert.throws(
+  () =>
+    assertProductionMarketAccess(
+      request(user),
+    ),
+  (error) =>
+    error.code ===
+      "MARKET_DATA_RIGHTS_UNCONFIRMED" &&
+    error.status === 503,
+);
+globalThis.__marketosPolicyValid =
+  true;
 
 const protectedFiles = [
   "marketQuote.ts",
@@ -252,5 +290,5 @@ assert.match(
 );
 
 console.log(
-  "Production market access smoke passed: preview preserved, strict anonymous/cross-origin access rejected, provider routes guarded.",
+  "Production market access smoke passed: preview preserved, strict anonymous/cross-origin access rejected, runtime market-data policy enforced, provider routes guarded.",
 );
