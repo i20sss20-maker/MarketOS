@@ -26,6 +26,9 @@ import {
   buildForecastCalibration,
 } from "../ai/forecastCalibration.js";
 import {
+  assertForecastEvidenceFresh,
+} from "../ai/forecastEvidence.js";
+import {
   marketDataProvider,
 } from "../providers/index.js";
 import {
@@ -41,6 +44,9 @@ import {
 import {
   consumeProductionMarketQuota,
 } from "../production/marketAccess.js";
+import {
+  assertMarketDataPolicy,
+} from "../production/marketDataPolicy.js";
 
 const assetClasses =
   new Set<AssetClass>([
@@ -384,8 +390,23 @@ export async function analystForecast(
     const quote =
       await quotePromise;
 
-    if (realDataRequired() && (!quote || analyses.length < 2 || !candleHistory.has(calibrationPlan(symbol).timeframe))) {
-      throw new ProductionGateError("INCOMPLETE_MARKET_EVIDENCE", "Real-data analysis requires a verified quote, at least two timeframes, and the calibration timeframe.", 502);
+    if (realDataRequired()) {
+      if (!quote || analyses.length < 2 || !candleHistory.has(calibrationPlan(symbol).timeframe)) {
+        throw new ProductionGateError(
+          "INCOMPLETE_MARKET_EVIDENCE",
+          "Real-data analysis requires a verified quote, at least two timeframes, and the calibration timeframe.",
+          502,
+        );
+      }
+
+      assertForecastEvidenceFresh({
+        providerId:
+          marketDataProvider.id,
+        policy:
+          assertMarketDataPolicy(),
+        quote,
+        candleHistory,
+      });
     }
 
     const dates =
