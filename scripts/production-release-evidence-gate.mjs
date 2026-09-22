@@ -59,42 +59,53 @@ const required = [
     workflow: "ci.yml",
     event: "push",
     label: "Full MarketOS CI",
+    requiredJobs: ["build"],
   },
   {
     id: "deployment",
     workflow: "azure-production.yml",
     event: "workflow_dispatch",
     label: "Exact verified Azure production deployment and hosted boundary",
+    requiredJobs: [
+      "Verify strict production build",
+      "Deploy exact verified strict bundle",
+      "Verify hosted production boundary",
+    ],
   },
   {
     id: "provider",
     workflow: "provider-integration.yml",
     event: "workflow_dispatch",
     label: "Live provider entitlement/timestamp acceptance",
+    requiredJobs: ["Twelve Data live acceptance"],
   },
   {
     id: "cosmos",
     workflow: "cosmos-live-acceptance.yml",
     event: "workflow_dispatch",
     label: "Live Cosmos persistence/isolation acceptance",
+    requiredJobs: ["Live Cosmos persistence and isolation"],
   },
   {
     id: "quota",
     workflow: "live-quota-concurrency-acceptance.yml",
     event: "workflow_dispatch",
     label: "Live Cosmos quota concurrency acceptance",
+    requiredJobs: ["Live Cosmos quota concurrency"],
   },
   {
     id: "erasure",
     workflow: "live-account-erasure-storage-acceptance.yml",
     event: "workflow_dispatch",
     label: "Live account-erasure persistent-store acceptance",
+    requiredJobs: ["Live Cosmos account erasure orchestration"],
   },
   {
     id: "load",
     workflow: "hosted-ingress-load-acceptance.yml",
     event: "workflow_dispatch",
     label: "Bounded hosted ingress load acceptance",
+    requiredJobs: ["Bounded hosted ingress load"],
     afterDeployment: true,
   },
   {
@@ -102,6 +113,7 @@ const required = [
     workflow: "live-forecast-evaluation-acceptance.yml",
     event: "workflow_dispatch",
     label: "Live hosted server forecast evaluator acceptance",
+    requiredJobs: ["Live hosted forecast evaluator"],
     afterDeployment: true,
   },
   {
@@ -109,6 +121,7 @@ const required = [
     workflow: "application-insights-live-acceptance.yml",
     event: "workflow_dispatch",
     label: "Live Application Insights telemetry acceptance",
+    requiredJobs: ["Live Application Insights telemetry"],
     afterDeployment: true,
   },
   {
@@ -116,6 +129,7 @@ const required = [
     workflow: "cosmos-restore-drill-acceptance.yml",
     event: "workflow_dispatch",
     label: "Separate-account Cosmos backup restore drill acceptance",
+    requiredJobs: ["Verify separate restored Cosmos account"],
   },
 ];
 
@@ -170,14 +184,30 @@ async function lookup(
       `/actions/workflows/${encodeURIComponent(item.workflow)}/runs?${params.toString()}`,
     );
 
-  return selectSuccessfulRun(
-    payload.workflow_runs,
-    {
-      sha,
-      event:
-        item.event,
-    },
-  );
+  const run =
+    selectSuccessfulRun(
+      payload.workflow_runs,
+      {
+        sha,
+        event:
+          item.event,
+      },
+    );
+
+  if (!run) {
+    return null;
+  }
+
+  const jobsPayload =
+    await githubJson(
+      `/actions/runs/${run.id}/jobs?filter=latest&per_page=100`,
+    );
+
+  return {
+    ...run,
+    jobs:
+      jobsPayload.jobs,
+  };
 }
 
 const {
@@ -210,7 +240,7 @@ const evidence = {
     results,
   missing,
   note:
-    "This gate verifies successful exact-SHA workflow evidence. It does not independently re-run the underlying market, storage, deployment or hosted checks.",
+    "This gate verifies successful exact-SHA workflow runs and the required successful jobs inside each run. It does not independently re-run the underlying market, storage, deployment or hosted checks.",
 };
 
 mkdirSync(
