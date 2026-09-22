@@ -1,0 +1,79 @@
+name: Application Insights Live Acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group:
+        description: "MarketOS Azure resource group"
+        required: true
+        default: "rg-marketos-dev"
+        type: string
+      static_web_app:
+        description: "MarketOS Static Web App resource name"
+        required: true
+        default: "marketos-preview"
+        type: string
+      application_insights_app:
+        description: "Linked MarketOS Application Insights component name"
+        required: true
+        type: string
+      confirmation:
+        description: "Type VERIFY MARKETOS TELEMETRY"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-insights-live-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    name: Live Application Insights telemetry
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirmation == 'VERIFY MARKETOS TELEMETRY' }}
+    runs-on: ubuntu-latest
+    environment: azure-production
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout exact release candidate
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require Azure management credential without printing it
+        shell: bash
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          if [ -z "$AZURE_CREDENTIALS" ]; then
+            echo "::error::AZURE_CREDENTIALS is missing from the azure-production environment."
+            exit 1
+          fi
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Verify linked component and telemetry ingestion
+        shell: pwsh
+        run: |
+          ./infrastructure/azure/verify-application-insights.ps1 `
+            -ResourceGroup "${{ inputs.resource_group }}" `
+            -StaticWebApp "${{ inputs.static_web_app }}" `
+            -ApplicationInsightsApp "${{ inputs.application_insights_app }}" `
+            -LookbackHours 1 `
+            -IngestionWaitSeconds 45 `
+            -EvidencePath "artifacts/application-insights-live-acceptance.json"
+
+      - name: Upload non-secret telemetry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-insights-live-acceptance
+          path: artifacts/application-insights-live-acceptance.json
+          retention-days: 30
+          if-no-files-found: warn
