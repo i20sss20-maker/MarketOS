@@ -69,6 +69,7 @@ const acceptanceLabels: Record<string, string> = {
   COSMOS_RESTORE_RUNBOOK_DRILL: "مراجعة وتمرين خطة استعادة Cosmos",
   LOAD_TESTING_AND_RECOVERY: "اختبار الضغط والتعافي",
   APPLICATION_INSIGHTS_AND_LOG_REVIEW: "مراجعة سجلات Application Insights",
+  PRODUCTION_RELEASE_EVIDENCE_GATE: "بوابة دليل الإصدار النهائي لنفس الـ SHA",
 };
 
 function readableGate(
