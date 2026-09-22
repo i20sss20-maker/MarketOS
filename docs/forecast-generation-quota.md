@@ -1,3 +1,5 @@
+> Production note: the plan field `aiQueriesPerDay` is a shared daily AI budget. In strict real-data mode, both server forecast generation and single-chart AI analysis consume the same atomic per-user counter. Preview/local chart analysis does not consume this production counter. The existing storage record/env names retain the older `forecast` wording for compatibility.
+
 # Forecast generation quota — cost and abuse guard
 
 Status: implemented server guard, not a hosted-capacity claim. This change does not activate a paid
