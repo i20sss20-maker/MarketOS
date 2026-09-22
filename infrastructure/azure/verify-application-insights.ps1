@@ -6,7 +6,8 @@ param(
   [ValidateRange(1, 24)]
   [int]$LookbackHours = 1,
   [ValidateRange(10, 180)]
-  [int]$IngestionWaitSeconds = 45
+  [int]$IngestionWaitSeconds = 45,
+  [string]$EvidencePath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -81,6 +82,29 @@ $total = [int]$rows[0][0]
 $failed = [int]$rows[0][1]
 if ($total -lt 1) {
   throw "No /api/health request was visible in Application Insights during the lookback window."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($EvidencePath)) {
+  $directory = Split-Path -Parent $EvidencePath
+  if (-not [string]::IsNullOrWhiteSpace($directory)) {
+    New-Item -ItemType Directory -Force -Path $directory | Out-Null
+  }
+
+  $evidence = [ordered]@{
+    checkedAt = (Get-Date).ToUniversalTime().ToString("o")
+    resourceGroup = $ResourceGroup
+    staticWebApp = $StaticWebApp
+    applicationInsightsApp = $ApplicationInsightsApp
+    host = $swa.defaultHostname
+    lookbackHours = $LookbackHours
+    healthRequests = $total
+    failedHealthRequests = $failed
+    telemetryFlowVerified = $true
+    linkedComponentVerified = $true
+    secretsIncluded = $false
+  }
+
+  $evidence | ConvertTo-Json -Depth 5 | Set-Content -Path $EvidencePath -Encoding UTF8
 }
 
 Write-Host ""
