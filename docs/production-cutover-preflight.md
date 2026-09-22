@@ -21,10 +21,16 @@ It checks:
 - Azure metric-alert, cost-budget and Application Insights configuration;
 - server forecast-evaluator enablement and worker credential presence;
 - the production Static Web Apps deployment-token secret name in GitHub;
+- the production Cosmos secret needed by persistence/quota/erasure and recovery-marker acceptance;
+- the hosted forecast-evaluator worker secret;
+- the Azure management credential required by Application Insights live acceptance;
 - the live provider-acceptance secret name in GitHub.
 
 The script never prints `TWELVE_DATA_API_KEY`, `COSMOS_CONNECTION_STRING`,
 `MARKETOS_WORKER_SECRET`, deployment-token values, or the app-settings object.
+It checks GitHub credentials by **secret name only**. The temporary
+`COSMOS_RESTORE_CONNECTION_STRING` is intentionally excluded from preflight because it must be
+created only after the exact release recovery marker has been restored into a separate Cosmos account.
 
 A green preflight is **not** a release certificate. It does not contact the market-data provider,
 write Cosmos data, test login isolation, run load acceptance, evaluate a forecast, deploy the app,
@@ -34,8 +40,9 @@ the Production Release Evidence Gate.
 Recommended sequence:
 
 1. run the cutover preflight;
-2. run live provider and Cosmos acceptance for the exact `main` SHA;
+2. run live provider and Cosmos persistence acceptance for the exact `main` SHA;
 3. run live quota concurrency and account-erasure acceptance;
-4. run **Azure Production Deploy** for that same SHA;
-5. run bounded hosted load and live forecast-evaluator acceptance after deployment;
-6. run **Production Release Evidence Gate** and require all evidence to be fresh and green.
+4. seed **Cosmos Recovery Marker** for that exact SHA, restore it to a separate account using the account's actual Azure backup policy, then run **Cosmos Restore Drill Acceptance**;
+5. run **Azure Production Deploy** for that same SHA;
+6. after deployment, run bounded hosted load, one hosted forecast-evaluator sweep, and **Application Insights Live Acceptance**;
+7. run **Production Release Evidence Gate** and require all exact-SHA workflow **and required job** evidence to be fresh and green.
