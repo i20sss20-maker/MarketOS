@@ -37,6 +37,77 @@ export function selectSuccessfulRun(
   );
 }
 
+export function evaluateRequiredJobs(
+  jobs,
+  requiredJobs = [],
+) {
+  const available =
+    Array.isArray(jobs)
+      ? jobs
+      : [];
+  const passed = [];
+  const missing = [];
+
+  for (
+    const jobName
+    of requiredJobs
+  ) {
+    const matches =
+      available.filter(
+        (job) =>
+          job.name ===
+          jobName,
+      );
+    const successful =
+      matches.find(
+        (job) =>
+          job.status ===
+            "completed" &&
+          job.conclusion ===
+            "success",
+      );
+
+    if (!successful) {
+      const observed =
+        matches[0] ??
+        null;
+      missing.push({
+        name: jobName,
+        status:
+          observed?.status ??
+          null,
+        conclusion:
+          observed?.conclusion ??
+          null,
+      });
+      continue;
+    }
+
+    passed.push({
+      id: successful.id,
+      name: successful.name,
+      status:
+        successful.status,
+      conclusion:
+        successful.conclusion,
+      startedAt:
+        successful.started_at ??
+        null,
+      completedAt:
+        successful.completed_at ??
+        null,
+      htmlUrl:
+        successful.html_url ??
+        null,
+    });
+  }
+
+  return {
+    passed,
+    missing,
+  };
+}
+
 export async function evaluateReleaseEvidence({
   required,
   lookup,
@@ -97,6 +168,30 @@ export async function evaluateReleaseEvidence({
       continue;
     }
 
+    const jobEvidence =
+      evaluateRequiredJobs(
+        run.jobs,
+        item.requiredJobs,
+      );
+
+    if (
+      jobEvidence.missing.length >
+      0
+    ) {
+      missing.push({
+        id: item.id,
+        workflow:
+          item.workflow,
+        reason:
+          "one or more required workflow jobs did not complete successfully",
+        runId:
+          run.id,
+        jobs:
+          jobEvidence.missing,
+      });
+      continue;
+    }
+
     results[item.id] = {
       workflow:
         item.workflow,
@@ -116,6 +211,8 @@ export async function evaluateReleaseEvidence({
         run.updated_at,
       htmlUrl:
         run.html_url,
+      jobs:
+        jobEvidence.passed,
     };
   }
 

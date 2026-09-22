@@ -26,12 +26,15 @@ Every run must:
 - match the release candidate's full 40-character SHA;
 - have the expected event type;
 - have completed successfully;
+- contain every required acceptance/deployment job in `completed/success` state (a skipped job does not count);
 - be no older than the configured evidence window (default 72 hours).
 
 Hosted load, evaluator, and Application Insights acceptance must also complete **after** the exact
 production deployment for that SHA. Restore-drill evidence is release-bound by the recovery marker's
 full SHA and must come from a distinct restored Cosmos account. Evidence from another commit cannot
 satisfy the gate.
+
+The gate reads the latest-attempt job list for each selected workflow run and records non-secret job IDs, names, timestamps and URLs in the evidence manifest. This prevents a workflow-level `success` from satisfying the release gate when a confirmation guard or another condition skipped the actual acceptance job.
 
 The workflow uses the built-in GitHub token with read-only `actions: read` and `contents: read`
 permissions. It does not receive Azure deployment tokens, Cosmos credentials, provider keys or the
