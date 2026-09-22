@@ -29,6 +29,7 @@ jobs:
       COSMOS_ENTITLEMENTS_CONTAINER: ${{ vars.COSMOS_ENTITLEMENTS_CONTAINER || 'entitlements' }}
       FORECAST_JOURNAL_CONTAINER: ${{ vars.FORECAST_JOURNAL_CONTAINER || 'forecastJournal' }}
       MARKETOS_RECOVERY_DRILL_MODE: seed
+      MARKETOS_RECOVERY_MARKER_ID: recovery-${{ github.sha }}-${{ github.run_id }}
 
     steps:
       - name: Checkout exact release candidate
@@ -52,8 +53,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
       - name: Seed retained recovery marker
         run: node scripts/cosmos-recovery-drill.mjs

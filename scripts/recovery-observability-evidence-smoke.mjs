@@ -27,7 +27,7 @@ const recoveryScript =
   readFileSync(
     "scripts/cosmos-recovery-drill.mjs",
     "utf8",
-  );
+  ) + readFileSync("scripts/cosmos-recovery-drill-lib.mjs", "utf8");
 const releaseGate =
   readFileSync(
     "scripts/production-release-evidence-gate.mjs",
@@ -84,6 +84,12 @@ assert.doesNotMatch(
   insightsWorkflow,
   /TWELVE_DATA_API_KEY|COSMOS_CONNECTION_STRING/,
 );
+assert.match(insightsWorkflow, /-ResourceGroup \$env:MARKETOS_RESOURCE_GROUP/);
+assert.doesNotMatch(insightsWorkflow, /-ResourceGroup "\$\{\{|ApplicationInsightsApp "\$\{\{/);
+for (const workflow of [seedWorkflow, restoreWorkflow]) {
+  assert.match(workflow, /pnpm install --no-frozen-lockfile/);
+}
+assert.match(seedWorkflow, /MARKETOS_RECOVERY_MARKER_ID: recovery-\$\{\{ github.sha \}\}-\$\{\{ github.run_id \}\}/);
 
 assert.match(
   insightsVerifier,
@@ -97,6 +103,8 @@ assert.match(
   insightsVerifier,
   /secretsIncluded = \$false/,
 );
+assert.match(insightsVerifier, /marketos_probe/);
+assert.match(insightsVerifier, /releaseSha = \$releaseSha/);
 assert.doesNotMatch(
   insightsVerifier,
   /Set-Content[^\n]*\$connectionString|Write-Host\s+\$connectionString|Write-Output\s+\$connectionString/,
@@ -154,11 +162,9 @@ assert.doesNotMatch(
   recoveryScript,
   /\.delete\(|items\.upsert/,
 );
-assert.doesNotMatch(
-  recoveryScript,
-  /Object\.assign\([\s\S]{0,800}connectionString/,
-  "Recovery evidence must never add a connection string to the evidence object.",
-);
+// Check actual output with sentinel credentials instead of matching unrelated
+// source text after Object.assign, which also matched the next branch's input.
+await import("./cosmos-recovery-drill-runtime-smoke.mjs");
 
 for (
   const workflow

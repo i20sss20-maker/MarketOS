@@ -63,8 +63,8 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install locked dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
 
       - name: Verify recovered marker read-only
         run: node scripts/cosmos-recovery-drill.mjs

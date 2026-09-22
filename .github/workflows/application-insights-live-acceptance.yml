@@ -63,11 +63,15 @@ jobs:
 
       - name: Verify linked component and telemetry ingestion
         shell: pwsh
+        env:
+          MARKETOS_RESOURCE_GROUP: ${{ inputs.resource_group }}
+          MARKETOS_STATIC_WEB_APP: ${{ inputs.static_web_app }}
+          MARKETOS_APPLICATION_INSIGHTS_APP: ${{ inputs.application_insights_app }}
         run: |
           ./infrastructure/azure/verify-application-insights.ps1 `
-            -ResourceGroup "${{ inputs.resource_group }}" `
-            -StaticWebApp "${{ inputs.static_web_app }}" `
-            -ApplicationInsightsApp "${{ inputs.application_insights_app }}" `
+            -ResourceGroup $env:MARKETOS_RESOURCE_GROUP `
+            -StaticWebApp $env:MARKETOS_STATIC_WEB_APP `
+            -ApplicationInsightsApp $env:MARKETOS_APPLICATION_INSIGHTS_APP `
             -LookbackHours 1 `
             -IngestionWaitSeconds 45 `
             -EvidencePath "artifacts/application-insights-live-acceptance.json"
