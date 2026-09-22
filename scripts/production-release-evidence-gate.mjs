@@ -104,6 +104,19 @@ const required = [
     label: "Live hosted server forecast evaluator acceptance",
     afterDeployment: true,
   },
+  {
+    id: "telemetry",
+    workflow: "application-insights-live-acceptance.yml",
+    event: "workflow_dispatch",
+    label: "Live Application Insights telemetry acceptance",
+    afterDeployment: true,
+  },
+  {
+    id: "restore",
+    workflow: "cosmos-restore-drill-acceptance.yml",
+    event: "workflow_dispatch",
+    label: "Separate-account Cosmos backup restore drill acceptance",
+  },
 ];
 
 async function githubJson(
