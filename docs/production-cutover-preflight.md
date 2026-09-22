@@ -36,6 +36,8 @@ Recommended sequence:
 1. run the cutover preflight;
 2. run live provider and Cosmos acceptance for the exact `main` SHA;
 3. run live quota concurrency and account-erasure acceptance;
-4. run **Azure Production Deploy** for that same SHA;
-5. run bounded hosted load and live forecast-evaluator acceptance after deployment;
-6. run **Production Release Evidence Gate** and require all evidence to be fresh and green.
+4. run the separate-account Cosmos restore drill for that same SHA;
+5. run **Azure Production Deploy** for that same SHA;
+6. run bounded hosted load and live forecast-evaluator acceptance after deployment;
+7. run live Application Insights telemetry acceptance after deployment;
+8. run **Production Release Evidence Gate** and require every exact-SHA workflow and its required jobs to be fresh and green.
