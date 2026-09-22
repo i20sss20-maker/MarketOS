@@ -35,7 +35,16 @@ import {
 import {
   loadForecastJournal,
   saveForecastJournal,
+  type ForecastJournalRecord,
 } from "../lib/forecastJournal";
+import {
+  ForecastHistoryError,
+  listAllServerForecasts,
+  serverForecastsToJournalRecords,
+} from "../lib/serverForecastApi";
+import {
+  REQUIRE_REAL_DATA,
+} from "../lib/productionMode";
 import {
   FORECAST_MONITOR_AUTO_CHECK_KEY,
   refreshMaturedForecasts,
@@ -153,6 +162,27 @@ export default function HomeDashboard({
     "performance" |
     null
   >(null);
+  const [
+    serverJournal,
+    setServerJournal,
+  ] = useState<
+    ForecastJournalRecord[]
+  >([]);
+  const [
+    serverJournalState,
+    setServerJournalState,
+  ] = useState<
+    "idle" |
+    "loading" |
+    "ready" |
+    "error"
+  >("idle");
+  const [
+    serverJournalError,
+    setServerJournalError,
+  ] = useState<
+    string | null
+  >(null);
 
   const analystCandidates =
     useMemo(
@@ -188,7 +218,9 @@ export default function HomeDashboard({
         return buildAnalystBrief({
           radarCache,
           journal:
-            loadForecastJournal(),
+            REQUIRE_REAL_DATA
+              ? serverJournal
+              : loadForecastJournal(),
           alerts,
           overview,
           overviewMode:
@@ -206,8 +238,23 @@ export default function HomeDashboard({
         overview,
         overviewProvider,
         analystBriefRevision,
+        serverJournal,
       ],
     );
+
+  const analystPerformanceMessage =
+    REQUIRE_REAL_DATA
+      ? !signedIn
+        ? "سجّل الدخول لعرض أداء المحلل المحفوظ على الخادم."
+        : serverJournalState ===
+            "ready"
+          ? null
+          : serverJournalState ===
+              "error"
+            ? serverJournalError ??
+              "تعذر تحميل أداء المحلل من سجل الخادم. لم نستخدم سجل المتصفح كبديل."
+            : "جاري تحميل أداء المحلل من سجل الخادم…"
+      : null;
 
   useEffect(() => {
     if (!open) {
@@ -219,18 +266,78 @@ export default function HomeDashboard({
 
     const refreshIntelligence =
       async () => {
-        const strictRealData =
-          import.meta.env
-            ?.VITE_MARKETOS_REQUIRE_REAL_DATA ===
-          "true";
-        if (strictRealData && !signedIn) return;
+        if (REQUIRE_REAL_DATA) {
+          if (!signedIn) {
+            setServerJournal([]);
+            setServerJournalState(
+              "idle",
+            );
+            setServerJournalError(
+              null,
+            );
+            return;
+          }
+
+          setAnalystBriefRefreshStage(
+            "performance",
+          );
+          setServerJournalState(
+            "loading",
+          );
+          setServerJournalError(
+            null,
+          );
+
+          try {
+            const records =
+              await listAllServerForecasts(
+                controller.signal,
+              );
+
+            if (
+              controller.signal
+                .aborted
+            ) {
+              return;
+            }
+
+            setServerJournal(
+              serverForecastsToJournalRecords(
+                records,
+              ),
+            );
+            setServerJournalState(
+              "ready",
+            );
+          } catch (error) {
+            if (
+              controller.signal
+                .aborted
+            ) {
+              return;
+            }
+
+            setServerJournal([]);
+            setServerJournalState(
+              "error",
+            );
+            setServerJournalError(
+              error instanceof
+              ForecastHistoryError
+                ? error.message
+                : "تعذر تحميل أداء المحلل من سجل الخادم. لم نستخدم سجل المتصفح كبديل.",
+            );
+          }
+
+          return;
+        }
+
         const cached =
           loadAnalystRadarCache(
             analystCandidates,
           );
 
         if (
-          !strictRealData &&
           analystCandidates.length >
             0 &&
           isAnalystRadarCacheStale(
@@ -464,6 +571,12 @@ export default function HomeDashboard({
             brief={analystBrief}
             refreshing={
               analystBriefRefreshStage
+            }
+            performanceMessage={
+              analystPerformanceMessage
+            }
+            performanceServerBacked={
+              REQUIRE_REAL_DATA
             }
             onSelectSymbol={(symbol) => {
               onSelectSymbol(symbol);
