@@ -119,6 +119,10 @@ await test('server history rejects invalid confidence before performance convers
  const r=publicForecastRecord(fixture());
  for(const confidence of [-1,101,Number.NaN])assert.equal(isServerForecastRecord({...r,forecast:{...r.forecast,confidence}}),false);
 });
+await test('pending server horizons never invent a calendar maturity date',()=>{
+ const pending=serverForecastToJournalRecord(publicForecastRecord(fixture()));
+ assert.equal(pending.status,'pending');assert.equal(pending.dueAt,Number.MAX_SAFE_INTEGER);
+});
 await test('history transitions pending to resolved and never rolls a stored result back',()=>{
  const r=fixture(),pending=publicForecastRecord(r);r.evaluation=resolveResult(r).evaluation;const resolved=publicForecastRecord(r);
  assert.equal(mergeServerForecastPages([pending],[resolved])[0].evaluationStatus,'resolved');
@@ -129,6 +133,7 @@ await test('server forecast records convert into provider performance records wi
  const r=fixture(),pending=publicForecastRecord(r),pendingJournal=serverForecastToJournalRecord(pending);
  assert.equal(pendingJournal.status,'pending');assert.equal(pendingJournal.dataMode,'provider');
  assert.equal(pendingJournal.engine,'test');assert.equal(pendingJournal.evaluationBars,2);assert.equal(pendingJournal.evaluationTimeframe,'4h');
+ assert.equal(pendingJournal.dueAt,Number.MAX_SAFE_INTEGER);
  assert.equal(pendingJournal.expectedOutcome,'bull');assert.equal(pendingJournal.correct,undefined);
  r.evaluation=resolveResult(r).evaluation;const resolved=serverForecastToJournalRecord(publicForecastRecord(r));
  assert.equal(resolved.status,'resolved');assert.equal(resolved.correct,true);assert.equal(resolved.realizedOutcome,'bull');

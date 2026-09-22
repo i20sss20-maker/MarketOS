@@ -129,7 +129,15 @@ assert.match(
 );
 assert.match(
   home,
-  /!strictRealData/,
+  /if \(REQUIRE_REAL_DATA\)/,
+);
+assert.match(
+  home,
+  /listAllServerForecasts/,
+);
+assert.match(
+  home,
+  /if \(REQUIRE_REAL_DATA\)[\s\S]*?return;[\s\S]*?scanAnalystRadar/,
 );
 assert.match(
   home,

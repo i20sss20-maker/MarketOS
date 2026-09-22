@@ -720,6 +720,30 @@ assert.match(
 );
 assert.match(
   home,
+  /listAllServerForecasts/,
+);
+assert.match(
+  home,
+  /serverForecastsToJournalRecords/,
+);
+assert.match(
+  home,
+  /REQUIRE_REAL_DATA\s*\?\s*serverJournal\s*:\s*loadForecastJournal\(\)/,
+);
+assert.match(
+  home,
+  /لم نستخدم سجل المتصفح كبديل/,
+);
+assert.match(
+  home,
+  /performanceMessage=\{/,
+);
+assert.match(
+  home,
+  /performanceServerBacked=\{/,
+);
+assert.match(
+  home,
   /scanAnalystRadar/,
 );
 assert.match(
@@ -785,6 +809,18 @@ assert.match(
 assert.match(
   card,
   /home-model-health/,
+);
+assert.match(
+  card,
+  /performanceMessage \?/,
+);
+assert.match(
+  card,
+  /سجل الخادم يحدّث/,
+);
+assert.match(
+  card,
+  /performanceServerBacked/,
 );
 assert.match(
   card,
