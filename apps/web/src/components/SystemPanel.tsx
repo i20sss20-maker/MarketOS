@@ -44,8 +44,12 @@ const readinessLabels: Record<string, string> = {
   MARKET_DATA_RIGHTS_CONFIRMATION_INVALID: "تاريخ تأكيد حقوق البيانات غير صالح",
   MARKET_DATA_RIGHTS_EXPIRED: "إقرار حقوق البيانات منتهي",
   ENTITLEMENTS_NOT_PERSISTENT: "الصلاحيات ليست محفوظة في Cosmos",
+  FORECAST_QUOTA_NOT_CONFIGURED: "سقف التوقعات اليومي غير مهيأ",
+  MARKET_DATA_QUOTA_NOT_CONFIGURED: "سقف طلبات بيانات السوق غير مهيأ",
   METRIC_ALERTS_NOT_CONFIGURED: "تنبيهات Azure التشغيلية غير مهيأة",
   COST_BUDGET_NOT_CONFIGURED: "ميزانية Azure التنبيهية غير مهيأة",
+  APPLICATION_INSIGHTS_NOT_LINKED: "Application Insights غير مربوط",
+  FORECAST_EVALUATION_NOT_CONFIGURED: "مقيّم التوقعات على الخادم غير مهيأ",
   COSMOS_BACKUP_NOT_VERIFIED: "سياسة نسخ Cosmos الاحتياطي غير متحقق منها",
   COSMOS_BACKUP_MODE_UNKNOWN: "وضع نسخ Cosmos الاحتياطي غير معروف",
   COSMOS_BACKUP_VERIFICATION_INVALID: "تاريخ التحقق من نسخ Cosmos غير صالح",
@@ -56,13 +60,15 @@ const readinessLabels: Record<string, string> = {
 const acceptanceLabels: Record<string, string> = {
   HOSTED_AUTH_AND_OWNER_ISOLATION: "اختبار الدخول وعزل المستخدمين على الموقع المنشور",
   COSMOS_WRITE_READ_RESTART: "اختبار Cosmos حي: كتابة وقراءة واستمرارية",
-  HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS: "اختبار ترخيص/توقيت بيانات السوق الحية",
+  HOSTED_MARKET_DATA_ENTITLEMENT_AND_TIMESTAMPS: "اختبار استحقاق/توقيت بيانات السوق الحية",
   CLIENT_DEMO_FALLBACK_REMOVAL: "التأكد من عدم ظهور Demo في نسخة الإنتاج",
-  SERVER_OUTCOME_EVALUATION: "تشغيل تقييم نتائج التوقعات على الخادم",
+  HOSTED_SERVER_OUTCOME_EVALUATION: "تشغيل تقييم نتائج التوقعات حيًا على الخادم",
   HOSTED_FORECAST_QUOTA_CONCURRENCY: "اختبار حد التوقعات مع الطلبات المتزامنة",
   HOSTED_MARKET_DATA_QUOTA_CONCURRENCY: "اختبار حد طلبات بيانات السوق مع الطلبات المتزامنة",
+  HOSTED_ACCOUNT_ERASURE: "اختبار حذف الحساب والبيانات الدائمة",
+  COSMOS_RESTORE_RUNBOOK_DRILL: "مراجعة وتمرين خطة استعادة Cosmos",
   LOAD_TESTING_AND_RECOVERY: "اختبار الضغط والتعافي",
-  APPLICATION_INSIGHTS_AND_LOG_REVIEW: "تفعيل ومراجعة سجلات Application Insights",
+  APPLICATION_INSIGHTS_AND_LOG_REVIEW: "مراجعة سجلات Application Insights",
 };
 
 function readableGate(
