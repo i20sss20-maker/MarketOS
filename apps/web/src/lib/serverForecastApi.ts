@@ -42,7 +42,8 @@ export function isServerForecastRecord(value: unknown): value is ServerForecastR
     typeof f.engine === "string" && typeof f.dataProvider === "string" && !!f.dataProvider.trim() &&
     !/demo|sample|fallback/i.test(f.dataProvider) && typeof f.summary === "string" &&
     Number.isSafeInteger(f.generatedAt) && f.generatedAt > 0 &&
-    Number.isFinite(f.referencePrice) && f.referencePrice > 0 && !!f.symbol &&
+    Number.isFinite(f.referencePrice) && f.referencePrice > 0 &&
+    Number.isFinite(f.confidence) && f.confidence >= 0 && f.confidence <= 100 && !!f.symbol &&
     typeof f.symbol.id === "string" && typeof f.symbol.ticker === "string" &&
     typeof f.symbol.exchange === "string" && typeof f.symbol.name === "string" &&
     Array.isArray(f.scenarios) && f.scenarios.length === 3 &&
