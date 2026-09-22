@@ -28,7 +28,7 @@ const { createForecastRecord, publicForecastRecord }=await load('services/api/sr
 const { CosmosForecastEvaluationStore }=await load('services/api/src/forecasts/evaluationStore.ts');
 const { runForecastEvaluationSweep }=await load('services/api/src/forecasts/evaluationSweep.ts');
 const { createForecastEvaluationHandler }=await load('services/api/src/functions/internalForecastEvaluate.ts');
-const { isServerForecastRecord, mergeServerForecastPages }=await load('apps/web/src/lib/serverForecastApi.ts');
+const { isServerForecastRecord, mergeServerForecastPages, serverForecastToJournalRecord, serverForecastsToJournalRecords }=await load('apps/web/src/lib/serverForecastApi.ts');
 const { HttpRequest }=await import(azure);
 const tests=[];
 async function test(name,action){await action();tests.push(name);console.log('PASS '+name);}
@@ -120,6 +120,22 @@ await test('history transitions pending to resolved and never rolls a stored res
  assert.equal(mergeServerForecastPages([pending],[resolved])[0].evaluationStatus,'resolved');
  assert.equal(mergeServerForecastPages([resolved],[pending])[0].evaluationStatus,'resolved');
  assert.throws(()=>mergeServerForecastPages([resolved],[{...resolved,evaluation:{...resolved.evaluation,correct:false}}]));
+});
+await test('server forecast records convert into provider performance records without inventing outcomes',()=>{
+ const r=fixture(),pending=publicForecastRecord(r),pendingJournal=serverForecastToJournalRecord(pending);
+ assert.equal(pendingJournal.status,'pending');assert.equal(pendingJournal.dataMode,'provider');
+ assert.equal(pendingJournal.engine,'test');assert.equal(pendingJournal.evaluationBars,2);assert.equal(pendingJournal.evaluationTimeframe,'4h');
+ assert.equal(pendingJournal.expectedOutcome,'bull');assert.equal(pendingJournal.correct,undefined);
+ r.evaluation=resolveResult(r).evaluation;const resolved=serverForecastToJournalRecord(publicForecastRecord(r));
+ assert.equal(resolved.status,'resolved');assert.equal(resolved.correct,true);assert.equal(resolved.realizedOutcome,'bull');
+ assert.equal(resolved.realizedReturnPercent,3);assert.equal(resolved.evaluationPrice,103);
+ assert.equal(resolved.evaluatedAt,Math.floor(now/1000));
+});
+await test('server performance conversion preserves newest-first order and pending current engine context',()=>{
+ const old=fixture();old.id='1'.repeat(64);old.forecast.generatedAt-=100;old.evaluationPlan.issuedAt=old.forecast.generatedAt;old.forecastHash=digest(old.forecast);old.planHash=digest(old.evaluationPlan);old.evaluation=resolveResult(fixture()).evaluation;
+ const latest=fixture();latest.id='2'.repeat(64);latest.forecast.engine='test-next';latest.forecastHash=digest(latest.forecast);
+ const journal=serverForecastsToJournalRecords([publicForecastRecord(old),publicForecastRecord(latest)]);
+ assert.equal(journal.length,2);assert.equal(journal[0].engine,'test-next');assert.equal(journal[0].status,'pending');
 });
 
 // Conditional writes and leased checkpoint, implemented with an explicitly in-memory SDK double.
