@@ -58,6 +58,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Install Application Insights Azure CLI extension
+        run: az extension add --name application-insights --upgrade --only-show-errors
+
       - name: Verify linked component and telemetry ingestion
         shell: pwsh
         run: |
