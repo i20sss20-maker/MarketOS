@@ -34,6 +34,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Cosmos backup and recovery gate smoke test
+        run: pnpm smoke:cosmos-backup-policy
+
       - name: Production data and server journal runtime tests
         run: pnpm smoke:production-foundation
 
@@ -277,6 +280,7 @@ jobs:
           [scriptblock]::Create((Get-Content "./infrastructure/azure/production-cutover-preflight.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-application-insights.ps1" -Raw)) | Out-Null
           [scriptblock]::Create((Get-Content "./infrastructure/azure/configure-forecast-evaluation.ps1" -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content "./infrastructure/azure/verify-cosmos-backup-policy.ps1" -Raw)) | Out-Null
 
       - name: Upload web preview artifact
         uses: actions/upload-artifact@v4
