@@ -26,6 +26,16 @@ assert.match(
   /productionReady: false/,
 );
 
+const readinessHandler =
+  readFileSync(
+    "services/api/src/functions/productionReadiness.ts",
+    "utf8",
+  );
+assert.match(
+  readinessHandler,
+  /PRODUCTION_RELEASE_EVIDENCE_GATE/,
+);
+
 const app =
   readFileSync(
     "apps/web/src/App.tsx",
@@ -60,6 +70,7 @@ for (
     "نجاح الإعدادات لا يعني أن الإطلاق التجاري معتمد",
     "APPLICATION_INSIGHTS_AND_LOG_REVIEW",
     "HOSTED_AUTH_AND_OWNER_ISOLATION",
+    "PRODUCTION_RELEASE_EVIDENCE_GATE",
   ]
 ) {
   assert.ok(
