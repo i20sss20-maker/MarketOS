@@ -319,7 +319,7 @@ export default function SystemPanel({
                 <article className="system-service-card">
                   <div className="system-service-title">
                     <StatusDot mode={health.forecastQuota.configured ? "provider" : "demo"} />
-                    <strong>Forecast Quota</strong>
+                    <strong>AI / Forecast Quota</strong>
                   </div>
                   <span className="system-service-provider">
                     {health.forecastQuota.configured
